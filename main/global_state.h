@@ -51,10 +51,11 @@ typedef struct
 typedef struct
 {
     double duration_start;
-    int historical_hashrate_rolling_index;
-    double historical_hashrate_time_stamps[HISTORY_LENGTH];
+    int historical_data_rolling_index;
+    double historical_difficulty_time_stamps[HISTORY_LENGTH];
+    uint32_t historical_difficulty[HISTORY_LENGTH];
     double historical_hashrate[HISTORY_LENGTH];
-    int historical_hashrate_init;
+    int historical_data_init;
     double current_hashrate;
     int64_t start_time;
     uint64_t shares_accepted;

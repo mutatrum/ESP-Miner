@@ -44,6 +44,7 @@ static void _show_overheat_screen(GlobalState * GLOBAL_STATE);
 static void _update_connection(GlobalState * GLOBAL_STATE);
 static void _update_screen_one(GlobalState * GLOBAL_STATE);
 static void _update_screen_two(GlobalState * GLOBAL_STATE);
+static void _update_screen_three(GlobalState * GLOBAL_STATE);
 static void show_ap_information(const char * error, GlobalState * GLOBAL_STATE);
 
 static void _check_for_best_diff(GlobalState * GLOBAL_STATE, double diff, uint8_t job_id);
@@ -54,8 +55,8 @@ void SYSTEM_init_system(GlobalState * GLOBAL_STATE)
     SystemModule * module = &GLOBAL_STATE->SYSTEM_MODULE;
 
     module->duration_start = 0;
-    module->historical_hashrate_rolling_index = 0;
-    module->historical_hashrate_init = 0;
+    module->historical_data_rolling_index = 0;
+    module->historical_data_init = 0;
     module->current_hashrate = 0;
     module->screen_page = 0;
     module->shares_accepted = 0;
@@ -200,6 +201,9 @@ void SYSTEM_task(void * pvParameters)
             case 1:
                 _update_screen_two(GLOBAL_STATE);
                 break;
+            case 2:
+                _update_screen_three(GLOBAL_STATE);
+                break;
         }
 
         // Wait for user input or timeout
@@ -212,7 +216,7 @@ void SYSTEM_task(void * pvParameters)
                 input_received = true;
                 if (strcmp(input_event, "SHORT") == 0) {
                     ESP_LOGI(TAG, "Short button press detected, switching to next screen");
-                    current_screen = (current_screen + 1) % 2;
+                    current_screen = (current_screen + 1) % 3;
                 } else if (strcmp(input_event, "LONG") == 0) {
                     ESP_LOGI(TAG, "Long button press detected, toggling WiFi SoftAP");
                     toggle_wifi_softap();
@@ -222,7 +226,7 @@ void SYSTEM_task(void * pvParameters)
 
         // If no input received and 10 seconds have passed, switch to the next screen
         if (!input_received && (xTaskGetTickCount() - last_update_time) >= pdMS_TO_TICKS(10000)) {
-            current_screen = (current_screen + 1) % 2;
+            current_screen = (current_screen + 1) % 3;
         }
 
         last_update_time = xTaskGetTickCount();
@@ -285,38 +289,40 @@ void SYSTEM_notify_found_nonce(GlobalState * GLOBAL_STATE, double found_diff, ui
     // Calculate the time difference in seconds with sub-second precision
     // hashrate = (nonce_difficulty * 2^32) / time_to_find
 
-    module->historical_hashrate[module->historical_hashrate_rolling_index] = GLOBAL_STATE->ASIC_difficulty;
-    module->historical_hashrate_time_stamps[module->historical_hashrate_rolling_index] = esp_timer_get_time();
-
-    module->historical_hashrate_rolling_index = (module->historical_hashrate_rolling_index + 1) % HISTORY_LENGTH;
+    int current_index = module->historical_data_rolling_index;
+    module->historical_difficulty[current_index] = GLOBAL_STATE->ASIC_difficulty;
+    module->historical_difficulty_time_stamps[current_index] = esp_timer_get_time();
 
     // ESP_LOGI(TAG, "nonce_diff %.1f, ttf %.1f, res %.1f", nonce_diff, duration,
-    // historical_hashrate[historical_hashrate_rolling_index]);
+    // historical_difficulty[historical_data_rolling_index]);
 
-    if (module->historical_hashrate_init < HISTORY_LENGTH) {
-        module->historical_hashrate_init++;
+    if (module->historical_data_init < HISTORY_LENGTH) {
+        module->historical_data_init++;
     } else {
         module->duration_start =
-            module->historical_hashrate_time_stamps[(module->historical_hashrate_rolling_index + 1) % HISTORY_LENGTH];
+            module->historical_difficulty_time_stamps[(current_index + 1) % HISTORY_LENGTH];
     }
-    double sum = 0;
-    for (int i = 0; i < module->historical_hashrate_init; i++) {
-        sum += module->historical_hashrate[i];
+    uint32_t sum = 0;
+    for (int i = 0; i < module->historical_data_init; i++) {
+        sum += module->historical_difficulty[i];
     }
 
     double duration = (double) (esp_timer_get_time() - module->duration_start) / 1000000;
 
     double rolling_rate = (sum * 4294967296) / (duration * 1000000000);
-    if (module->historical_hashrate_init < HISTORY_LENGTH) {
+    if (module->historical_data_init < HISTORY_LENGTH) {
         module->current_hashrate = rolling_rate;
+        module->historical_hashrate[current_index] = rolling_rate;
     } else {
         // More smoothing
         module->current_hashrate = ((module->current_hashrate * 9) + rolling_rate) / 10;
+        module->historical_hashrate[current_index] = module->current_hashrate;
     }
 
+    module->historical_data_rolling_index = (current_index + 1) % HISTORY_LENGTH;
 
-    // logArrayContents(historical_hashrate, HISTORY_LENGTH);
-    // logArrayContents(historical_hashrate_time_stamps, HISTORY_LENGTH);
+    // logArrayContents(historical_difficulty, HISTORY_LENGTH);
+    // logArrayContents(historical_data_time_stamps, HISTORY_LENGTH);
 
     _check_for_best_diff(GLOBAL_STATE, found_diff, job_id);
 }
@@ -407,6 +413,24 @@ static void _update_screen_two(GlobalState * GLOBAL_STATE)
                     module->FOUND_BLOCK ? "!!! BLOCK FOUND !!!" : label_best,
                     label_temp_avg
                 }, 4);
+            }
+            break;
+        default:
+            break;
+    }
+}
+
+static void _update_screen_three(GlobalState * GLOBAL_STATE)
+{
+    SystemModule * module = &GLOBAL_STATE->SYSTEM_MODULE;
+
+    switch (GLOBAL_STATE->device_model) {
+        case DEVICE_MAX:
+        case DEVICE_ULTRA:
+        case DEVICE_SUPRA:
+        case DEVICE_GAMMA:
+            if (display_active()) {
+                display_show_graph(module->historical_hashrate, HISTORY_LENGTH, module->historical_data_init, module->historical_data_rolling_index);
             }
             break;
         default:

@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <limits.h>
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "esp_timer.h"
@@ -26,6 +27,7 @@ static bool is_display_active = false;
 static const char * TAG = "display";
 
 static lv_style_t style;
+static lv_style_t chart_style;
 extern const lv_font_t lv_font_portfolio_6x8;
 extern const lv_img_dsc_t logo;
 
@@ -90,10 +92,14 @@ esp_err_t display_init(void)
             .mirror_y = !flip_screen,
         },
     };
+
     lvgl_port_add_disp(&disp_cfg);
 
     lv_style_init(&style);
     lv_style_set_text_font(&style, &lv_font_portfolio_6x8);
+
+    lv_style_init(&chart_style);
+    lv_style_set_line_width(&chart_style, 1);
 
     is_display_active = true;
 
@@ -151,6 +157,76 @@ void display_show_logo()
         lv_img_set_src(img, &logo);
 
         lv_obj_align(img, LV_ALIGN_CENTER, 0, 0);
+
+        lvgl_port_unlock();
+    }
+}
+
+void display_show_graph(const double hashrate[], int source_length, int size, int index)
+{
+    if (size == 0) {
+        display_show_status((const char *[]){"No hashrate data yet"}, 1);
+        return;
+    }
+
+    if (lvgl_port_lock(0)) {
+        lv_obj_t *scr = lv_scr_act();
+        lv_obj_clean(scr);
+
+        lv_obj_t *chart = lv_chart_create(scr);
+        lv_obj_add_style(chart, &chart_style, LV_PART_ITEMS);
+
+        lv_obj_set_size(chart, 100, 32);
+        lv_chart_set_type(chart, LV_CHART_TYPE_LINE);
+        lv_chart_set_div_line_count(chart, 0, 0);
+        lv_chart_set_point_count(chart, size);
+
+        lv_chart_series_t *ser = lv_chart_add_series(chart, lv_color_black(), LV_CHART_AXIS_PRIMARY_Y);
+
+        int min = INT_MAX;
+        int max = INT_MIN;
+        int sum = 0;
+        for (int i = 0; i < size; i++) {
+
+            int value = (int) hashrate[(source_length + index - size + i) % source_length];
+
+            lv_chart_set_next_value(chart, ser, value);
+
+            if (value < min) min = value;
+            if (value > max) max = value;
+            sum += value;
+        }
+        lv_chart_set_range(chart, LV_CHART_AXIS_PRIMARY_Y, min, max);
+        lv_chart_refresh(chart);
+
+        lv_obj_align(chart, LV_ALIGN_LEFT_MID, 0, 0);
+
+        char max_str[20];
+        snprintf(max_str, sizeof(max_str), "%d", max);
+        lv_obj_t *max_label = lv_label_create(scr);
+        lv_label_set_text(max_label, max_str);
+        lv_obj_set_style_text_align(max_label, LV_TEXT_ALIGN_RIGHT, 0);
+        lv_obj_add_style(max_label, &style, LV_PART_MAIN);
+        lv_obj_set_width(max_label, LCD_H_RES);
+        lv_obj_align(max_label, LV_ALIGN_TOP_RIGHT, 0, 0);
+
+        char avg_str[20];
+        snprintf(avg_str, sizeof(avg_str), "%d", sum / size);
+        lv_obj_t *avg_label = lv_label_create(scr);
+        lv_label_set_text(avg_label, avg_str);
+        lv_obj_set_style_text_align(avg_label, LV_TEXT_ALIGN_RIGHT, 0);
+        lv_obj_add_style(avg_label, &style, LV_PART_MAIN);
+        lv_obj_set_width(avg_label, LCD_H_RES);
+        lv_obj_align(avg_label, LV_ALIGN_RIGHT_MID, 0, 0);
+
+        char min_str[20];
+        snprintf(min_str, sizeof(min_str), "%d", min);
+        lv_obj_t *min_label = lv_label_create(scr);
+        lv_label_set_text(min_label, min_str);
+        lv_obj_set_style_text_align(min_label, LV_TEXT_ALIGN_RIGHT, 0);
+        lv_obj_add_style(min_label, &style, LV_PART_MAIN);
+        lv_obj_set_width(min_label, LCD_H_RES);
+        lv_obj_align(min_label, LV_ALIGN_BOTTOM_RIGHT, 0, 0);
 
         lvgl_port_unlock();
     }
