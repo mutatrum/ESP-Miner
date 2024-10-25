@@ -7,7 +7,7 @@
 #include "global_state.h"
 #include "nvs_config.h"
 #include "nvs_flash.h"
-#include "oled.h"
+#include "display.h"
 #include "vcore.h"
 #include "utils.h"
 #include "string.h"
@@ -19,6 +19,7 @@
 #define POWER_CONSUMPTION_MARGIN 3              //+/- watts
 
 static const char * TAG = "self_test";
+const char *messages[] = {"", "", "", ""};
 
 bool should_test(GlobalState * GLOBAL_STATE) {
     bool is_max = GLOBAL_STATE->asic_model == ASIC_BM1397;
@@ -31,17 +32,14 @@ bool should_test(GlobalState * GLOBAL_STATE) {
 }
 
 static void display_msg(char * msg, GlobalState * GLOBAL_STATE) {
-    SystemModule * module = &GLOBAL_STATE->SYSTEM_MODULE;
-
     switch (GLOBAL_STATE->device_model) {
         case DEVICE_MAX:
         case DEVICE_ULTRA:
         case DEVICE_SUPRA:
         case DEVICE_GAMMA:
-            if (OLED_status()) {
-                memset(module->oled_buf, 0, 20);
-                snprintf(module->oled_buf, 20, msg);
-                OLED_writeString(0, 2, module->oled_buf);
+            if (display_active()) {
+                messages[2] = msg;
+                display_show_status(messages, 4);
             }
             break;
         default:
@@ -49,17 +47,15 @@ static void display_msg(char * msg, GlobalState * GLOBAL_STATE) {
 }
 
 static void display_end_screen(GlobalState * GLOBAL_STATE) {
-
     switch (GLOBAL_STATE->device_model) {
         case DEVICE_MAX:
         case DEVICE_ULTRA:
         case DEVICE_SUPRA:
         case DEVICE_GAMMA:
-            if (OLED_status()) {
-                OLED_clearLine(2);
-                OLED_writeString(0, 2, "TESTS PASS!");
-                OLED_clearLine(3);
-                OLED_writeString(0, 3, "     PRESS RESET");
+            if (display_active()) {
+                messages[2] = "TESTS PASS!";
+                messages[3] = "     PRESS RESET";
+                display_show_status(messages, 4);
             }
             break;
         default:
@@ -130,13 +126,12 @@ void self_test(void * pvParameters)
         case DEVICE_ULTRA:
         case DEVICE_SUPRA:
         case DEVICE_GAMMA:
-            if (!OLED_init()) {
+            if (!display_init()) {
                 ESP_LOGE(TAG, "OLED init failed!");
             } else {
                 ESP_LOGI(TAG, "OLED init success!");
-                // clear the oled screen
-                OLED_fill(0);
-                OLED_writeString(0, 0, "BITAXE SELF TESTING");
+                messages[0] = "BITAXE SELF TESTING";
+                display_show_status(messages, 4);
             }
             break;
         default:
@@ -350,10 +345,10 @@ void self_test(void * pvParameters)
             case DEVICE_ULTRA:
             case DEVICE_SUPRA:
             case DEVICE_GAMMA:
-                if (OLED_status()) {
-                    OLED_clearLine(3);
-                    OLED_writeString(0, 3, "     PRESS RESET");
-                }
+                if (display_active()) {
+                    messages[3] = "     PRESS RESET";
+                    display_show_status(messages, 4);
+                }            
                 break;
             default:
         }
@@ -363,9 +358,10 @@ void self_test(void * pvParameters)
             case DEVICE_ULTRA:
             case DEVICE_SUPRA:
             case DEVICE_GAMMA:
-                if (OLED_status()) {
-                    OLED_clearLine(3);
-                }
+                if (display_active()) {
+                    messages[3] = "";
+                    display_show_status(messages, 4);
+                }            
                 break;
             default:
         }
