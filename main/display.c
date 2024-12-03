@@ -8,7 +8,9 @@
 #include "esp_log.h"
 #include "esp_check.h"
 #include "lvgl.h"
+#include "lvgl__lvgl/src/themes/lv_theme_private.h"
 #include "esp_lvgl_port.h"
+#include "global_state.h"
 #include "nvs_config.h"
 #include "i2c_bitaxe.h"
 #include "driver/i2c_master.h"
@@ -22,16 +24,23 @@
 #define LCD_CMD_BITS           8
 #define LCD_PARAM_BITS         8
 
-static bool is_display_active = false;
-
 static const char * TAG = "display";
 
-static lv_style_t style;
-extern const lv_font_t lv_font_portfolio_6x8;
-extern const lv_img_dsc_t logo;
+static lv_theme_t theme;
+static lv_style_t scr_style;
 
-esp_err_t display_init(void)
+extern const lv_font_t lv_font_portfolio_6x8;
+
+static void theme_apply(lv_theme_t *theme, lv_obj_t *obj) {
+    if (lv_obj_get_parent(obj) == NULL) {
+        lv_obj_add_style(obj, &scr_style, LV_PART_MAIN);
+    }
+}
+
+esp_err_t display_init(void * pvParameters)
 {
+    GlobalState * GLOBAL_STATE = (GlobalState *) pvParameters;
+
     uint8_t flip_screen = nvs_config_get_u16(NVS_CONFIG_FLIP_SCREEN, 1);
     uint8_t invert_screen = nvs_config_get_u16(NVS_CONFIG_INVERT_SCREEN, 0);
 
@@ -65,13 +74,16 @@ esp_err_t display_init(void)
 
     ESP_RETURN_ON_ERROR(esp_lcd_new_panel_ssd1306(io_handle, &panel_config, &panel_handle), TAG, "No display found");
     ESP_RETURN_ON_ERROR(esp_lcd_panel_reset(panel_handle), TAG, "Panel reset failed");
-    ESP_RETURN_ON_ERROR(esp_lcd_panel_init(panel_handle), TAG, "Panel init failed");
-    // ESP_RETURN_ON_ERROR(esp_lcd_panel_mirror(panel_handle, false, false), TAG, "Panel mirror failed");
-    ESP_RETURN_ON_ERROR(esp_lcd_panel_invert_color(panel_handle, invert_screen), TAG, "Panel invert failed");
+    esp_err_t esp_lcd_panel_init_err = esp_lcd_panel_init(panel_handle);
+    if (esp_lcd_panel_init_err != ESP_OK) {
+        ESP_LOGE(TAG, "Panel init failed, no display connected?");
+    }  else {
+        ESP_RETURN_ON_ERROR(esp_lcd_panel_invert_color(panel_handle, invert_screen), TAG, "Panel invert failed");
+        // ESP_RETURN_ON_ERROR(esp_lcd_panel_mirror(panel_handle, false, false), TAG, "Panel mirror failed");
+    }
     
-    ESP_RETURN_ON_ERROR(esp_lcd_panel_disp_on_off(panel_handle, true), TAG, "Panel display on failed");
-
     ESP_LOGI(TAG, "Initialize LVGL");
+
     const lvgl_port_cfg_t lvgl_cfg = ESP_LVGL_PORT_INIT_CONFIG();
     ESP_RETURN_ON_ERROR(lvgl_port_init(&lvgl_cfg), TAG, "LVGL init failed");
 
@@ -94,74 +106,28 @@ esp_err_t display_init(void)
             .sw_rotate = false,
         }
     };
-    lvgl_port_add_disp(&disp_cfg);
 
-    lv_style_init(&style);
-    lv_style_set_text_font(&style, &lv_font_portfolio_6x8);
-    lv_style_set_bg_opa(&style, LV_OPA_COVER);
+    lv_disp_t * disp = lvgl_port_add_disp(&disp_cfg);
 
     if (lvgl_port_lock(0)) {
-        lv_obj_t *scr = lv_scr_act();
-        lv_obj_add_style(scr, &style, LV_PART_MAIN);
+        lv_style_init(&scr_style);
+        lv_style_set_text_font(&scr_style, &lv_font_portfolio_6x8);
+        lv_style_set_bg_opa(&scr_style, LV_OPA_COVER);
+
+        lv_theme_set_apply_cb(&theme, theme_apply);
+
+        lv_display_set_theme(disp, &theme);
         lvgl_port_unlock();
     }
 
-    is_display_active = true;
+    if (esp_lcd_panel_init_err == ESP_OK) {
+        // Only turn on the screen when it has been cleared
+        ESP_RETURN_ON_ERROR(esp_lcd_panel_disp_on_off(panel_handle, true), TAG, "Panel display on failed");   
+
+        GLOBAL_STATE->SYSTEM_MODULE.is_screen_active = true;
+    } else {
+        ESP_LOGW(TAG, "No display found.");
+    }
 
     return ESP_OK;
-}
-
-bool display_active(void)
-{
-    return is_display_active;
-}
-
-void display_clear()
-{
-    if (lvgl_port_lock(0)) {
-        lv_obj_t *scr = lv_scr_act();
-        lv_obj_clean(scr);
-        lvgl_port_unlock();
-    }
-}
-
-void display_show_status(const char *messages[], size_t message_count)
-{
-    if (lvgl_port_lock(0)) {
-        lv_obj_t *scr = lv_scr_act();
-        lv_obj_clean(scr);
-
-        lv_obj_t *container = lv_obj_create(scr);
-        lv_obj_set_size(container, LCD_H_RES, LCD_V_RES);
-        lv_obj_align(container, LV_ALIGN_CENTER, 0, 0);
-
-        lv_obj_set_flex_flow(container, LV_FLEX_FLOW_COLUMN);
-        lv_obj_set_flex_align(container, LV_FLEX_ALIGN_SPACE_EVENLY, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_START);
-
-        for (int i = 0; i < message_count; i++)
-        {
-            lv_obj_t *label = lv_label_create(container);
-            lv_label_set_text(label, messages[i]);
-            lv_label_set_long_mode(label, LV_LABEL_LONG_SCROLL_CIRCULAR);
-            lv_obj_set_width(label, LCD_H_RES);
-        }
-
-        lvgl_port_unlock();
-    }
-}
-
-void display_show_logo()
-{
-    if (lvgl_port_lock(0)) {
-        lv_obj_t *scr = lv_scr_act();
-        lv_obj_clean(scr);
-
-        lv_obj_t *img = lv_img_create(scr);
-
-        lv_img_set_src(img, &logo);
-
-        lv_obj_align(img, LV_ALIGN_CENTER, 0, 0);
-
-        lvgl_port_unlock();
-    }
 }
