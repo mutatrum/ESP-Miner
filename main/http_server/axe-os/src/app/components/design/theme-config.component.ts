@@ -252,7 +252,6 @@ export class ThemeConfigComponent implements OnInit {
     // Save theme settings to NVS
     this.themeService.saveThemeSettings({
       colorScheme: this.selectedScheme,
-      theme: this.layoutService.config().theme,
       accentColors: theme.accentColors
     }).subscribe(
       () => {},
