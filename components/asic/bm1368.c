@@ -190,10 +190,6 @@ bool BM1368_set_frequency(float target_freq) {
     return do_frequency_transition(target_freq, BM1368_send_hash_frequency, 1368);
 }
 
-uint8_t BM1368_get_chip_address_interval(int chips) {
-    return (uint8_t)(256/_largest_power_of_two(chips));
-}
-
 void BM1368_set_hash_counting_number(int hcn) {
     uint8_t set_10_hash_counting[6] = {0x00, 0x10, 0x00, 0x00, 0x00, 0x00};
     set_10_hash_counting[2] = (hcn >> 24) & 0xFF;
@@ -204,17 +200,15 @@ void BM1368_set_hash_counting_number(int hcn) {
 }
 
 void BM1368_set_nonce_percent(uint64_t frequency, uint16_t chain_chip_count) {
-    int address_interval = BM1368_get_chip_address_interval(chain_chip_count);
-    int hcn = calculate_version_rolling_hcn(ASIC_BM1368.core_count, address_interval, frequency);
+    int hcn = calculate_version_rolling_hcn(ASIC_BM1368.core_count, chain_chip_count, frequency);
     BM1368_set_hash_counting_number(hcn);
 
-    ESP_LOGI(TAG, "Chip setting chips=%i freq=%i hcn=%i addr_interval=%i", chain_chip_count, (int)frequency, hcn, address_interval);
+    ESP_LOGI(TAG, "Chip setting chips=%i freq=%i hcn=%i chain_chip_count=%i", chain_chip_count, (int)frequency, hcn, chain_chip_count);
 }
 
 float BM1368_get_timeout(uint64_t frequency, uint16_t chain_chip_count, int versions_to_roll) {
-    int address_interval = BM1368_get_chip_address_interval(chain_chip_count);
     int versions_per_core = versions_to_roll/BM1368_MIDSTATE_ENGINES;
-    float timeout_ms = calculate_timeout_ms(ASIC_BM1368.core_count, address_interval, (int)frequency, versions_per_core);
+    float timeout_ms = calculate_timeout_ms(ASIC_BM1368.core_count, chain_chip_count, (int)frequency, versions_per_core);
 
     ESP_LOGI(TAG, "Chip setting timeout=%.4f",timeout_ms); 
     return timeout_ms;
@@ -263,10 +257,11 @@ uint8_t BM1368_init(uint64_t frequency, uint16_t asic_count, uint16_t difficulty
         _send_BM1368(TYPE_CMD | GROUP_ALL | CMD_WRITE, init_cmds[i], 6, false);
     }
 
-    uint8_t address_interval = BM1368_get_chip_address_interval(chip_counter);
-    for (int i = 0; i < chip_counter; i++) {
+    int address_interval = 256 / _largest_power_of_two(chip_counter);
+    for (uint8_t i = 0; i < chip_counter; i++) {
         _set_chip_address(i * address_interval);
     }
+
 
     for (int i = 0; i < chip_counter; i++) {
         uint8_t chip_init_cmds[][6] = {

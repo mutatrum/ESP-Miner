@@ -123,7 +123,6 @@ static void _send_simple(uint8_t * data, uint8_t total_length)
 
 static void _send_chain_inactive(void)
 {
-
     unsigned char read_address[2] = {0x00, 0x00};
     // send serial data
     _send_BM1366((TYPE_CMD | GROUP_ALL | CMD_INACTIVE), read_address, 2, BM1366_SERIALTX_DEBUG);
@@ -131,7 +130,6 @@ static void _send_chain_inactive(void)
 
 static void _set_chip_address(uint8_t chipAddr)
 {
-
     unsigned char read_address[2] = {chipAddr, 0x00};
     // send serial data
     _send_BM1366((TYPE_CMD | GROUP_SINGLE | CMD_SETADDRESS), read_address, 2, BM1366_SERIALTX_DEBUG);
@@ -223,22 +221,16 @@ void BM1366_set_hash_counting_number(int hcn) {
     _send_BM1366((TYPE_CMD | GROUP_ALL | CMD_WRITE), set_10_hash_counting, 6, BM1366_SERIALTX_DEBUG);
 }
 
-uint8_t BM1366_get_chip_address_interval(int chips) {
-    return (uint8_t)(256/_largest_power_of_two(chips));
-}
-
 void BM1366_set_nonce_percent(uint64_t frequency, uint16_t chain_chip_count) {
-    int address_interval = BM1366_get_chip_address_interval(chain_chip_count);
-    int hcn = calculate_version_rolling_hcn(ASIC_BM1366.core_count, address_interval, frequency);
+    int hcn = calculate_version_rolling_hcn(ASIC_BM1366.core_count, chain_chip_count, frequency);
     BM1366_set_hash_counting_number(hcn);
 
-    ESP_LOGI(TAG, "Chip setting chips=%i freq=%i hcn=%i", chain_chip_count, (int)frequency,hcn);
+    ESP_LOGI(TAG, "Chip setting chips=%i freq=%i hcn=%i", chain_chip_count, (int)frequency, hcn);
 }
 
 float BM1366_get_timeout(uint64_t frequency, uint16_t chain_chip_count, int versions_to_roll) {
-    int address_interval = BM1366_get_chip_address_interval(chain_chip_count);
     int versions_per_core = versions_to_roll / BM1366_MIDSTATE_ENGINES;
-    float timeout_ms = calculate_timeout_ms(ASIC_BM1366.core_count, address_interval, (int)frequency, versions_per_core);
+    float timeout_ms = calculate_timeout_ms(ASIC_BM1366.core_count, chain_chip_count, (int)frequency, versions_per_core);
     ESP_LOGI(TAG, "Chip setting timeout=%.4f", timeout_ms);
     return timeout_ms;
 }
@@ -270,9 +262,8 @@ static uint8_t _send_init(uint64_t frequency, uint16_t asic_count, uint16_t diff
     _send_chain_inactive();
 
     // split the chip address space evenly
-    uint8_t address_interval = BM1366_get_chip_address_interval(chip_counter);
+    int address_interval = 256 / _largest_power_of_two(chip_counter);
     for (uint8_t i = 0; i < chip_counter; i++) {
-        //{ 0x55, 0xAA, 0x40, 0x05, 0x00, 0x00, 0x1C };
         _set_chip_address(i * address_interval);
     }
 

@@ -121,7 +121,6 @@ static void _send_read_address(void)
 
 static void _send_chain_inactive(void)
 {
-
     unsigned char read_address[2] = {0x00, 0x00};
     // send serial data
     _send_BM1397((TYPE_CMD | GROUP_ALL | CMD_INACTIVE), read_address, 2, BM1397_SERIALTX_DEBUG);
@@ -129,7 +128,6 @@ static void _send_chain_inactive(void)
 
 static void _set_chip_address(uint8_t chipAddr)
 {
-
     unsigned char read_address[2] = {chipAddr, 0x00};
     // send serial data
     _send_BM1397((TYPE_CMD | GROUP_SINGLE | CMD_SETADDRESS), read_address, 2, BM1397_SERIALTX_DEBUG);
@@ -228,10 +226,6 @@ void BM1397_send_hash_frequency(float frequency)
     ESP_LOGI(TAG, "Setting Frequency to %.2fMHz (%.2f)", frequency, newf);
 }
 
-uint8_t BM1397_get_chip_address_interval(int chips) {
-    return (uint8_t)(256/_largest_power_of_two(chips));
-}
-
 void BM1397_set_hash_counting_number(int hcn) {
     uint8_t set_10_hash_counting[6] = {0x00, 0x10, 0x00, 0x00, 0x00, 0x00};
     set_10_hash_counting[2] = (hcn >> 24) & 0xFF;
@@ -242,24 +236,20 @@ void BM1397_set_hash_counting_number(int hcn) {
 }
 
 void BM1397_set_nonce_percent(uint64_t frequency, uint16_t chain_chip_count) {
-    int address_interval = BM1397_get_chip_address_interval(chain_chip_count);
-
     // some evidence that hcn is used for bm1397 in a chain unknown as for now
     int hcn = 0;
 
-    ESP_LOGI(TAG, "Chip setting chips=%i freq=%i hcn=%i addr_interval=%i", chain_chip_count, (int)frequency, hcn, address_interval);    
+    ESP_LOGI(TAG, "Chip setting chips=%i freq=%i hcn=%i", chain_chip_count, (int)frequency, hcn);    
 }
 
 float BM1397_get_timeout(uint64_t frequency, uint16_t chain_chip_count, int versions_to_roll) {
-    int address_interval = BM1397_get_chip_address_interval(chain_chip_count);
-
     // some evidence that hcn is used for bm1397 in a chain unknown as for now
     // int hcn = 0;
 
     // no version rolling for bm1397
     int versions_per_core = 1;
 
-    float timeout_ms = calculate_timeout_ms(ASIC_BM1397.core_count, address_interval, (int)frequency, versions_per_core);
+    float timeout_ms = calculate_timeout_ms(ASIC_BM1397.core_count, chain_chip_count, (int)frequency, versions_per_core);
 
     ESP_LOGI(TAG, "Chip setting timeout=%.4f", timeout_ms);    
     return timeout_ms;
@@ -281,8 +271,9 @@ static uint8_t _send_init(uint64_t frequency, uint16_t asic_count, uint16_t diff
     _send_chain_inactive();
 
     // split the chip address space evenly
-    for (uint8_t i = 0; i < asic_count; i++) {
-        _set_chip_address(i * (256 / asic_count));
+    int address_interval = 256 / _largest_power_of_two(chip_counter);
+    for (uint8_t i = 0; i < chip_counter; i++) {
+        _set_chip_address(i * address_interval);
     }
 
     unsigned char init[6] = {0x00, CLOCK_ORDER_CONTROL_0, 0x00, 0x00, 0x00, 0x00}; // init1 - clock_order_control0
