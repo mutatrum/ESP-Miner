@@ -129,7 +129,8 @@ esp_err_t receive_work(uint8_t * buffer, int buffer_size)
     return ESP_OK;
 }
 
-static float calculate_fully_reserved_space(int big_cores, int chain_chip_count) {
+static float calculate_fully_reserved_space(int big_cores, int chain_chip_count, float cno_interval)
+{
     int address_interval = 256/_largest_power_of_two(chain_chip_count);
     // Nonce Size for a particular setting
     // 
@@ -144,28 +145,33 @@ static float calculate_fully_reserved_space(int big_cores, int chain_chip_count)
     uint32_t fully_divided_space = max_nonce_range / (uint32_t)big_cores / chain_reserve16;
 
     // address interval calculation
-    return (float)fully_divided_space * (float)address_interval16;
+    float fully_reserved_space = (float)fully_divided_space * (float)address_interval16;
+
+    // cno_interval overrides address interval calc
+    if (cno_interval > 0) fully_reserved_space = fully_divided_space * cno_interval;
+
+    return fully_reserved_space;
 }
 
-int calculate_version_rolling_hcn(int big_cores, int chain_chip_count, int frequency) {
+int calculate_version_rolling_hcn(int big_cores, int chain_chip_count, int frequency, float cno_interval) {
     // Register HCN Hash Counting Number
     //          
     // Calulates the nonce size for version rolling chips
     // It signifies to the chip when generate the next version and restart the nonce range
     // This function ensures HCN does not cause duplicates
     // Warning: HCN can cause duplicates if set too large if you decide not to use this function.
-    float fully_reserved_space = calculate_fully_reserved_space(big_cores, chain_chip_count);
+    float fully_reserved_space = calculate_fully_reserved_space(big_cores, chain_chip_count, cno_interval);
     int hcn = (fully_reserved_space * ((float)XTAL_OSC_MHZ / (float)frequency) / 2.0);
     ESP_LOGI(TAG, "Chip setting freq=%i chain_chip_count=%i size=%f", frequency, chain_chip_count, fully_reserved_space);
     return hcn;
 }
 
-float calculate_timeout_ms(int big_cores, int chain_chip_count, int freq, int versions_per_core) {
+float calculate_timeout_ms(int big_cores, int chain_chip_count, int freq, int versions_per_core, float cno_interval) {
     // Timeout 
     // 
     // Calculates the timeout based on control measures prodvided
     // Dynamically adjusts time based on nonce size and version size
-    float fully_reserved_space = calculate_fully_reserved_space(big_cores, chain_chip_count);
+    float fully_reserved_space = calculate_fully_reserved_space(big_cores, chain_chip_count, cno_interval);
 
     // This is the total size in parralell (versions and nonces)
     float total_nonce_version_size_per_core = (float)versions_per_core * fully_reserved_space;

@@ -222,7 +222,7 @@ void BM1366_set_hash_counting_number(int hcn) {
 }
 
 void BM1366_set_nonce_percent(uint64_t frequency, uint16_t chain_chip_count) {
-    int hcn = calculate_version_rolling_hcn(ASIC_BM1366.core_count, chain_chip_count, frequency);
+    int hcn = calculate_version_rolling_hcn(ASIC_BM1366.core_count, chain_chip_count, frequency, 0);
     BM1366_set_hash_counting_number(hcn);
 
     ESP_LOGI(TAG, "Chip setting chips=%i freq=%i hcn=%i", chain_chip_count, (int)frequency, hcn);
@@ -230,7 +230,7 @@ void BM1366_set_nonce_percent(uint64_t frequency, uint16_t chain_chip_count) {
 
 float BM1366_get_timeout(uint64_t frequency, uint16_t chain_chip_count, int versions_to_roll) {
     int versions_per_core = versions_to_roll / BM1366_MIDSTATE_ENGINES;
-    float timeout_ms = calculate_timeout_ms(ASIC_BM1366.core_count, chain_chip_count, (int)frequency, versions_per_core);
+    float timeout_ms = calculate_timeout_ms(ASIC_BM1366.core_count, chain_chip_count, (int)frequency, versions_per_core, 0);
     ESP_LOGI(TAG, "Chip setting timeout=%.4f", timeout_ms);
     return timeout_ms;
 }

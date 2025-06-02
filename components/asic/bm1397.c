@@ -240,7 +240,7 @@ float BM1397_get_timeout(uint64_t frequency, uint16_t chain_chip_count, int vers
     // no version rolling for bm1397
     int versions_per_core = 1;
 
-    float timeout_ms = calculate_timeout_ms(ASIC_BM1397.core_count, chain_chip_count, (int)frequency, versions_per_core);
+    float timeout_ms = calculate_timeout_ms(ASIC_BM1397.core_count, chain_chip_count, (int)frequency, versions_per_core, 0);
 
     ESP_LOGI(TAG, "Chip setting timeout=%.4f", timeout_ms);    
     return timeout_ms;
