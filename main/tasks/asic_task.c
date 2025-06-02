@@ -28,9 +28,8 @@ void ASIC_task(void *pvParameters)
         GLOBAL_STATE->valid_jobs[i] = 0;
     }
 
-    double asic_job_frequency_ms = ASIC_get_asic_job_frequency_ms(GLOBAL_STATE);
+    GLOBAL_STATE->asic_job_frequency_ms = 500;
 
-    ESP_LOGI(TAG, "ASIC Job Interval: %.2f ms", asic_job_frequency_ms);
     SYSTEM_notify_mining_started(GLOBAL_STATE);
     ESP_LOGI(TAG, "ASIC Ready!");
 
@@ -50,6 +49,6 @@ void ASIC_task(void *pvParameters)
         // Time to execute the above code is ~0.3ms
         // Delay for ASIC(s) to finish the job
         //vTaskDelay((asic_job_frequency_ms - 0.3) / portTICK_PERIOD_MS);
-        xSemaphoreTake(GLOBAL_STATE->ASIC_TASK_MODULE.semaphore, asic_job_frequency_ms / portTICK_PERIOD_MS);
+        xSemaphoreTake(GLOBAL_STATE->ASIC_TASK_MODULE.semaphore, (int)(GLOBAL_STATE->asic_job_frequency_ms / portTICK_PERIOD_MS));
     }
 }

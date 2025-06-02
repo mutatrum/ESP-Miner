@@ -36,6 +36,11 @@ void create_jobs_task(void *pvParameters)
             ESP_LOGI(TAG, "Set chip version rolls %i", (int)(GLOBAL_STATE->version_mask >> 13));
             //(GLOBAL_STATE->ASIC_functions.set_version_mask)(GLOBAL_STATE->version_mask);
             ASIC_set_version_mask(GLOBAL_STATE, GLOBAL_STATE->version_mask);
+
+            GLOBAL_STATE->asic_job_frequency_ms = ASIC_get_asic_job_frequency_ms(GLOBAL_STATE);
+
+            ESP_LOGI(TAG, "ASIC Job Interval: %.2f ms", GLOBAL_STATE->asic_job_frequency_ms);
+
             GLOBAL_STATE->new_stratum_version_rolling_msg = false;
         }
 

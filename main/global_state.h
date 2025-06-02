@@ -100,6 +100,8 @@ typedef struct
     uint32_t version_mask;
     bool new_stratum_version_rolling_msg;
 
+    float asic_job_frequency_ms;
+
     int sock;
 
     // A message ID that must be unique per request that expects a response.

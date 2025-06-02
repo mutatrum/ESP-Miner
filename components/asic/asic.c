@@ -143,17 +143,14 @@ bool ASIC_set_frequency(GlobalState * GLOBAL_STATE, float target_frequency)
     return success;
 }
 
-double ASIC_get_asic_job_frequency_ms(GlobalState * GLOBAL_STATE)
+float ASIC_get_asic_job_frequency_ms(GlobalState * GLOBAL_STATE)
 {
     // default works for all chips
-    int asic_job_frequency_ms = 20;
+    float asic_job_frequency_ms = 20;
 
     // use 1/128 for timeout be approximatly equivalent to Antminer SXX hcn setting 
     uint64_t frequency = GLOBAL_STATE->POWER_MANAGEMENT_MODULE.frequency_value;
     int chain_chip_count = GLOBAL_STATE->DEVICE_CONFIG.family.asic_count;
-
-    //TODO: this should be done when it's received from the pool
-    GLOBAL_STATE->version_mask = 0x1fffe000;
 
     int versions_to_roll = GLOBAL_STATE->version_mask>>13;
 
@@ -184,5 +181,5 @@ double ASIC_get_asic_job_frequency_ms(GlobalState * GLOBAL_STATE)
     // set minimum job frequency 
     if (asic_job_frequency_ms < 20) asic_job_frequency_ms = 20;
 
-    return 60000; //asic_job_frequency_ms;
+    return asic_job_frequency_ms;
 }
