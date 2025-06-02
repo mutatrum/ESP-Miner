@@ -10,8 +10,6 @@
 #include "asic.h"
 #include "device_config.h"
 
-static const double NONCE_SPACE = 4294967296.0; //  2^32
-
 static const char *TAG = "asic";
 
 uint8_t ASIC_init(GlobalState * GLOBAL_STATE)
@@ -147,15 +145,41 @@ bool ASIC_set_frequency(GlobalState * GLOBAL_STATE, float target_frequency)
 
 double ASIC_get_asic_job_frequency_ms(GlobalState * GLOBAL_STATE)
 {
+    // default works for all chips
+    int asic_job_frequency_ms = 20;
+
+    // use 1/128 for timeout be approximatly equivalent to Antminer SXX hcn setting 
+    uint64_t frequency = GLOBAL_STATE->POWER_MANAGEMENT_MODULE.frequency_value;
+    int chain_chip_count = GLOBAL_STATE->DEVICE_CONFIG.family.asic_count;
+    GLOBAL_STATE->version_mask = 0x1fffe000;
+    int versions_to_roll = GLOBAL_STATE->version_mask>>13;
+
+    ESP_LOGI(TAG, "ASIC Job Frequency: %llu Hz, Chain Chip Count: %i, Versions to Roll: %i", frequency, chain_chip_count, versions_to_roll);
+
     switch (GLOBAL_STATE->DEVICE_CONFIG.family.asic.model) {
-        case BM1397:
-            // no version-rolling so same Nonce Space is splitted between Small Cores
-            return (NONCE_SPACE / (double) (GLOBAL_STATE->POWER_MANAGEMENT_MODULE.frequency_value * GLOBAL_STATE->DEVICE_CONFIG.family.asic.small_core_count * 1000)) / (double) GLOBAL_STATE->DEVICE_CONFIG.family.asic_count;
         case BM1366:
-            return 2000;
+            BM1366_set_nonce_percent(frequency,chain_chip_count);
+            asic_job_frequency_ms = BM1366_get_timeout(frequency,chain_chip_count,versions_to_roll);
+            break;
         case BM1368:
+            BM1368_set_nonce_percent(frequency,chain_chip_count);
+            asic_job_frequency_ms = BM1368_get_timeout(frequency,chain_chip_count,versions_to_roll);
+            break;
         case BM1370:
-            return 500;
+            BM1370_set_nonce_percent(frequency,chain_chip_count);
+            asic_job_frequency_ms = BM1370_get_timeout(frequency,chain_chip_count,versions_to_roll);
+            break;
+        case BM1397:
+            BM1397_set_nonce_percent(frequency,chain_chip_count);
+            asic_job_frequency_ms = BM1397_get_timeout(frequency,chain_chip_count,versions_to_roll);
+            break;
+        default:
+            ESP_LOGE(TAG, "Unknown ASIC");
+            return ESP_FAIL; 
     }
-    return 500;
+
+    // set minimum job frequency 
+    if (asic_job_frequency_ms < 20) asic_job_frequency_ms = 20;
+
+    return 60000; //asic_job_frequency_ms;
 }

@@ -1,21 +1,23 @@
-#include "bm1368.h"
-
-#include "crc.h"
-#include "global_state.h"
-#include "serial.h"
-#include "utils.h"
-
-#include "esp_log.h"
-#include "freertos/FreeRTOS.h"
-#include "freertos/task.h"
-#include "frequency_transition_bmXX.h"
-
 #include <math.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <arpa/inet.h>
+
+#include "bm1368.h"
+
+#include "crc.h"
+#include "global_state.h"
+#include "serial.h"
+#include "utils.h"
+#include "common.h"
+
+#include "esp_log.h"
+#include "freertos/FreeRTOS.h"
+#include "freertos/task.h"
+#include "frequency_transition_bmXX.h"
+#include "device_config.h"
 
 #define BM1368_CHIP_ID 0x1368
 #define BM1368_CHIP_ID_RESPONSE_LENGTH 11
@@ -188,6 +190,39 @@ bool BM1368_set_frequency(float target_freq) {
     return do_frequency_transition(target_freq, BM1368_send_hash_frequency, 1368);
 }
 
+uint8_t BM1368_get_chip_address_interval(int chips) {
+    return (uint8_t)(256/_largest_power_of_two(chips));
+}
+
+void BM1368_set_hash_counting_number(int hcn) {
+    uint8_t set_10_hash_counting[6] = {0x00, 0x10, 0x00, 0x00, 0x00, 0x00};
+    set_10_hash_counting[2] = (hcn >> 24) & 0xFF;
+    set_10_hash_counting[3] = (hcn >> 16) & 0xFF;
+    set_10_hash_counting[4] = (hcn >> 8) & 0xFF;
+    set_10_hash_counting[5] = hcn & 0xFF;
+    _send_BM1368((TYPE_CMD | GROUP_ALL | CMD_WRITE), set_10_hash_counting, 6, BM1368_SERIALTX_DEBUG);
+}
+
+void BM1368_set_nonce_percent(uint64_t frequency, uint16_t chain_chip_count) {
+    int address_interval = BM1368_get_chip_address_interval(chain_chip_count);
+    int cno_interval = 0; //not used by bm1368
+    int hcn = calculate_version_rolling_hcn(ASIC_BM1368.core_count,address_interval, frequency,cno_interval);
+    BM1368_set_hash_counting_number(hcn);
+
+    ESP_LOGI(TAG, "Chip setting chips=%i freq=%i hcn=%i addr_interval=%i",chain_chip_count,(int)frequency,hcn,address_interval);
+}
+
+float BM1368_get_timeout(uint64_t frequency, uint16_t chain_chip_count, int versions_to_roll) {
+    int address_interval = BM1368_get_chip_address_interval(chain_chip_count);
+    int cno_interval = 0; //not used by bm1368
+    // int hcn = calculate_version_rolling_hcn(ASIC_BM1368.core_count,address_interval, frequency,cno_interval);
+    int versions_per_core = versions_to_roll/BM1368_MIDSTATE_ENGINES;
+    float timeout_ms = calculate_timeout_ms(ASIC_BM1368.core_count,address_interval,(int)frequency,cno_interval,versions_per_core);
+
+    ESP_LOGI(TAG, "Chip setting timeout=%.4f",timeout_ms); 
+    return timeout_ms;
+}
+
 static void do_frequency_ramp_up(float target_frequency) {
     ESP_LOGI(TAG, "Ramping up frequency from %.2f MHz to %.2f MHz", current_frequency, target_frequency);
     do_frequency_transition(target_frequency, BM1368_send_hash_frequency, 1368);
@@ -231,7 +266,7 @@ uint8_t BM1368_init(uint64_t frequency, uint16_t asic_count, uint16_t difficulty
         _send_BM1368(TYPE_CMD | GROUP_ALL | CMD_WRITE, init_cmds[i], 6, false);
     }
 
-    uint8_t address_interval = (uint8_t) (256 / chip_counter);
+    uint8_t address_interval = BM1368_get_chip_address_interval(chip_counter);
     for (int i = 0; i < chip_counter; i++) {
         _set_chip_address(i * address_interval);
     }
@@ -255,7 +290,8 @@ uint8_t BM1368_init(uint64_t frequency, uint16_t asic_count, uint16_t difficulty
 
     do_frequency_ramp_up((float)frequency);
 
-    _send_BM1368(TYPE_CMD | GROUP_ALL | CMD_WRITE, (uint8_t[]){0x00, 0x10, 0x00, 0x00, 0x15, 0xa4}, 6, false);
+    BM1368_set_nonce_percent(frequency,chip_counter);
+
     BM1368_set_version_mask(STRATUM_DEFAULT_VERSION_MASK);
 
     return chip_counter;

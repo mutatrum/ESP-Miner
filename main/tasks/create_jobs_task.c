@@ -12,7 +12,7 @@
 
 static const char *TAG = "create_jobs_task";
 
-#define QUEUE_LOW_WATER_MARK 10 // Adjust based on your requirements
+#define QUEUE_LOW_WATER_MARK 1 // Adjust based on your requirements
 
 static bool should_generate_more_work(GlobalState *GLOBAL_STATE);
 static void generate_work(GlobalState *GLOBAL_STATE, mining_notify *notification, uint32_t extranonce_2);
