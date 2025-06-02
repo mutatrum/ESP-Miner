@@ -170,9 +170,5 @@ float calculate_timeout_ms(int big_cores, int chain_chip_count, int freq, int ve
     // This is the total size in parralell (versions and nonces)
     float total_nonce_version_size_per_core = (float)versions_per_core * fully_reserved_space;
 
-    float timeout_s = total_nonce_version_size_per_core/(float)freq/1000/1000;
-    float timeout_ms =  timeout_s * 1000;
-
-    // Finally the timeout percent is applied
-    return timeout_ms;
+    return total_nonce_version_size_per_core/(float)freq/1000;
 }

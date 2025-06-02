@@ -226,15 +226,6 @@ void BM1397_send_hash_frequency(float frequency)
     ESP_LOGI(TAG, "Setting Frequency to %.2fMHz (%.2f)", frequency, newf);
 }
 
-void BM1397_set_hash_counting_number(int hcn) {
-    uint8_t set_10_hash_counting[6] = {0x00, 0x10, 0x00, 0x00, 0x00, 0x00};
-    set_10_hash_counting[2] = (hcn >> 24) & 0xFF;
-    set_10_hash_counting[3] = (hcn >> 16) & 0xFF;
-    set_10_hash_counting[4] = (hcn >> 8) & 0xFF;
-    set_10_hash_counting[5] = hcn & 0xFF;
-    _send_BM1397((TYPE_CMD | GROUP_ALL | CMD_WRITE), set_10_hash_counting, 6, BM1397_SERIALTX_DEBUG);
-}
-
 void BM1397_set_nonce_percent(uint64_t frequency, uint16_t chain_chip_count) {
     // some evidence that hcn is used for bm1397 in a chain unknown as for now
     int hcn = 0;
