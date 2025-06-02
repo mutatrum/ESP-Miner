@@ -227,7 +227,7 @@ void BM1370_set_hash_counting_number(int hcn) {
     _send_BM1370((TYPE_CMD | GROUP_ALL | CMD_WRITE), set_10_hash_counting, 6, BM1370_SERIALTX_DEBUG);
 }
 
-void BM1370_set_chip_nonce_offset(int chips_in_chain, int cno_interval) {
+void BM1370_set_chip_nonce_offset(int chips_in_chain, float cno_interval) {
     // CNO: Dividing by chain 
     int address_interval = BM1370_get_chip_address_interval(chips_in_chain);
 
@@ -237,7 +237,7 @@ void BM1370_set_chip_nonce_offset(int chips_in_chain, int cno_interval) {
     unsigned char set_0C_chip_nonce_offset[6] = {0x00,0x0C, 0x00, 0x00, 0x00, 0x00};
     for (uint8_t chip_idx = 0; chip_idx < chips_in_chain; chip_idx++) {
 
-        if (chip_idx > 0) cno_chip_value = (int)(cno_interval*(float)chip_idx) + 1;
+        if (chip_idx > 0) cno_chip_value = (int)(cno_interval * (float)chip_idx) + 1;
         set_0C_chip_nonce_offset[0] = chip_idx * address_interval;
         set_0C_chip_nonce_offset[2] = 0x80; //CNOV,  CNO valid flag only use cno if this bit is on
         set_0C_chip_nonce_offset[3] = 0x00; // reserved
@@ -246,40 +246,44 @@ void BM1370_set_chip_nonce_offset(int chips_in_chain, int cno_interval) {
         _send_BM1370((TYPE_CMD | GROUP_SINGLE | CMD_WRITE), set_0C_chip_nonce_offset, 6, BM1370_SERIALTX_DEBUG);
     }
 
-    ESP_LOGI(TAG, "Chip setting cno_interval=%i",cno_interval);
+    ESP_LOGI(TAG, "Chip setting cno_interval=%f",cno_interval);
+}
+
+static float calculate_cno_interval(int chips) {
+    // Register CNO Chip Nonce Offset
+    //          
+    // is a optional nonce offset for bm1370 for chips in a chain
+    // it causes the chip to start at a paritcular location byte1
+    // It has more precision than address interval due to more bits being available
+    // Note: CNO overrides the size set by address interval
+
+    // address interval = 0x100 / _largest_power_of_two(chips) << 8 (8 bit precision)
+    // cno              = 0x10000 / _largest_power_of_two(chips)    (16 bit precision)
+
+    int cno_interval_max = 0x10000;
+
+    // a float is kept as it will be multiplied by the chip address when sending the commands to chips
+    float cno_interval = (float)(cno_interval_max / (float)chips);
+    return cno_interval;
 }
 
 void BM1370_set_nonce_percent(uint64_t frequency, uint16_t chain_chip_count) {
-    // This functions set registers to achieve nonce percent and returns the correct timeout for that setting
-    ESP_LOGI(TAG, "Setting nonce percent for frequency=%llu MHz, chain_chip_count=%i", frequency, chain_chip_count);
-
-    int address_interval = BM1370_get_chip_address_interval(chain_chip_count);
-
-    ESP_LOGI(TAG, "address_interval=%i", address_interval);
-
-    //CNO: dividing nonce by chain
-    int cno_interval = calculate_cno_interval(chain_chip_count);
-
-    ESP_LOGI(TAG, "cno_interval=%i", cno_interval);
-
+    float cno_interval = calculate_cno_interval(chain_chip_count);
     BM1370_set_chip_nonce_offset(chain_chip_count, cno_interval);
 
-    //HCN: dividing nonce space
-    int hcn = calculate_version_rolling_hcn(ASIC_BM1370.core_count, address_interval,cno_interval, (int)frequency);
+    int address_interval = BM1370_get_chip_address_interval(chain_chip_count);
+    int hcn = calculate_version_rolling_hcn(ASIC_BM1370.core_count, address_interval, (int)frequency);
     BM1370_set_hash_counting_number(hcn);
 
-    ESP_LOGI(TAG, "Chip setting chips=%i freq=%i hcn=%i addr_interval=%i",chain_chip_count,(int)frequency,hcn,address_interval);
+    ESP_LOGI(TAG, "Chip setting chips=%i freq=%i hcn=%i addr_interval=%i", chain_chip_count, (int)frequency, hcn, address_interval);
 }
 
 float BM1370_get_timeout(uint64_t frequency, uint16_t chain_chip_count, int versions_to_roll) {
     // This functions gets the timeout value for a specific setting
     int address_interval = BM1370_get_chip_address_interval(chain_chip_count);
-    //CNO: dividing nonce by chain
-    int cno_interval = calculate_cno_interval(chain_chip_count);
-    //HCN: dividing nonce space
-    // int hcn = calculate_version_rolling_hcn(ASIC_BM1370.core_count, address_interval, cno_interval, (int)frequency);
+    float cno_interval = calculate_cno_interval(chain_chip_count);
     int versions_per_core = versions_to_roll / BM1370_MIDSTATE_ENGINES;
-    float timeout_ms = calculate_timeout_ms(ASIC_BM1370.core_count, address_interval, (int)frequency, cno_interval, versions_per_core);
+    float timeout_ms = calculate_timeout_ms(ASIC_BM1370.core_count, address_interval, (int)frequency, versions_per_core) * cno_interval;
     ESP_LOGI(TAG, "Chip setting timeout=%.4f", timeout_ms);
     return timeout_ms;
 }

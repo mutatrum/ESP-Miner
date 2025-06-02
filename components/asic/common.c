@@ -138,25 +138,7 @@ float limit_percent(float percent,float max) {
     return percent;
 }
 
-float calculate_cno_interval(int chips) {
-    // Register CNO Chip Nonce Offset
-    //          
-    // is a optional nonce offset for bm1370 for chips in a chain
-    // it causes the chip to start at a paritcular location byte1
-    // It has more precision than address interval due to more bits being available
-    // Note: CNO overrides the size set by address interval
-
-    // address interval = 0x100 / _largest_power_of_two(chips) << 8 (8 bit precision)
-    // cno              = 0x10000 / _largest_power_of_two(chips)    (16 bit precision)
-
-    int cno_interval_max = 0x10000;
-
-    // a float is kept as it will be multiplied by the chip address when sending the commands to chips
-    float cno_interval = (float)(cno_interval_max / (float)chips);
-    return cno_interval;
-}
-
-float calculate_fully_reserved_space(int big_cores, int address_interval, int cno_interval) {
+float calculate_fully_reserved_space(int big_cores, int address_interval) {
     // Nonce Size for a particular setting
     // 
     // Calculates the  size of the distrobuted space
@@ -167,40 +149,32 @@ float calculate_fully_reserved_space(int big_cores, int address_interval, int cn
     uint32_t chain_reserve = 0x100;
     uint32_t chain_reserve16 = chain_reserve << 8;
     uint32_t address_interval16 = address_interval << 8;
-    uint32_t fully_divided_space = max_nonce_range/(uint32_t)big_cores/chain_reserve16;
+    uint32_t fully_divided_space = max_nonce_range / (uint32_t)big_cores / chain_reserve16;
 
     // address interval calculation
-    float fully_reserved_space = (float)fully_divided_space * (float)address_interval16;
-
-    // cno_interval overrides address interval calc
-    if (cno_interval > 0) fully_reserved_space = fully_divided_space * cno_interval;
-
-    return fully_reserved_space;
+    return (float)fully_divided_space * (float)address_interval16;
 }
 
-int calculate_version_rolling_hcn(int big_cores, int address_interval, int cno_interval, int frequency) {
+int calculate_version_rolling_hcn(int big_cores, int address_interval, int frequency) {
     // Register HCN Hash Counting Number
     //          
     // Calulates the nonce size for version rolling chips
     // It signifies to the chip when generate the next version and restart the nonce range
     // This function ensures HCN does not cause duplicates
     // Warning: HCN can cause duplicates if set too large if you decide not to use this function.
-    float fully_reserved_space = calculate_fully_reserved_space(big_cores, address_interval, cno_interval);
-
+    float fully_reserved_space = calculate_fully_reserved_space(big_cores, address_interval);
     big_cores = _largest_power_of_two(big_cores);
-
     int hcn = (fully_reserved_space * ((float)XTAL_OSC_MHZ / (float)frequency) / 2.0);
-    ESP_LOGI(TAG, "Chip setting freq=%i addr_interval=%i cores=%i cno=%i size=%f", frequency, address_interval, big_cores, cno_interval, fully_reserved_space);
-
+    ESP_LOGI(TAG, "Chip setting freq=%i addr_interval=%i cores=%i size=%f", frequency, address_interval, big_cores, fully_reserved_space);
     return hcn;
 }
 
-float calculate_timeout_ms(int big_cores,int address_interval, int freq, float cno_interval, int versions_per_core) {
+float calculate_timeout_ms(int big_cores,int address_interval, int freq, int versions_per_core) {
     // Timeout 
     // 
     // Calculates the timeout based on control measures prodvided
     // Dynamically adjusts time based on nonce size and version size
-    float fully_reserved_space = calculate_fully_reserved_space(big_cores,address_interval,cno_interval);
+    float fully_reserved_space = calculate_fully_reserved_space(big_cores,address_interval);
 
     // This is the total size in parralell (versions and nonces)
     float total_nonce_version_size_per_core = (float)versions_per_core * fully_reserved_space;

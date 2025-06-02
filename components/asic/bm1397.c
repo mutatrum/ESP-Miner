@@ -254,13 +254,12 @@ float BM1397_get_timeout(uint64_t frequency, uint16_t chain_chip_count, int vers
     int address_interval = BM1397_get_chip_address_interval(chain_chip_count);
 
     // some evidence that hcn is used for bm1397 in a chain unknown as for now
-    int cno_interval = 0;
     // int hcn = 0;
 
     // no version rolling for bm1397
     int versions_per_core = 1;
 
-    float timeout_ms = calculate_timeout_ms(ASIC_BM1397.core_count, address_interval, (int)frequency, cno_interval, versions_per_core);
+    float timeout_ms = calculate_timeout_ms(ASIC_BM1397.core_count, address_interval, (int)frequency, versions_per_core);
 
     ESP_LOGI(TAG, "Chip setting timeout=%.4f", timeout_ms);    
     return timeout_ms;

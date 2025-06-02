@@ -229,20 +229,17 @@ uint8_t BM1366_get_chip_address_interval(int chips) {
 
 void BM1366_set_nonce_percent(uint64_t frequency, uint16_t chain_chip_count) {
     int address_interval = BM1366_get_chip_address_interval(chain_chip_count);
-    int cno_interval = 0; //not used by bm1366
-    int hcn = calculate_version_rolling_hcn(ASIC_BM1366.core_count,address_interval,cno_interval,frequency);
+    int hcn = calculate_version_rolling_hcn(ASIC_BM1366.core_count, address_interval, frequency);
     BM1366_set_hash_counting_number(hcn);
 
-    ESP_LOGI(TAG, "Chip setting chips=%i freq=%i hcn=%i",chain_chip_count,(int)frequency,hcn);
+    ESP_LOGI(TAG, "Chip setting chips=%i freq=%i hcn=%i", chain_chip_count, (int)frequency,hcn);
 }
 
 float BM1366_get_timeout(uint64_t frequency, uint16_t chain_chip_count, int versions_to_roll) {
     int address_interval = BM1366_get_chip_address_interval(chain_chip_count);
-    int cno_interval = 0; //not used by bm1366
-    // int hcn = calculate_version_rolling_hcn(ASIC_BM1366.core_count,address_interval,cno_interval,frequency);
     int versions_per_core = versions_to_roll / BM1366_MIDSTATE_ENGINES;
-    float timeout_ms = calculate_timeout_ms(ASIC_BM1366.core_count,address_interval,(int)frequency,cno_interval,versions_per_core);
-    ESP_LOGI(TAG, "Chip setting timeout=%.4f",timeout_ms);
+    float timeout_ms = calculate_timeout_ms(ASIC_BM1366.core_count, address_interval, (int)frequency, versions_per_core);
+    ESP_LOGI(TAG, "Chip setting timeout=%.4f", timeout_ms);
     return timeout_ms;
 }
 
