@@ -14,7 +14,7 @@ static const char *TAG = "create_jobs_task";
 
 #define QUEUE_LOW_WATER_MARK 1 // Adjust based on your requirements
 
-static bool should_generate_more_work(GlobalState *GLOBAL_STATE);
+// static bool should_generate_more_work(GlobalState *GLOBAL_STATE);
 static void generate_work(GlobalState *GLOBAL_STATE, mining_notify *notification, uint32_t extranonce_2);
 
 void create_jobs_task(void *pvParameters)
@@ -45,37 +45,37 @@ void create_jobs_task(void *pvParameters)
         }
 
         uint32_t extranonce_2 = 0;
-        while (GLOBAL_STATE->stratum_queue.count < 1 && GLOBAL_STATE->abandon_work == 0)
-        {
-            if (should_generate_more_work(GLOBAL_STATE))
-            {
+        // while (GLOBAL_STATE->stratum_queue.count < 1 && GLOBAL_STATE->abandon_work == 0)
+        // {
+        //     if (should_generate_more_work(GLOBAL_STATE))
+        //     {
                 generate_work(GLOBAL_STATE, mining_notification, extranonce_2);
 
-                // Increase extranonce_2 for the next job.
-                extranonce_2++;
-            }
-            else
-            {
-                // If no more work needed, wait a bit before checking again.
-                vTaskDelay(100 / portTICK_PERIOD_MS);
-            }
-        }
+        //         // Increase extranonce_2 for the next job.
+        //         extranonce_2++;
+        //     }
+        //     else
+        //     {
+        //         // If no more work needed, wait a bit before checking again.
+        //         vTaskDelay(100 / portTICK_PERIOD_MS);
+        //     }
+        // }
 
-        if (GLOBAL_STATE->abandon_work == 1)
-        {
-            GLOBAL_STATE->abandon_work = 0;
-            ASIC_jobs_queue_clear(&GLOBAL_STATE->ASIC_jobs_queue);
-            xSemaphoreGive(GLOBAL_STATE->ASIC_TASK_MODULE.semaphore);
-        }
+        // if (GLOBAL_STATE->abandon_work == 1)
+        // {
+        //     GLOBAL_STATE->abandon_work = 0;
+        //     ASIC_jobs_queue_clear(&GLOBAL_STATE->ASIC_jobs_queue);
+        //     xSemaphoreGive(GLOBAL_STATE->ASIC_TASK_MODULE.semaphore);
+        // }
 
         STRATUM_V1_free_mining_notify(mining_notification);
     }
 }
 
-static bool should_generate_more_work(GlobalState *GLOBAL_STATE)
-{
-    return GLOBAL_STATE->ASIC_jobs_queue.count < QUEUE_LOW_WATER_MARK;
-}
+// static bool should_generate_more_work(GlobalState *GLOBAL_STATE)
+// {
+//     return GLOBAL_STATE->ASIC_jobs_queue.count < QUEUE_LOW_WATER_MARK;
+// }
 
 static void generate_work(GlobalState *GLOBAL_STATE, mining_notify *notification, uint32_t extranonce_2)
 {
@@ -116,7 +116,14 @@ static void generate_work(GlobalState *GLOBAL_STATE, mining_notify *notification
     queued_next_job->jobid = strdup(notification->job_id);
     queued_next_job->version_mask = GLOBAL_STATE->version_mask;
 
-    queue_enqueue(&GLOBAL_STATE->ASIC_jobs_queue, queued_next_job);
+    if (queued_next_job->pool_diff != GLOBAL_STATE->stratum_difficulty)
+    {
+        ESP_LOGI(TAG, "New pool difficulty %lu", queued_next_job->pool_diff);
+        GLOBAL_STATE->stratum_difficulty = queued_next_job->pool_diff;
+    }
+
+    ASIC_send_work(GLOBAL_STATE, queued_next_job);
+    // queue_enqueue(&GLOBAL_STATE->ASIC_jobs_queue, queued_next_job);
 
     free(coinbase_tx);
     free(merkle_root);

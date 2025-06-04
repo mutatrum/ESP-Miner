@@ -76,8 +76,9 @@ void ASIC_set_job_difficulty_mask(GlobalState * GLOBAL_STATE, uint8_t mask)
     }
 }
 
-void ASIC_send_work(GlobalState * GLOBAL_STATE, void * next_job)
+void ASIC_send_work(GlobalState * GLOBAL_STATE, bm_job * next_job)
 {
+    ESP_LOGI(TAG, "Sending ASIC work for job ID: %s", next_job->jobid);
     switch (GLOBAL_STATE->DEVICE_CONFIG.family.asic.model) {
         case BM1397:
             BM1397_send_work(GLOBAL_STATE, next_job);

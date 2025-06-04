@@ -59,7 +59,7 @@ void cleanQueue(GlobalState * GLOBAL_STATE) {
     queue_clear(&GLOBAL_STATE->stratum_queue);
 
     pthread_mutex_lock(&GLOBAL_STATE->valid_jobs_lock);
-    ASIC_jobs_queue_clear(&GLOBAL_STATE->ASIC_jobs_queue);
+    // ASIC_jobs_queue_clear(&GLOBAL_STATE->ASIC_jobs_queue);
     for (int i = 0; i < 128; i = i + 4) {
         GLOBAL_STATE->valid_jobs[i] = 0;
     }
@@ -317,8 +317,8 @@ void stratum_task(void * pvParameters)
 
             if (stratum_api_v1_message.method == MINING_NOTIFY) {
                 SYSTEM_notify_new_ntime(GLOBAL_STATE, stratum_api_v1_message.mining_notification->ntime);
-                if (stratum_api_v1_message.should_abandon_work &&
-                    (GLOBAL_STATE->stratum_queue.count > 0 || GLOBAL_STATE->ASIC_jobs_queue.count > 0)) {
+                if (stratum_api_v1_message.should_abandon_work) {
+                    //  && (GLOBAL_STATE->stratum_queue.count > 0 || GLOBAL_STATE->ASIC_jobs_queue.count > 0)) {
                     cleanQueue(GLOBAL_STATE);
                 }
                 if (GLOBAL_STATE->stratum_queue.count == QUEUE_SIZE) {

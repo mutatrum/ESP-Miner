@@ -79,7 +79,7 @@ typedef struct
 typedef struct
 {
     work_queue stratum_queue;
-    work_queue ASIC_jobs_queue;
+    // work_queue ASIC_jobs_queue;
 
     SystemModule SYSTEM_MODULE;
     DeviceConfig DEVICE_CONFIG;

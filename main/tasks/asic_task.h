@@ -11,7 +11,7 @@ typedef struct
     // so we keep a list of jobs indexed by the job id
     bm_job **active_jobs;
     //semaphone
-    SemaphoreHandle_t semaphore;
+    // SemaphoreHandle_t semaphore;
 } AsicTaskModule;
 
 void ASIC_task(void *pvParameters);

@@ -100,7 +100,7 @@ void app_main(void)
     wifi_softap_off();
 
     queue_init(&GLOBAL_STATE.stratum_queue);
-    queue_init(&GLOBAL_STATE.ASIC_jobs_queue);
+    // queue_init(&GLOBAL_STATE.ASIC_jobs_queue);
 
     SERIAL_init();
 

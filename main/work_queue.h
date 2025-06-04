@@ -4,7 +4,7 @@
 #include <pthread.h>
 #include "mining.h"
 
-#define QUEUE_SIZE 12
+#define QUEUE_SIZE 1
 
 typedef struct
 {
@@ -19,7 +19,7 @@ typedef struct
 
 void queue_init(work_queue *queue);
 void queue_enqueue(work_queue *queue, void *new_work);
-void ASIC_jobs_queue_clear(work_queue *queue);
+// void ASIC_jobs_queue_clear(work_queue *queue);
 void *queue_dequeue(work_queue *queue);
 void queue_clear(work_queue *queue);
 
