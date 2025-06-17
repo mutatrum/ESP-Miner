@@ -3,9 +3,14 @@
         <div class="card">
             <h2>Overview</h2>
             <table *ngIf="info$ | async as info">
-                <tr>
+                <tr *ngIf="asic$ | async as asic">
                     <td>Model:</td>
-                    <td>{{info.familyName}} ({{info.ASICModel}})</td>
+                    <td>
+                        <span [class]="'text-' + asic.swarmColor + '-500'">
+                            {{asic.familyName || 'Other'}}
+                        </span>
+                        ({{asic.ASICModel}})
+                    </td>
                 </tr>
                 <tr>
                     <td>Uptime:</td>

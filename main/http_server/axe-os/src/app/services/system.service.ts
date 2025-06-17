@@ -3,6 +3,7 @@ import { Injectable } from '@angular/core';
 import { delay, Observable, of } from 'rxjs';
 import { ISystemInfo } from 'src/models/ISystemInfo';
 import { ISystemStatistics } from 'src/models/ISystemStatistics';
+import { ISystemASIC } from 'src/models/ISystemASIC';
 
 import { environment } from '../../environments/environment';
 
@@ -51,8 +52,6 @@ export class SystemService {
         asicCount: 1,
         smallCoreCount: 672,
         ASICModel: "BM1366",
-        familyName: "Max",
-        swarmColor: "white",
         stratumURL: "public-pool.io",
         stratumPort: 21496,
         fallbackStratumURL: "test.public-pool.io",
@@ -155,26 +154,16 @@ export class SystemService {
     return this.otaUpdate(file, `/api/system/OTAWWW`);
   }
 
-  public getAsicSettings(uri: string = ''): Observable<{
-    ASICModel: string;
-    defaultFrequency: number;
-    frequencyOptions: number[];
-    defaultVoltage: number;
-    voltageOptions: number[];
-  }> {
+  public getAsicSettings(uri: string = ''): Observable<ISystemASIC> {
     if (environment.production) {
-      return this.httpClient.get(`${uri}/api/system/asic`) as Observable<{
-        ASICModel: string;
-        defaultFrequency: number;
-        frequencyOptions: number[];
-        defaultVoltage: number;
-        voltageOptions: number[];
-      }>;
+      return this.httpClient.get(`${uri}/api/system/asic`) as Observable<ISystemASIC>;
     }
 
     // Mock data for development
     return of({
       ASICModel: "BM1366",
+      familyName: "Ultra",
+      swarmColor: "purple",
       defaultFrequency: 485,
       frequencyOptions: [400, 425, 450, 475, 485, 500, 525, 550, 575],
       defaultVoltage: 1200,

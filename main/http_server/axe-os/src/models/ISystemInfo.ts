@@ -35,8 +35,6 @@ export interface ISystemInfo {
     asicCount: number,
     smallCoreCount: number,
     ASICModel: string,
-    familyName: string,
-    swarmColor: string,
     stratumURL: string,
     stratumPort: number,
     fallbackStratumURL: string,

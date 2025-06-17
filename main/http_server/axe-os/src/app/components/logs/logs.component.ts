@@ -4,6 +4,7 @@ import { interval, map, Observable, shareReplay, startWith, Subscription, switch
 import { SystemService } from 'src/app/services/system.service';
 import { WebsocketService } from 'src/app/services/web-socket.service';
 import { ISystemInfo } from 'src/models/ISystemInfo';
+import { ISystemASIC } from 'src/models/ISystemASIC';
 
 @Component({
   selector: 'app-logs',
@@ -16,6 +17,7 @@ export class LogsComponent implements OnInit, OnDestroy, AfterViewChecked {
 
   @ViewChild('scrollContainer') private scrollContainer!: ElementRef;
   public info$: Observable<ISystemInfo>;
+  public asic$: Observable<ISystemASIC>;
 
   public logs: { className: string, text: string }[] = [];
 
@@ -58,7 +60,7 @@ export class LogsComponent implements OnInit, OnDestroy, AfterViewChecked {
       shareReplay({ refCount: true, bufferSize: 1 })
     );
 
-
+    this.asic$ = this.systemService.getAsicSettings().pipe(shareReplay({refCount: true, bufferSize: 1}))
   }
 
   ngOnInit(): void {
