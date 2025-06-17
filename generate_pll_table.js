@@ -11,8 +11,8 @@ function gcd(a, b) {
 }
 
 // Parameter ranges and constraints
-const MIN_FB = 160;
-const MAX_FB = 239;
+const MIN_FB = 144; // BM1370: 160
+const MAX_FB = 235; // BM1370: 230
 const REFDIV_VALUES = [1, 2];
 const POSTDIV1_VALUES = [1, 2, 3, 4, 5, 6, 7];
 const VCO_MAX = 3000.0; // Set to 6000 for all frequencies
@@ -80,7 +80,7 @@ for (const { freq: targetFreq } of uniqueFractions) {
                 const vcoFreq = 25.0 * fb / refdiv;
                 if (vcoFreq > VCO_MAX) continue;
 
-                if (actualFreq >= MAX_FREQ) continue;
+                if (actualFreq > MAX_FREQ) continue;
 
                 // Update if better (lower VCO, lower refdiv, lower postdivs)
                 if (!foundValid || vcoFreq < bestParam.vco_freq ||
@@ -129,10 +129,10 @@ output += `    uint8_t refdiv;\n`;
 output += `    uint8_t postdiv1;\n`;
 output += `    uint8_t postdiv2;\n`;
 output += `} pll_entry_t;\n\n`;
-output += `const pll_entry_t pll_table[PLL_TABLE_SIZE] = {\n`;
+output += `static const pll_entry_t pll_table[PLL_TABLE_SIZE] = {\n`;
 
 table.forEach((entry, index) => {
-    output += `    {${entry.freq.toFixed(6)}f, ${entry.fb_divider}, ${entry.refdiv}, ${entry.postdiv1}, ${entry.postdiv2}}${index < table.length - 1 ? ',' : ''} /* vcoFreq: ${entry.vcoFreq} */\n`;
+    output += `    {${entry.freq.toFixed(6)}f, ${entry.fb_divider}, ${entry.refdiv}, ${entry.postdiv1}, ${entry.postdiv2}}, /* vcoFreq: ${entry.vcoFreq} */\n`;
 });
 
 output += `};\n\n#endif // PLL_TABLE_H\n`;

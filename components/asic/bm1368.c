@@ -9,6 +9,7 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "frequency_transition_bmXX.h"
+#include "pll_table.h"
 
 #include <math.h>
 #include <stdint.h>
@@ -107,6 +108,15 @@ void BM1368_set_version_mask(uint32_t version_mask)
 }
 
 void BM1368_send_hash_frequency(float target_freq) {
+    {
+        uint8_t fb_divider, refdiv, postdiv1, postdiv2;
+        float actual_freq;
+    
+        if (get_pll_parameters_binary(target_freq, &fb_divider, &refdiv, &postdiv1, &postdiv2, &actual_freq)) {
+            ESP_LOGI(TAG, "Calculated Frequency: fbdiv: %d, refdiv: %d, postdiv1: %d, postdiv2: %d, actual: %f MHz", fb_divider, refdiv, postdiv1, postdiv2, actual_freq);
+        }
+    }
+
     float max_diff = 0.001;
     uint8_t freqbuf[6] = {0x00, 0x08, 0x40, 0xA0, 0x02, 0x41};
     uint8_t postdiv_min = 255;
@@ -149,6 +159,8 @@ void BM1368_send_hash_frequency(float target_freq) {
     freqbuf[3] = best_fbdiv;
     freqbuf[4] = best_refdiv;
     freqbuf[5] = (((best_postdiv1 - 1) & 0xf) << 4) | ((best_postdiv2 - 1) & 0xf);
+
+    ESP_LOGI(TAG, "Calculated Frequency: fbdiv: %d, refdiv: %d, postdiv1: %d, postdiv2: %d", best_fbdiv, best_refdiv, best_postdiv1, best_postdiv2);
 
     _send_BM1368(TYPE_CMD | GROUP_ALL | CMD_WRITE, freqbuf, sizeof(freqbuf), BM1368_SERIALTX_DEBUG);
 
