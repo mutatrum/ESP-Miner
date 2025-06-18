@@ -9,7 +9,7 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "frequency_transition_bmXX.h"
-#include "pll_table.h"
+#include "pll.h"
 
 #include <math.h>
 #include <stdint.h>
@@ -102,70 +102,30 @@ void BM1368_set_version_mask(uint32_t version_mask)
 {
     int versions_to_roll = version_mask >> 13;
     uint8_t version_byte0 = (versions_to_roll >> 8);
-    uint8_t version_byte1 = (versions_to_roll & 0xFF); 
+    uint8_t                                                                  version_byte1 = (versions_to_roll & 0xFF); 
     uint8_t version_cmd[] = {0x00, 0xA4, 0x90, 0x00, version_byte0, version_byte1};
     _send_BM1368(TYPE_CMD | GROUP_ALL | CMD_WRITE, version_cmd, 6, BM1368_SERIALTX_DEBUG);
 }
 
-void BM1368_send_hash_frequency(float target_freq) {
-    {
-        uint8_t fb_divider, refdiv, postdiv1, postdiv2;
-        float actual_freq;
-    
-        if (get_pll_parameters_binary(target_freq, &fb_divider, &refdiv, &postdiv1, &postdiv2, &actual_freq)) {
-            ESP_LOGI(TAG, "Calculated Frequency: fbdiv: %d, refdiv: %d, postdiv1: %d, postdiv2: %d, actual: %f MHz", fb_divider, refdiv, postdiv1, postdiv2, actual_freq);
-        }
+void BM1368_send_hash_frequency(float target_freq) 
+{
+    uint8_t fb_divider, refdiv, postdiv1, postdiv2;
+    float actual_freq;
+
+    if (pll_get_parameters(target_freq, &fb_divider, &refdiv, &postdiv1, &postdiv2, &actual_freq)) {
+
+        uint16_t vco_frequency = fb_divider * 25 / refdiv;
+        uint8_t vco_range = vco_frequency < 2400 ? 0x40 : 0x50;
+        uint8_t postdiv = ((postdiv1 - 1) & 0xf) << 4 | ((postdiv2 - 1) & 0xf);
+
+        uint8_t freqbuf[6] = {0x00, 0x08, vco_range, fb_divider, refdiv, postdiv};
+
+        _send_BM1368(TYPE_CMD | GROUP_ALL | CMD_WRITE, freqbuf, sizeof(freqbuf), BM1368_SERIALTX_DEBUG);
+
+        ESP_LOGI(TAG, "Setting Frequency to %.2fMHz (%.2f)", target_freq, actual_freq);
+
+        current_frequency = target_freq;
     }
-
-    float max_diff = 0.001;
-    uint8_t freqbuf[6] = {0x00, 0x08, 0x40, 0xA0, 0x02, 0x41};
-    uint8_t postdiv_min = 255;
-    uint8_t postdiv2_min = 255;
-    float best_freq = 0;
-    uint8_t best_refdiv = 0, best_fbdiv = 0, best_postdiv1 = 0, best_postdiv2 = 0;
-    bool found = false;
-
-    for (uint8_t refdiv = 2; refdiv > 0; refdiv--) {
-        for (uint8_t postdiv1 = 7; postdiv1 > 0; postdiv1--) {
-            for (uint8_t postdiv2 = 7; postdiv2 > 0; postdiv2--) {
-                uint16_t fb_divider = round(target_freq / 25.0 * (refdiv * postdiv2 * postdiv1));
-                float newf = 25.0 * fb_divider / (refdiv * postdiv2 * postdiv1);
-
-                if (fb_divider >= 144 && fb_divider <= 235 &&
-                    fabs(target_freq - newf) < max_diff &&
-                    postdiv1 >= postdiv2 &&
-                    postdiv1 * postdiv2 < postdiv_min &&
-                    postdiv2 <= postdiv2_min) {
-
-                    postdiv2_min = postdiv2;
-                    postdiv_min = postdiv1 * postdiv2;
-                    best_freq = newf;
-                    best_refdiv = refdiv;
-                    best_fbdiv = fb_divider;
-                    best_postdiv1 = postdiv1;
-                    best_postdiv2 = postdiv2;
-                    found = true;
-                }
-            }
-        }
-    }
-
-    if (!found) {
-        ESP_LOGE(TAG, "Didn't find PLL settings for target frequency %.2f", target_freq);
-        return;
-    }
-
-    freqbuf[2] = (best_fbdiv * 25 / best_refdiv >= 2400) ? 0x50 : 0x40;
-    freqbuf[3] = best_fbdiv;
-    freqbuf[4] = best_refdiv;
-    freqbuf[5] = (((best_postdiv1 - 1) & 0xf) << 4) | ((best_postdiv2 - 1) & 0xf);
-
-    ESP_LOGI(TAG, "Calculated Frequency: fbdiv: %d, refdiv: %d, postdiv1: %d, postdiv2: %d", best_fbdiv, best_refdiv, best_postdiv1, best_postdiv2);
-
-    _send_BM1368(TYPE_CMD | GROUP_ALL | CMD_WRITE, freqbuf, sizeof(freqbuf), BM1368_SERIALTX_DEBUG);
-
-    ESP_LOGI(TAG, "Setting Frequency to %.2fMHz (%.2f)", target_freq, best_freq);
-    current_frequency = target_freq;
 }
 
 bool BM1368_set_frequency(float target_freq) {
