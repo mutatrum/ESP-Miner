@@ -193,7 +193,7 @@ void BM1370_send_hash_frequency(float target_freq) {
 
     _send_BM1370(TYPE_CMD | GROUP_ALL | CMD_WRITE, freqbuf, 6, BM1370_SERIALTX_DEBUG);
 
-    ESP_LOGI(TAG, "Setting Frequency to %.2fMHz (%.2f)", target_freq, newf);
+    ESP_LOGI(TAG, "Setting Frequency to %g MHz (%g)", target_freq, newf);
 }
 
 static void do_frequency_ramp_up(float target_frequency) {
@@ -202,16 +202,16 @@ static void do_frequency_ramp_up(float target_frequency) {
         return;
     }
     
-    ESP_LOGI(TAG, "Ramping up frequency from 56.25 MHz to %.2f MHz", target_frequency);
-    do_frequency_transition(target_frequency, BM1370_send_hash_frequency, 1370);
+    ESP_LOGI(TAG, "Ramping up frequency from 56.25 MHz to %g MHz", target_frequency);
+    do_frequency_transition(target_frequency, BM1370_send_hash_frequency, ASIC_BM1370.name);
 }
 
 // Add a public function for external use
 bool BM1370_set_frequency(float target_freq) {
-    return do_frequency_transition(target_freq, BM1370_send_hash_frequency, 1370);
+    return do_frequency_transition(target_freq, BM1370_send_hash_frequency, ASIC_BM1370.name);
 }
 
-uint8_t BM1370_init(uint64_t frequency, uint16_t asic_count, uint16_t difficulty)
+uint8_t BM1370_init(float frequency, uint16_t asic_count, uint16_t difficulty)
 {
     // set version mask
     for (int i = 0; i < 3; i++) {

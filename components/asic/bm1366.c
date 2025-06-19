@@ -193,20 +193,20 @@ void BM1366_send_hash_frequency(float target_freq)
 
     _send_BM1366((TYPE_CMD | GROUP_ALL | CMD_WRITE), freqbuf, 6, BM1366_SERIALTX_DEBUG);
 
-    ESP_LOGI(TAG, "Setting Frequency to %.2fMHz (%.2f)", target_freq, newf);
+    ESP_LOGI(TAG, "Setting Frequency to %g MHz (%g)", target_freq, newf);
 }
 
 static void do_frequency_ramp_up(float target_frequency) {
-    ESP_LOGI(TAG, "Ramping up frequency from %.2f MHz to %.2f MHz", current_frequency, target_frequency);
-    do_frequency_transition(target_frequency, BM1366_send_hash_frequency, 1366);
+    ESP_LOGI(TAG, "Ramping up frequency from %g MHz to %g MHz", current_frequency, target_frequency);
+    do_frequency_transition(target_frequency, BM1366_send_hash_frequency, ASIC_BM1366.name);
 }
 
 // Add a public function for external use
 bool BM1366_set_frequency(float target_freq) {
-    return do_frequency_transition(target_freq, BM1366_send_hash_frequency, 1366);
+    return do_frequency_transition(target_freq, BM1366_send_hash_frequency, ASIC_BM1366.name);
 }
 
-uint8_t BM1366_init(uint64_t frequency, uint16_t asic_count, uint16_t difficulty)
+uint8_t BM1366_init(float frequency, uint16_t asic_count, uint16_t difficulty)
 {
     // set version mask
     for (int i = 0; i < 3; i++) {
@@ -274,7 +274,7 @@ uint8_t BM1366_init(uint64_t frequency, uint16_t asic_count, uint16_t difficulty
         _send_BM1366((TYPE_CMD | GROUP_SINGLE | CMD_WRITE), set_3c_register_third, 6, BM1366_SERIALTX_DEBUG);
     }
 
-    do_frequency_ramp_up((float)frequency);
+    do_frequency_ramp_up(frequency);
 
     //register 10 is still a bit of a mystery. discussion: https://github.com/bitaxeorg/ESP-Miner/pull/167
 

@@ -218,10 +218,10 @@ void BM1397_send_hash_frequency(float frequency)
 
     vTaskDelay(10 / portTICK_PERIOD_MS);
 
-    ESP_LOGI(TAG, "Setting Frequency to %.2fMHz (%.2f)", frequency, newf);
+    ESP_LOGI(TAG, "Setting Frequency to %g MHz (%g)", frequency, newf);
 }
 
-uint8_t BM1397_init(uint64_t frequency, uint16_t asic_count, uint16_t difficulty)
+uint8_t BM1397_init(float frequency, uint16_t asic_count, uint16_t difficulty)
 {
     // send the init command
     _send_read_address();
