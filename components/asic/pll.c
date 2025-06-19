@@ -9,7 +9,7 @@ bool pll_get_parameters(float target_freq, uint8_t *fb_divider, uint8_t *refdiv,
                         uint8_t *postdiv1, uint8_t *postdiv2, float *actual_freq) 
 {
     if (target_freq < pll_table[0].freq) {
-        ESP_LOGE(TAG, "Didn't find PLL settings for target frequency %.2f", target_freq);
+        ESP_LOGE(TAG, "Didn't find PLL settings for target frequency %g Mhz", target_freq);
         return false;
     }
 
@@ -35,7 +35,7 @@ bool pll_get_parameters(float target_freq, uint8_t *fb_divider, uint8_t *refdiv,
     *postdiv2 = pll_table[result].postdiv2;
     *actual_freq = pll_table[result].freq;
     
-    ESP_LOGI(TAG, "Frequency: fb_divider: %d, refdiv: %d, postdiv1: %d, postdiv2: %d, actual: %f MHz", *fb_divider, *refdiv, *postdiv1, *postdiv2, *actual_freq);
+    ESP_LOGI(TAG, "Frequency: fb_divider: %d, refdiv: %d, postdiv1: %d, postdiv2: %d, actual: %g MHz", *fb_divider, *refdiv, *postdiv1, *postdiv2, *actual_freq);
 
     return true;
 }
