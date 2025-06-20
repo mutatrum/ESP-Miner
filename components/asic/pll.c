@@ -20,10 +20,11 @@ void pll_get_parameters(float target_freq, uint16_t fb_divider_min, uint16_t fb_
 
     for (uint8_t refdiv = 2; refdiv > 0; refdiv--) {
         for (uint8_t postdiv1 = 7; postdiv1 > 0; postdiv1--) {
-            for (uint8_t postdiv2 = postdiv1; postdiv2 > 0; postdiv2--) {
+            for (uint8_t postdiv2 = 7; postdiv2 > 0; postdiv2--) {
                 uint16_t divider = refdiv * postdiv1 * postdiv2;
                 uint16_t fb_divider = round(target_freq / FREQ_MULT * divider);
-                if (fb_divider >= fb_divider_min && fb_divider <= fb_divider_max) {
+                if (postdiv2 < postdiv1 &&
+                    fb_divider >= fb_divider_min && fb_divider <= fb_divider_max) {
                     float new_freq = FREQ_MULT * fb_divider / divider;
                     float curr_diff = fabs(target_freq - new_freq);
                     float vco_freq = FREQ_MULT * fb_divider / refdiv;
