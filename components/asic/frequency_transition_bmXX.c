@@ -4,16 +4,16 @@
 #include "freertos/task.h"
 #include <math.h>
 
-#define MIN_DELTA 0.0001
+#define EPSILON 0.0001f
 #define STEP_SIZE 6.25 // MHz step size
 
 static const char * TAG = "frequency_transition";
 
-static float current_frequency = 56.25;
+static float current_frequency = 50; // Mhz
 
 void do_frequency_transition(float target_frequency, set_hash_frequency_fn set_frequency_fn)
 {
-    if (fabs(current_frequency - target_frequency) < MIN_DELTA) {
+    if (fabs(current_frequency - target_frequency) < EPSILON) {
         return;
     }
 
@@ -42,7 +42,7 @@ void do_frequency_transition(float target_frequency, set_hash_frequency_fn set_f
         }
     }
     
-    if (fabs(current_frequency - target_frequency) > MIN_DELTA) {
+    if (fabs(current_frequency - target_frequency) > EPSILON) {
         current_frequency = target_frequency;
         set_frequency_fn(current_frequency);
     }

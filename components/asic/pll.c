@@ -2,11 +2,13 @@
 #include <float.h>
 #include <math.h>
 
+#include "pll.h"
+
 #include "esp_log.h"
 
-#define TAG "pll"
+#define EPSILON 0.0001f
 
-#define FREQ_MULT 25.0 // MHz
+static const char * TAG = "pll";
 
 void pll_get_parameters(float target_freq, uint16_t fb_divider_min, uint16_t fb_divider_max, 
                         uint8_t *fb_divider, uint8_t *refdiv, uint8_t *postdiv1, uint8_t *postdiv2,
@@ -33,8 +35,8 @@ void pll_get_parameters(float target_freq, uint16_t fb_divider_min, uint16_t fb_
                     // 2. Lowest VCO frequency
                     // 3. Lowest postdiv1 * postdiv2
                     if (curr_diff < min_diff ||
-                        (curr_diff == min_diff && vco_freq < min_vco_freq) ||
-                        (curr_diff == min_diff && vco_freq == min_vco_freq && postdiv1 * postdiv2 < min_postdiv)) {
+                       (fabs(curr_diff - min_diff) < EPSILON && vco_freq < min_vco_freq) ||
+                       (fabs(curr_diff - min_diff) < EPSILON && fabs(vco_freq - min_vco_freq) < EPSILON && postdiv1 * postdiv2 < min_postdiv)) {
                         min_diff = curr_diff;
                         min_vco_freq = vco_freq;
                         min_postdiv = postdiv1 * postdiv2;

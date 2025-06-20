@@ -133,7 +133,7 @@ void BM1370_send_hash_frequency(float target_freq)
     
     pll_get_parameters(target_freq, 144, 235, &fb_divider, &refdiv, &postdiv1, &postdiv2, &frequency);
     
-    uint8_t vdo_scale = (fb_divider * 25 / refdiv >= 2400) ? 0x50 : 0x40;
+    uint8_t vdo_scale = (fb_divider * FREQ_MULT / refdiv >= 2400) ? 0x50 : 0x40;
     uint8_t postdiv = (((postdiv1 - 1) & 0xf) << 4) | ((postdiv2 - 1) & 0xf);
     uint8_t freqbuf[6] = {0x00, 0x08, vdo_scale, fb_divider, refdiv, postdiv};
 
