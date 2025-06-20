@@ -121,10 +121,6 @@ void BM1368_send_hash_frequency(float target_freq)
     ESP_LOGI(TAG, "Setting Frequency to %g MHz (%g)", target_freq, new_freq);
 }
 
-bool BM1368_set_frequency(float target_freq) {
-    return do_frequency_transition(target_freq, BM1368_send_hash_frequency, ASIC_BM1368.name);
-}
-
 uint8_t BM1368_init(float frequency, uint16_t asic_count, uint16_t difficulty)
 {
     // set version mask
@@ -178,7 +174,7 @@ uint8_t BM1368_init(float frequency, uint16_t asic_count, uint16_t difficulty)
 
     BM1368_set_job_difficulty_mask(difficulty);
 
-    BM1368_set_frequency(frequency);
+    do_frequency_transition(frequency, BM1368_send_hash_frequency);
 
     _send_BM1368(TYPE_CMD | GROUP_ALL | CMD_WRITE, (uint8_t[]){0x00, 0x10, 0x00, 0x00, 0x15, 0xa4}, 6, false);
     BM1368_set_version_mask(STRATUM_DEFAULT_VERSION_MASK);

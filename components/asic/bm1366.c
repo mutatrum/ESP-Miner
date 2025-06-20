@@ -140,11 +140,6 @@ void BM1366_send_hash_frequency(float target_freq)
     ESP_LOGI(TAG, "Setting Frequency to %g MHz (%g)", target_freq, new_freq);
 }
 
-// Add a public function for external use
-bool BM1366_set_frequency(float target_freq) {
-    return do_frequency_transition(target_freq, BM1366_send_hash_frequency, ASIC_BM1366.name);
-}
-
 uint8_t BM1366_init(float frequency, uint16_t asic_count, uint16_t difficulty)
 {
     // set version mask
@@ -213,7 +208,7 @@ uint8_t BM1366_init(float frequency, uint16_t asic_count, uint16_t difficulty)
         _send_BM1366((TYPE_CMD | GROUP_SINGLE | CMD_WRITE), set_3c_register_third, 6, BM1366_SERIALTX_DEBUG);
     }
 
-    BM1366_set_frequency(frequency);
+    do_frequency_transition(frequency, BM1366_send_hash_frequency);
 
     //register 10 is still a bit of a mystery. discussion: https://github.com/bitaxeorg/ESP-Miner/pull/167
 
