@@ -14,40 +14,32 @@ bool do_frequency_transition(float target_frequency, set_hash_frequency_fn set_f
         return false;
     }
 
+    ESP_LOGI(TAG, "Ramping up frequency from %g MHz to %g MHz", current_frequency, target_frequency);
+
     float step = 6.25;
     float current = current_frequency;
     float target = target_frequency;
 
     float direction = (target > current) ? step : -step;
 
-    // If current frequency is not a multiple of step, adjust to the nearest multiple
-    if (fmod(current, step) != 0) {
-        float next_dividable;
-        if (direction > 0) {
-            next_dividable = ceil(current / step) * step;
-        } else {
-            next_dividable = floor(current / step) * step;
-        }
-        current = next_dividable;
-        
-        // Call the provided hash frequency function
-        set_frequency_fn(current);
-        
-        vTaskDelay(100 / portTICK_PERIOD_MS);
-    }
+    float current_step_boundary = round(current / step) * step;
+    float target_step_boundary = round(target / step) * step;
 
-    // Gradually adjust frequency in steps until target is reached
-    while ((direction > 0 && current < target) || (direction < 0 && current > target)) {
-        float next_step = fmin(fabs(direction), fabs(target - current));
-        current += direction > 0 ? next_step : -next_step;
-        
-        // Call the provided hash frequency function
-        set_frequency_fn(current);
-        
-        vTaskDelay(100 / portTICK_PERIOD_MS);
+    if (current_step_boundary != target_step_boundary) {
+        while ((direction > 0 && current < target) || (direction < 0 && current > target) || fmod(current, step) != 0) {
+            if (fmod(current, step) != 0) {
+                current = (direction > 0) ? ceil(current / step) * step : floor(current / step) * step;
+            } else {
+                float next_step = fmin(fabs(direction), fabs(target - current));
+                current += (direction > 0) ? next_step : -next_step;
+            }
+
+            set_frequency_fn(current);
+            
+            vTaskDelay(100 / portTICK_PERIOD_MS);
+        }
     }
     
-    // Set the final target frequency
     set_frequency_fn(target);
     current_frequency = target;
     
