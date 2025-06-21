@@ -15,6 +15,7 @@
 #include "crc.h"
 #include "mining.h"
 #include "global_state.h"
+#include "pll.h"
 
 #define BM1397_CHIP_ID 0x1397
 #define BM1397_CHIP_ID_RESPONSE_LENGTH 9
@@ -130,6 +131,11 @@ void BM1397_set_version_mask(uint32_t version_mask) {
 // borrowed from cgminer driver-gekko.c calc_gsf_freq()
 void BM1397_send_hash_frequency(float frequency)
 {
+    uint8_t fb_divider, refdiv, postdiv1, postdiv2;
+    float actual_freq;
+    pll_get_parameters(frequency, 60, 200, &fb_divider, &refdiv, &postdiv1, &postdiv2, &actual_freq);
+    ESP_LOGI(TAG, "Test PLL settings: %g MHz (fb_divider: %d, refdiv: %d, postdiv1: %d, postdiv2: %d)", actual_freq, fb_divider, refdiv, postdiv1, postdiv2);
+
     unsigned char prefreq1[9] = {0x00, 0x70, 0x0F, 0x0F, 0x0F, 0x00}; // prefreq - pll0_divider
 
     // default 200Mhz if it fails
@@ -198,6 +204,8 @@ void BM1397_send_hash_frequency(float frequency)
         freqbuf[5] = (((unsigned char)fc1 & 0x7) << 4) + ((unsigned char)fc2 & 0x7);
         
         newf = basef / ((float)fb * (float)fc1 * (float)fc2);
+
+        ESP_LOGI(TAG, "Calculated PLL settings: %g MHz (fb: %d, fa: %d, fc1: %d, fc2: %d)", newf, (int)fb, (int) fb, (int)fc1, (int)fc2);
     }
 
     for (i = 0; i < 2; i++)
