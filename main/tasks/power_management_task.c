@@ -55,7 +55,7 @@ void POWER_MANAGEMENT_init_frequency(PowerManagementModule * power_management)
         nvs_config_set_float(NVS_CONFIG_ASIC_FREQUENCY_FLOAT, frequency);
     }
 
-    ESP_LOGI(TAG, "ASIC Frequency: %gMHz", frequency);
+    ESP_LOGI(TAG, "ASIC Frequency: %g MHz", frequency);
 
     power_management->frequency_value = frequency;
 }
