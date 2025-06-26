@@ -5,7 +5,6 @@ import { ToastrService } from 'ngx-toastr';
 import { forkJoin, startWith, Subject, takeUntil, pairwise } from 'rxjs';
 import { LoadingService } from 'src/app/services/loading.service';
 import { SystemService } from 'src/app/services/system.service';
-import { eASICModel } from 'src/models/enum/eASICModel';
 import { ActivatedRoute } from '@angular/router';
 
 type Dropdown = {
@@ -14,6 +13,7 @@ type Dropdown = {
 }[]
 
 const DISPLAY_TIMEOUT_STEPS = [0, 1, 2, 5, 15, 30, 60, 60 * 2, 60 * 4, 60* 8, -1];
+const STATS_FREQUENCY_STEPS = [0, 30, 60, 60 * 2, 60 * 6, 60 * 14, 60 * 28, 60 * 60];
 
 @Component({
   selector: 'app-edit',
@@ -29,10 +29,6 @@ export class EditComponent implements OnInit, OnDestroy {
 
   public savedChanges: boolean = false;
   public settingsUnlocked: boolean = false;
-  public eASICModel = eASICModel;
-  public ASICModel!: eASICModel;
-  public restrictedModels: eASICModel[] = Object.values(eASICModel)
-    .filter((v): v is eASICModel => typeof v === 'string');
 
   @Input() uri = '';
 
@@ -44,7 +40,10 @@ export class EditComponent implements OnInit, OnDestroy {
 
   private destroy$ = new Subject<void>();
 
+  public displays = ["NONE", "SSD1306 (128x32)", "SSD1309 (128x64)", "SH1107 (64x128)", "SH1107 (128x128)"];
+  public rotations = [0, 90, 180, 270];
   public displayTimeoutControl: FormControl;
+  public statsFrequencyControl: FormControl;
 
   constructor(
     private fb: FormBuilder,
@@ -84,7 +83,17 @@ export class EditComponent implements OnInit, OnDestroy {
       }
 
       this.form.patchValue({ displayTimeout: DISPLAY_TIMEOUT_STEPS[next] });
-      this.form.markAsDirty();
+      this.form.controls['displayTimeout'].markAsDirty();
+    });
+
+    this.statsFrequencyControl = new FormControl();
+    this.statsFrequencyControl.valueChanges.pipe(pairwise()).subscribe(([prev, next]) => {
+      if (prev === next) {
+        return;
+      }
+
+      this.form.patchValue({ statsFrequency: STATS_FREQUENCY_STEPS[next] });
+      this.form.controls['statsFrequency'].markAsDirty();
     });
   }
 
@@ -104,20 +113,18 @@ export class EditComponent implements OnInit, OnDestroy {
     // Fetch both system info and ASIC settings in parallel
     forkJoin({
       info: this.systemService.getInfo(this.uri),
-      asicSettings: this.systemService.getAsicSettings(this.uri)
+      asic: this.systemService.getAsicSettings(this.uri)
     })
     .pipe(
       this.loadingService.lockUIUntilComplete(),
       takeUntil(this.destroy$)
     )
-    .subscribe(({ info, asicSettings }) => {
-      this.ASICModel = info.ASICModel;
-
+    .subscribe(({ info, asic }) => {
       // Store the frequency and voltage options from the API
-      this.defaultFrequency = asicSettings.defaultFrequency;
-      this.frequencyOptions = asicSettings.frequencyOptions;
-      this.defaultVoltage = asicSettings.defaultVoltage;
-      this.voltageOptions = asicSettings.voltageOptions;
+      this.defaultFrequency = asic.defaultFrequency;
+      this.frequencyOptions = asic.frequencyOptions;
+      this.defaultVoltage = asic.defaultVoltage;
+      this.voltageOptions = asic.voltageOptions;
 
       // Check if overclock is enabled in NVS
       if (info.overclockEnabled === 1) {
@@ -130,11 +137,10 @@ export class EditComponent implements OnInit, OnDestroy {
 
         this.form = this.fb.group({
           display: [info.display, [Validators.required]],
-          flipscreen: [info.flipscreen == 1],
+          rotation: [info.rotation, [Validators.required]],
           invertscreen: [info.invertscreen == 1],
           displayTimeout: [info.displayTimeout, [
             Validators.required,
-            Validators.pattern(/^[^:]*$/),
             Validators.min(-1),
             Validators.max(this.displayTimeoutMaxValue)
           ]],
@@ -144,8 +150,11 @@ export class EditComponent implements OnInit, OnDestroy {
           fanspeed: [info.fanspeed, [Validators.required]],
           temptarget: [info.temptarget, [Validators.required]],
           overheat_mode: [info.overheat_mode, [Validators.required]],
-          statsLimit: [info.statsLimit, [Validators.required]],
-          statsDuration: [info.statsDuration, [Validators.required]],
+          statsFrequency: [info.statsFrequency, [
+            Validators.required,
+            Validators.min(0),
+            Validators.max(this.statsFrequencyMaxValue)
+          ]]
         });
 
       this.form.controls['autofanspeed'].valueChanges.pipe(
@@ -170,6 +179,16 @@ export class EditComponent implements OnInit, OnDestroy {
 
       this.displayTimeoutControl.setValue(
         DISPLAY_TIMEOUT_STEPS.findIndex(x => x === info.displayTimeout)
+      );
+
+      // Add custom value to predefined steps
+      if (STATS_FREQUENCY_STEPS.filter(x => x === info.statsFrequency).length === 0) {
+        STATS_FREQUENCY_STEPS.push(info.statsFrequency);
+        STATS_FREQUENCY_STEPS.sort((a, b) => a - b);
+      }
+
+      this.statsFrequencyControl.setValue(
+        STATS_FREQUENCY_STEPS.findIndex(x => x === info.statsFrequency)
       );
     });
   }
@@ -247,16 +266,20 @@ export class EditComponent implements OnInit, OnDestroy {
     return this.buildDropdown('coreVoltage', this.voltageOptions, this.defaultVoltage);
   }
 
-  getDisplays() {
-    return ["NONE", "SSD1306 (128x32)", "SSD1309 (128x64)", "SH1107 (64x128)", "SH1107 (128x128)"];
-  }
-
   get displayTimeoutMaxSteps(): number {
     return DISPLAY_TIMEOUT_STEPS.length - 1;
   }
 
   get displayTimeoutMaxValue(): number {
     return DISPLAY_TIMEOUT_STEPS[this.displayTimeoutMaxSteps - 1];
+  }
+
+  get statsFrequencyMaxSteps(): number {
+    return STATS_FREQUENCY_STEPS.length - 1;
+  }
+
+  get statsFrequencyMaxValue(): number {
+    return STATS_FREQUENCY_STEPS[this.statsFrequencyMaxSteps];
   }
 
   buildDropdown(formField: string, apiOptions: number[], defaultValue: number): Dropdown {
@@ -297,8 +320,7 @@ export class EditComponent implements OnInit, OnDestroy {
       'fanspeed',
       'temptarget',
       'overheat_mode',
-      'statsLimit',
-      'statsDuration'
+      'statsFrequency'
     ];
   }
 
