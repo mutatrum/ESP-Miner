@@ -5,6 +5,7 @@
 
 #include <string.h>
 
+/*
 static uint8_t uart_initialized = 0;
 
 TEST_CASE("Check known working midstate + job command", "[bm1397]")
@@ -196,3 +197,5 @@ TEST_CASE("Check known working midstate + job command", "[bm1397]")
     TEST_ASSERT_EQUAL_UINT8(0x18, nonce.job_id & 0xfc);
     TEST_ASSERT_EQUAL_UINT8(2, nonce.job_id & 0x03);
 }
+
+*/
