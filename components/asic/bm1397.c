@@ -198,7 +198,8 @@ uint8_t BM1397_init(float frequency, uint16_t asic_count, uint16_t difficulty)
 
     BM1397_set_default_baud();
 
-    BM1397_send_hash_frequency(frequency);
+    //ramp up the hash frequency
+    do_frequency_transition(frequency, BM1370_send_hash_frequency);
 
     return chip_counter;
 }
