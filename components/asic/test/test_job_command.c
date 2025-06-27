@@ -1,6 +1,7 @@
 #include "unity.h"
 
 #include "serial.h"
+#include "bm1397.h"
 
 #include <string.h>
 
