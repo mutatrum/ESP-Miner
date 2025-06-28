@@ -194,3 +194,20 @@ void nvs_config_set_float(const char *key, float value)
 
     nvs_config_set_string(key, str_value);
 }
+
+void nvs_config_commit()
+{
+    nvs_handle handle;
+    esp_err_t err;
+    err = nvs_open(NVS_CONFIG_NAMESPACE, NVS_READWRITE, &handle);
+    if (err != ESP_OK) {
+        ESP_LOGW(TAG, "Could not open nvs");
+        return;
+    }
+
+    err = nvs_commit(handle);
+    if (err != ESP_OK) {
+        ESP_LOGW(TAG, "Could not commit nvs");
+    }
+    nvs_close(handle);
+}
