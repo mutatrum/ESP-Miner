@@ -108,7 +108,7 @@ static lv_obj_t * create_scr_self_test() {
     return scr;
 }
 
-static lv_obj_t * create_scr_overheat(SystemModule * module) {
+static lv_obj_t * create_scr_overheat() {
     lv_obj_t * scr = create_flex_screen(4);
 
     lv_obj_t *label1 = lv_label_create(scr);
@@ -127,7 +127,7 @@ static lv_obj_t * create_scr_overheat(SystemModule * module) {
     return scr;
 }
 
-static lv_obj_t * create_scr_asic_status(SystemModule * module) {
+static lv_obj_t * create_scr_asic_status() {
     lv_obj_t * scr = create_flex_screen(2);
 
     lv_obj_t *label1 = lv_label_create(scr);
@@ -139,7 +139,7 @@ static lv_obj_t * create_scr_asic_status(SystemModule * module) {
     return scr;
 }
 
-static lv_obj_t * create_scr_configure(SystemModule * module) {
+static lv_obj_t * create_scr_configure(SystemModule * SYSTEM_MODULE) {
     lv_obj_t * scr = create_flex_screen(3);
 
     lv_obj_t *label1 = lv_label_create(scr);
@@ -155,12 +155,12 @@ static lv_obj_t * create_scr_configure(SystemModule * module) {
     lv_label_set_text(label2, "Wi-Fi (for setup):");
 
     lv_obj_t *label3 = lv_label_create(scr);
-    lv_label_set_text(label3, module->ap_ssid);
+    lv_label_set_text(label3, SYSTEM_MODULE->ap_ssid);
 
     return scr;
 }
 
-static lv_obj_t * create_scr_ota(SystemModule * module) {
+static lv_obj_t * create_scr_ota() {
     lv_obj_t * scr = create_flex_screen(3);
 
     lv_obj_t *label1 = lv_label_create(scr);
@@ -174,13 +174,13 @@ static lv_obj_t * create_scr_ota(SystemModule * module) {
     return scr;
 }
 
-static lv_obj_t * create_scr_connection(SystemModule * module) {
+static lv_obj_t * create_scr_connection(SystemModule * SYSTEM_MODULE) {
     lv_obj_t * scr = create_flex_screen(4);
 
     lv_obj_t *label1 = lv_label_create(scr);
     lv_obj_set_width(label1, LV_HOR_RES);
     lv_label_set_long_mode(label1, LV_LABEL_LONG_SCROLL_CIRCULAR);
-    lv_label_set_text_fmt(label1, "Wi-Fi: %s", module->ssid);
+    lv_label_set_text_fmt(label1, "Wi-Fi: %s", SYSTEM_MODULE->ssid);
 
     wifi_status_label = lv_label_create(scr);
     lv_obj_set_width(wifi_status_label, LV_HOR_RES);
@@ -190,7 +190,7 @@ static lv_obj_t * create_scr_connection(SystemModule * module) {
     lv_label_set_text(label3, "Wi-Fi (for setup):");
 
     lv_obj_t *label4 = lv_label_create(scr);
-    lv_label_set_text(label4, module->ap_ssid);
+    lv_label_set_text(label4, SYSTEM_MODULE->ap_ssid);
 
     return scr;
 }
@@ -223,7 +223,7 @@ static lv_obj_t * create_scr_osmu_logo() {
     return scr;
 }
 
-static lv_obj_t * create_scr_urls(SystemModule * module) {
+static lv_obj_t * create_scr_urls() {
     lv_obj_t * scr = create_flex_screen(4);
 
     lv_obj_t *label1 = lv_label_create(scr);
@@ -321,14 +321,14 @@ static void screen_update_cb(lv_timer_t * timer)
     if (GLOBAL_STATE->SELF_TEST_MODULE.is_active) {
         screen_show(SCR_SELF_TEST);
 
-        SelfTestModule * self_test = &GLOBAL_STATE->SELF_TEST_MODULE;
+        SelfTestModule * SELF_TEST_MODULE = &GLOBAL_STATE->SELF_TEST_MODULE;
 
-        lv_label_set_text(self_test_message_label, self_test->message);
+        lv_label_set_text(self_test_message_label, SELF_TEST_MODULE->message);
 
-        if (self_test->is_finished && !self_test_finished) {
+        if (SELF_TEST_MODULE->is_finished && !self_test_finished) {
             self_test_finished = true;
-            lv_label_set_text(self_test_result_label, self_test->result);
-            lv_label_set_text(self_test_finished_label, self_test->finished);
+            lv_label_set_text(self_test_result_label, SELF_TEST_MODULE->result);
+            lv_label_set_text(self_test_finished_label, SELF_TEST_MODULE->finished);
         }
 
         return;
@@ -523,17 +523,17 @@ esp_err_t screen_start(void * pvParameters)
     GLOBAL_STATE = (GlobalState *) pvParameters;
 
     if (GLOBAL_STATE->SYSTEM_MODULE.is_screen_active) {
-        SystemModule * module = &GLOBAL_STATE->SYSTEM_MODULE;
+        SystemModule * SYSTEM_MODULE = &GLOBAL_STATE->SYSTEM_MODULE;
 
         screens[SCR_SELF_TEST] = create_scr_self_test();
-        screens[SCR_OVERHEAT] = create_scr_overheat(module);
-        screens[SCR_ASIC_STATUS] = create_scr_asic_status(module);
-        screens[SCR_CONFIGURE] = create_scr_configure(module);
-        screens[SCR_FIRMWARE_UPDATE] = create_scr_ota(module);
-        screens[SCR_CONNECTION] = create_scr_connection(module);
+        screens[SCR_OVERHEAT] = create_scr_overheat();
+        screens[SCR_ASIC_STATUS] = create_scr_asic_status();
+        screens[SCR_CONFIGURE] = create_scr_configure(SYSTEM_MODULE);
+        screens[SCR_FIRMWARE_UPDATE] = create_scr_ota();
+        screens[SCR_CONNECTION] = create_scr_connection(SYSTEM_MODULE);
         screens[SCR_BITAXE_LOGO] = create_scr_bitaxe_logo(GLOBAL_STATE->BOARD_CONFIG.device.name, GLOBAL_STATE->BOARD_CONFIG.board_version);
         screens[SCR_OSMU_LOGO] = create_scr_osmu_logo();
-        screens[SCR_URLS] = create_scr_urls(module);
+        screens[SCR_URLS] = create_scr_urls();
         screens[SCR_STATS] = create_scr_stats();
         screens[SCR_WIFI_RSSI] = create_scr_wifi_rssi();
 
