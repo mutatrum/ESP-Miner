@@ -62,24 +62,6 @@ int ASIC_set_max_baud(Asic asic)
     return 0;
 }
 
-void ASIC_set_job_difficulty_mask(Asic asic, uint16_t difficulty)
-{
-    switch (asic) {
-        case BM1397:
-            BM1397_set_job_difficulty_mask(difficulty);
-            break;
-        case BM1366:
-            BM1366_set_job_difficulty_mask(difficulty);
-            break;
-        case BM1368:
-            BM1368_set_job_difficulty_mask(difficulty);
-            break;
-        case BM1370:
-            BM1370_set_job_difficulty_mask(difficulty);
-            break;
-    }
-}
-
 void ASIC_send_work(GlobalState * GLOBAL_STATE, void * next_job)
 {
     switch (GLOBAL_STATE->BOARD_CONFIG.device.asic.id) {
@@ -98,9 +80,9 @@ void ASIC_send_work(GlobalState * GLOBAL_STATE, void * next_job)
     }
 }
 
-void ASIC_set_version_mask(GlobalState * GLOBAL_STATE, uint32_t mask)
+void ASIC_set_version_mask(Asic asic, uint32_t mask)
 {
-    switch (GLOBAL_STATE->BOARD_CONFIG.device.asic.id) {
+    switch (asic) {
         case BM1397:
             BM1397_set_version_mask(mask);
             break;
@@ -116,12 +98,12 @@ void ASIC_set_version_mask(GlobalState * GLOBAL_STATE, uint32_t mask)
     }
 }
 
-bool ASIC_set_frequency(GlobalState * GLOBAL_STATE, float target_frequency)
+bool ASIC_set_frequency(Asic asic, float target_frequency)
 {
     ESP_LOGI(TAG, "Setting ASIC frequency to %.2f MHz", target_frequency);
     bool success = false;
     
-    switch (GLOBAL_STATE->BOARD_CONFIG.device.asic.id) {
+    switch (asic) {
         case BM1366:
             success = BM1366_set_frequency(target_frequency);
             break;

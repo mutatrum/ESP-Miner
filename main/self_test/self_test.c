@@ -46,6 +46,9 @@
 //Test Power Consumption
 #define POWER_CONSUMPTION_MARGIN 3              //+/- watts
 
+//Test hash rate
+#define DIFFICULTY 8
+
 static const char * TAG = "self_test";
 
 static SemaphoreHandle_t longPressSemaphore;
@@ -329,6 +332,9 @@ bool self_test(void * pvParameters)
     GLOBAL_STATE->POWER_MANAGEMENT_MODULE.frequency_value = nvs_config_get_u16(NVS_CONFIG_ASIC_FREQ, CONFIG_ASIC_FREQUENCY);
     ESP_LOGI(TAG, "NVS_CONFIG_ASIC_FREQ %f", (float)GLOBAL_STATE->POWER_MANAGEMENT_MODULE.frequency_value);
 
+    // Set difficulty before ASIC_init
+    GLOBAL_STATE->BOARD_CONFIG.device.asic.difficulty = DIFFICULTY;
+
     uint8_t chips_detected = ASIC_init(GLOBAL_STATE);
     uint8_t chips_expected = GLOBAL_STATE->BOARD_CONFIG.device.asic_count;
     ESP_LOGI(TAG, "%u chips detected, %u expected", chips_detected, chips_expected);
@@ -406,10 +412,6 @@ bool self_test(void * pvParameters)
 
     bm_job job = construct_bm_job(&notify_message, merkle_root, 0x1fffe000, 1000000);
 
-    uint16_t difficulty = 8;
-
-    ASIC_set_job_difficulty_mask(GLOBAL_STATE->BOARD_CONFIG.device.asic.id, difficulty);
-
     ESP_LOGI(TAG, "Sending work");
 
     //(*GLOBAL_STATE->ASIC_functions.send_work_fn)(GLOBAL_STATE, &job);
@@ -426,7 +428,7 @@ bool self_test(void * pvParameters)
         if (asic_result != NULL) {
             // check the nonce difficulty
             double nonce_diff = test_nonce_value(&job, asic_result->nonce, asic_result->rolled_version);
-            sum += difficulty;
+            sum += DIFFICULTY;
             
             hash_rate = (sum * 4294967296) / (duration * 1000000000);
             ESP_LOGI(TAG, "Nonce %lu Nonce difficulty %.32f.", asic_result->nonce, nonce_diff);

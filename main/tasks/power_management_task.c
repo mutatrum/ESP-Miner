@@ -173,7 +173,7 @@ void POWER_MANAGEMENT_task(void * pvParameters)
         if (asic_frequency != last_asic_frequency) {
             ESP_LOGI(TAG, "New ASIC frequency requested: %uMHz (current: %uMHz)", asic_frequency, last_asic_frequency);
             
-            bool success = ASIC_set_frequency(GLOBAL_STATE, (float)asic_frequency);
+            bool success = ASIC_set_frequency(GLOBAL_STATE->BOARD_CONFIG.device.asic.id, (float)asic_frequency);
             
             if (success) {
                 POWER_MANAGEMENT_MODULE->frequency_value = (float)asic_frequency;
