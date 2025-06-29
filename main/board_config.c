@@ -16,9 +16,9 @@ esp_err_t board_config_init(void * pvParameters)
 
     char * board_version = nvs_config_get_string(NVS_CONFIG_BOARD_VERSION, "000");
 
-    for (int i = 0 ; i < ARRAY_SIZE(default_boards); i++) {
-        if (strcmp(default_boards[i].board_version, board_version) == 0) {
-            GLOBAL_STATE->BOARD_CONFIG = default_boards[i];
+    for (int i = 0 ; i < ARRAY_SIZE(boards); i++) {
+        if (strcmp(boards[i].board_version, board_version) == 0) {
+            GLOBAL_STATE->BOARD_CONFIG = boards[i];
 
             ESP_LOGI(TAG, "Device Model: %s", GLOBAL_STATE->BOARD_CONFIG.device.name);
             ESP_LOGI(TAG, "Board Version: %s", GLOBAL_STATE->BOARD_CONFIG.board_version);
@@ -35,9 +35,9 @@ esp_err_t board_config_init(void * pvParameters)
 
     char * device_model = nvs_config_get_string(NVS_CONFIG_DEVICE_MODEL, "unknown");
 
-    for (int i = 0 ; i < ARRAY_SIZE(default_devices); i++) {
-        if (strcasecmp(default_devices[i].name, device_model) == 0) {
-            GLOBAL_STATE->BOARD_CONFIG.device = default_devices[i];
+    for (int i = 0 ; i < ARRAY_SIZE(devices); i++) {
+        if (strcasecmp(devices[i].name, device_model) == 0) {
+            GLOBAL_STATE->BOARD_CONFIG.device = devices[i];
 
             ESP_LOGI(TAG, "Device Model: %s", GLOBAL_STATE->BOARD_CONFIG.device.name);
 
@@ -47,9 +47,9 @@ esp_err_t board_config_init(void * pvParameters)
 
     char * asic_model = nvs_config_get_string(NVS_CONFIG_ASIC_MODEL, "unknown");
 
-    for (int i = 0 ; i < ARRAY_SIZE(default_asics); i++) {
-        if (strcasecmp(default_asics[i].name, asic_model) == 0) {
-            GLOBAL_STATE->BOARD_CONFIG.device.asic = default_asics[i];
+    for (int i = 0 ; i < ARRAY_SIZE(asics); i++) {
+        if (strcasecmp(asics[i].name, asic_model) == 0) {
+            GLOBAL_STATE->BOARD_CONFIG.device.asic = asics[i];
 
             ESP_LOGI(TAG, "ASIC: %dx %s (%d cores)", GLOBAL_STATE->BOARD_CONFIG.device.asic_count, GLOBAL_STATE->BOARD_CONFIG.device.asic.name, GLOBAL_STATE->BOARD_CONFIG.device.asic.core_count);
 

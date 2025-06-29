@@ -83,7 +83,7 @@ static const AsicConfig ASIC_BM1366 = { .id = BM1366, .name = "BM1366", .chip_id
 static const AsicConfig ASIC_BM1368 = { .id = BM1368, .name = "BM1368", .chip_id = 1368, .default_frequency_mhz = 490, .frequency_options = BM1368_FREQUENCY_OPTIONS, .default_voltage_mv = 1166, .voltage_options = BM1368_VOLTAGE_OPTIONS, .difficulty = 256, .core_count =  80, .small_core_count = 1276, .hashrate_test_percentage_target = 0.80, };
 static const AsicConfig ASIC_BM1370 = { .id = BM1370, .name = "BM1370", .chip_id = 1370, .default_frequency_mhz = 525, .frequency_options = BM1370_FREQUENCY_OPTIONS, .default_voltage_mv = 1150, .voltage_options = BM1370_VOLTAGE_OPTIONS, .difficulty = 256, .core_count = 128, .small_core_count = 2040, .hashrate_test_percentage_target = 0.85, };
 
-static const AsicConfig default_asics[] = {
+static const AsicConfig asics[] = {
     ASIC_BM1397,
     ASIC_BM1366,
     ASIC_BM1368,
@@ -97,7 +97,7 @@ static const DeviceConfig DEVICE_SUPRA       = { .id = SUPRA,       .name = "Sup
 static const DeviceConfig DEVICE_GAMMA       = { .id = GAMMA,       .name = "Gamma",      .asic = ASIC_BM1370, .asic_count = 1, .max_power = 40, .power_offset = 5,  .nominal_voltage = 5,  .swarm_color = "green",  };
 static const DeviceConfig DEVICE_GAMMA_TURBO = { .id = GAMMA_TURBO, .name = "GammaTurbo", .asic = ASIC_BM1370, .asic_count = 2, .max_power = 60, .power_offset = 10, .nominal_voltage = 12, .swarm_color = "cyan",   };
 
-static const DeviceConfig default_devices[] = {
+static const DeviceConfig devices[] = {
     DEVICE_MAX,
     DEVICE_ULTRA,
     DEVICE_HEX,
@@ -106,7 +106,7 @@ static const DeviceConfig default_devices[] = {
     DEVICE_GAMMA_TURBO,
 };
 
-static const BoardConfig default_boards[] = {
+static const BoardConfig boards[] = {
     { .board_version = "2.2",  .device = DEVICE_MAX,         .EMC2101 = true,                                                                                     .DS4432U = true, .INA260 = true, .plug_sense = true, .asic_enable = true, .power_consumption_target = 12, },
     { .board_version = "102",  .device = DEVICE_MAX,         .EMC2101 = true,                                                                                     .DS4432U = true, .INA260 = true, .plug_sense = true, .asic_enable = true, .power_consumption_target = 12, },
     { .board_version = "0.11", .device = DEVICE_ULTRA,       .EMC2101 = true, .emc_internal_temp = true,                                  .emc_temp_offset = 5,   .DS4432U = true, .INA260 = true, .plug_sense = true, .asic_enable = true, .power_consumption_target = 12, },
