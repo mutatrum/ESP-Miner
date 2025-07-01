@@ -269,6 +269,8 @@ export class SwarmComponent implements OnInit, OnDestroy {
   private sortSwarm() {
     this.swarm.sort((a, b) => {
       let comparison = 0;
+      const fieldType = typeof a[this.sortField];
+
       if (this.sortField === 'IP') {
         // Split IP into octets and compare numerically
         const aOctets = a[this.sortField].split('.').map(Number);
@@ -279,9 +281,9 @@ export class SwarmComponent implements OnInit, OnDestroy {
             break;
           }
         }
-      } else if (typeof a[this.sortField] === 'number') {
+      } else if (fieldType === 'number') {
         comparison = a[this.sortField] - b[this.sortField];
-      } else {
+      } else if (fieldType === 'string') {
         comparison = a[this.sortField].localeCompare(b[this.sortField], undefined, { numeric: true });
       }
       return this.sortDirection === 'asc' ? comparison : -comparison;
@@ -352,7 +354,7 @@ export class SwarmComponent implements OnInit, OnDestroy {
       case 'UltraHex':   return 'orange';
       case 'Gamma':      return 'green';
       case 'GammaHex':   return 'lime'; // New color?
-      case 'GammaTurbo': return 'cyan'; 
+      case 'GammaTurbo': return 'cyan';
       default:           return 'gray';
     }
   }
