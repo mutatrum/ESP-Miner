@@ -1,4 +1,5 @@
 #include "unity.h"
+
 #include "pll.h"
 
 TEST_CASE("Check PLL frequency calculation", "[pll]")
