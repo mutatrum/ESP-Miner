@@ -103,7 +103,7 @@ bool ASIC_set_frequency(GlobalState * GLOBAL_STATE, float frequency)
     switch (GLOBAL_STATE->DEVICE_CONFIG.family.asic.id) {
         case BM1397:
             do_frequency_transition(frequency, BM1397_send_hash_frequency);
-            return false;
+            return true;
         case BM1366:
             do_frequency_transition(frequency, BM1366_send_hash_frequency);
             return true;
