@@ -13,8 +13,12 @@
 #define NVS_CONFIG_FALLBACK_STRATUM_URL "fbstratumurl"
 #define NVS_CONFIG_FALLBACK_STRATUM_PORT "fbstratumport"
 #define NVS_CONFIG_STRATUM_USER "stratumuser"
+#define NVS_CONFIG_STRATUM_EXTRANONCE_SUBSCRIBE "stratumxnsub"
+#define NVS_CONFIG_STRATUM_DIFFICULTY "stratumdiff"
 #define NVS_CONFIG_STRATUM_PASS "stratumpass"
 #define NVS_CONFIG_FALLBACK_STRATUM_USER "fbstratumuser"
+#define NVS_CONFIG_FALLBACK_STRATUM_EXTRANONCE_SUBSCRIBE "stratumfbxnsub"
+#define NVS_CONFIG_FALLBACK_STRATUM_DIFFICULTY "fbstratumdiff"
 #define NVS_CONFIG_FALLBACK_STRATUM_PASS "fbstratumpass"
 #define NVS_CONFIG_ASIC_FREQ "asicfrequency"
 #define NVS_CONFIG_ASIC_VOLTAGE "asicvoltage"
@@ -61,5 +65,6 @@ int32_t nvs_config_get_i32(const char * key, const int32_t default_value);
 void nvs_config_set_i32(const char * key, const int32_t value);
 uint64_t nvs_config_get_u64(const char * key, const uint64_t default_value);
 void nvs_config_set_u64(const char * key, const uint64_t value);
+void nvs_config_commit(void);
 
 #endif // MAIN_NVS_CONFIG_H
