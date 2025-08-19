@@ -729,9 +729,8 @@ float TPS546_get_vout(void)
     }
 }
 
-esp_err_t TPS546_check_status(GlobalState * GLOBAL_STATE) {
-
-    SystemModule * SYSTEM_MODULE = &GLOBAL_STATE->SYSTEM_MODULE;
+esp_err_t TPS546_check_status()
+{
     uint16_t status;
 
     ESP_RETURN_ON_ERROR(smb_read_word(PMBUS_STATUS_WORD, &status), TAG, "Failed to read STATUS_WORD");
@@ -750,12 +749,14 @@ esp_err_t TPS546_check_status(GlobalState * GLOBAL_STATE) {
 // Global variable to store the TPS error message for the UI
 static char tps_error_message[256] = "Power Fault Detected.";
 
-const char* TPS546_get_error_message() {
+const char* TPS546_get_error_message()
+{
     return tps_error_message;
 }
 
 
-static esp_err_t TPS546_parse_status(uint16_t status) {
+static esp_err_t TPS546_parse_status(uint16_t status)
+{
     uint8_t u8_value;
 
     //print the status word

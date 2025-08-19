@@ -31,7 +31,7 @@ StatisticsNodePtr addStatisticData(StatisticsNodePtr data);
 
 StatisticsNextNodePtr statisticData(StatisticsNodePtr nodeIn, StatisticsNodePtr dataOut);
 
-void statistics_init(void * pvParameters);
-void statistics_task(void * pvParameters);
+void statistics_init();
+void statistics_task();
 
 #endif // STATISTICS_TASK_H_

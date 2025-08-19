@@ -14,6 +14,6 @@ typedef struct
     SemaphoreHandle_t semaphore;
 } AsicTaskModule;
 
-void ASIC_task(void *pvParameters);
+void ASIC_task();
 
 #endif /* ASIC_TASK_H_ */

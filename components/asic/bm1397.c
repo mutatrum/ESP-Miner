@@ -295,10 +295,8 @@ int BM1397_set_max_baud(void)
 
 static uint8_t id = 0;
 
-void BM1397_send_work(void *pvParameters, bm_job *next_bm_job)
+void BM1397_send_work(bm_job *next_bm_job)
 {
-    GlobalState *GLOBAL_STATE = (GlobalState *)pvParameters;
-
     job_packet job;
     // max job number is 128
     // there is still some really weird logic with the job id bits for the asic to sort out
@@ -320,12 +318,12 @@ void BM1397_send_work(void *pvParameters, bm_job *next_bm_job)
         memcpy(job.midstate3, next_bm_job->midstate3, 32);
     }
 
-    if (GLOBAL_STATE->ASIC_TASK_MODULE.active_jobs[job.job_id] != NULL)
+    if (ASIC_TASK_MODULE->active_jobs[job.job_id] != NULL)
     {
-        free_bm_job(GLOBAL_STATE->ASIC_TASK_MODULE.active_jobs[job.job_id]);
+        free_bm_job(ASIC_TASK_MODULE->active_jobs[job.job_id]);
     }
 
-    GLOBAL_STATE->ASIC_TASK_MODULE.active_jobs[job.job_id] = next_bm_job;
+    ASIC_TASK_MODULE->active_jobs[job.job_id] = next_bm_job;
 
     pthread_mutex_lock(&GLOBAL_STATE->valid_jobs_lock);
     GLOBAL_STATE->valid_jobs[job.job_id] = 1;
@@ -338,7 +336,7 @@ void BM1397_send_work(void *pvParameters, bm_job *next_bm_job)
     _send_BM1397((TYPE_JOB | GROUP_SINGLE | CMD_WRITE), (uint8_t *)&job, sizeof(job_packet), BM1397_DEBUG_WORK);
 }
 
-task_result *BM1397_process_work(void *pvParameters)
+task_result *BM1397_process_work()
 {
     bm1397_asic_result_t asic_result = {0};
 
@@ -352,17 +350,16 @@ task_result *BM1397_process_work(void *pvParameters)
     uint8_t rx_job_id = asic_result.job_id & 0xfc;
     uint8_t rx_midstate_index = asic_result.job_id & 0x03;
 
-    GlobalState *GLOBAL_STATE = (GlobalState *)pvParameters;
     if (GLOBAL_STATE->valid_jobs[rx_job_id] == 0)
     {
         ESP_LOGW(TAG, "Invalid job nonce found, id=%d", rx_job_id);
         return NULL;
     }
 
-    uint32_t rolled_version = GLOBAL_STATE->ASIC_TASK_MODULE.active_jobs[rx_job_id]->version;
+    uint32_t rolled_version = ASIC_TASK_MODULE->active_jobs[rx_job_id]->version;
     for (int i = 0; i < rx_midstate_index; i++)
     {
-        rolled_version = increment_bitmask(rolled_version, GLOBAL_STATE->ASIC_TASK_MODULE.active_jobs[rx_job_id]->version_mask);
+        rolled_version = increment_bitmask(rolled_version, ASIC_TASK_MODULE->active_jobs[rx_job_id]->version_mask);
     }
 
     // ASIC may return the same nonce multiple times

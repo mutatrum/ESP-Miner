@@ -87,14 +87,6 @@ typedef struct
     work_queue stratum_queue;
     work_queue ASIC_jobs_queue;
 
-    SystemModule SYSTEM_MODULE;
-    DeviceConfig DEVICE_CONFIG;
-    DisplayConfig DISPLAY_CONFIG;
-    AsicTaskModule ASIC_TASK_MODULE;
-    PowerManagementModule POWER_MANAGEMENT_MODULE;
-    SelfTestModule SELF_TEST_MODULE;
-    StatisticsModule STATISTICS_MODULE;
-
     char * extranonce_str;
     int extranonce_2_len;
     int abandon_work;
@@ -116,5 +108,14 @@ typedef struct
     bool ASIC_initalized;
     bool psram_is_available;
 } GlobalState;
+
+extern GlobalState * GLOBAL_STATE;
+extern SystemModule * SYSTEM_MODULE;
+extern DeviceConfig * DEVICE_CONFIG;
+extern DisplayConfig * DISPLAY_CONFIG;
+extern AsicTaskModule * ASIC_TASK_MODULE;
+extern PowerManagementModule * POWER_MANAGEMENT_MODULE;
+extern SelfTestModule * SELF_TEST_MODULE;
+extern StatisticsModule * STATISTICS_MODULE;
 
 #endif /* GLOBAL_STATE_H_ */

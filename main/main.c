@@ -3,6 +3,7 @@
 #include "esp_psram.h"
 #include "nvs_flash.h"
 
+#include "global_state.h"
 #include "asic_result_task.h"
 #include "asic_task.h"
 #include "create_jobs_task.h"
@@ -20,7 +21,14 @@
 #include "connect.h"
 #include "asic_reset.h"
 
-static GlobalState GLOBAL_STATE;
+GlobalState * GLOBAL_STATE;
+SystemModule * SYSTEM_MODULE;
+DeviceConfig * DEVICE_CONFIG;
+DisplayConfig * DISPLAY_CONFIG;
+AsicTaskModule * ASIC_TASK_MODULE;
+PowerManagementModule * POWER_MANAGEMENT_MODULE;
+SelfTestModule * SELF_TEST_MODULE;
+StatisticsModule * STATISTICS_MODULE;
 
 static const char * TAG = "bitaxe";
 
@@ -30,9 +38,9 @@ void app_main(void)
 
     if (!esp_psram_is_initialized()) {
         ESP_LOGE(TAG, "No PSRAM available on ESP32 device!");
-        GLOBAL_STATE.psram_is_available = false;
+        GLOBAL_STATE->psram_is_available = false;
     } else {
-        GLOBAL_STATE.psram_is_available = true;
+        GLOBAL_STATE->psram_is_available = true;
     }
 
     // Init I2C
@@ -51,55 +59,55 @@ void app_main(void)
         return;
     }
 
-    if (device_config_init(&GLOBAL_STATE) != ESP_OK) {
+    if (device_config_init() != ESP_OK) {
         ESP_LOGE(TAG, "Failed to init device config");
         return;
     }
 
-    if (self_test(&GLOBAL_STATE)) return;
+    if (self_test()) return;
 
-    SYSTEM_init_system(&GLOBAL_STATE);
-    statistics_init(&GLOBAL_STATE);
+    SYSTEM_init_system();
+    statistics_init();
 
     // init AP and connect to wifi
-    wifi_init(&GLOBAL_STATE);
+    wifi_init();
 
-    SYSTEM_init_peripherals(&GLOBAL_STATE);
+    SYSTEM_init_peripherals();
 
-    xTaskCreate(POWER_MANAGEMENT_task, "power management", 8192, (void *) &GLOBAL_STATE, 10, NULL);
+    xTaskCreate(POWER_MANAGEMENT_task, "power management", 8192, NULL, 10, NULL);
 
     //start the API for AxeOS
-    start_rest_server((void *) &GLOBAL_STATE);
+    start_rest_server();
 
-    while (!GLOBAL_STATE.SYSTEM_MODULE.is_connected) {
+    while (!SYSTEM_MODULE->is_connected) {
         vTaskDelay(100 / portTICK_PERIOD_MS);
     }
 
-    queue_init(&GLOBAL_STATE.stratum_queue);
-    queue_init(&GLOBAL_STATE.ASIC_jobs_queue);
+    queue_init(&GLOBAL_STATE->stratum_queue);
+    queue_init(&GLOBAL_STATE->ASIC_jobs_queue);
 
     if (asic_reset() != ESP_OK) {
-        GLOBAL_STATE.SYSTEM_MODULE.asic_status = "ASIC reset failed";
+        SYSTEM_MODULE->asic_status = "ASIC reset failed";
         ESP_LOGE(TAG, "ASIC reset failed!");
         return;
     }
 
     SERIAL_init();
 
-    if (ASIC_init(&GLOBAL_STATE) == 0) {
-        GLOBAL_STATE.SYSTEM_MODULE.asic_status = "Chip count 0";
+    if (ASIC_init() == 0) {
+        SYSTEM_MODULE->asic_status = "Chip count 0";
         ESP_LOGE(TAG, "Chip count 0");
         return;
     }
 
-    SERIAL_set_baud(ASIC_set_max_baud(&GLOBAL_STATE));
+    SERIAL_set_baud(ASIC_set_max_baud());
     SERIAL_clear_buffer();
 
-    GLOBAL_STATE.ASIC_initalized = true;
+    GLOBAL_STATE->ASIC_initalized = true;
 
-    xTaskCreate(stratum_task, "stratum admin", 8192, (void *) &GLOBAL_STATE, 5, NULL);
-    xTaskCreate(create_jobs_task, "stratum miner", 8192, (void *) &GLOBAL_STATE, 10, NULL);
-    xTaskCreate(ASIC_task, "asic", 8192, (void *) &GLOBAL_STATE, 10, NULL);
-    xTaskCreate(ASIC_result_task, "asic result", 8192, (void *) &GLOBAL_STATE, 15, NULL);
-    xTaskCreate(statistics_task, "statistics", 8192, (void *) &GLOBAL_STATE, 3, NULL);
+    xTaskCreate(stratum_task, "stratum admin", 8192, NULL, 5, NULL);
+    xTaskCreate(create_jobs_task, "stratum miner", 8192, NULL, 10, NULL);
+    xTaskCreate(ASIC_task, "asic", 8192, NULL, 10, NULL);
+    xTaskCreate(ASIC_result_task, "asic result", 8192, NULL, 15, NULL);
+    xTaskCreate(statistics_task, "statistics", 8192, NULL, 3, NULL);
 }
