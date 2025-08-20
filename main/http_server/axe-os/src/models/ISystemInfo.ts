@@ -63,6 +63,9 @@ export interface ISystemInfo {
     boardtemp1?: number,
     boardtemp2?: number,
     overheat_mode: number,
-    power_fault?: string
-    overclockEnabled?: number
+    power_fault?: string,
+    overclockEnabled?: number,
+
+    blockHeight?: number,
+    minerTag?: string,
 }

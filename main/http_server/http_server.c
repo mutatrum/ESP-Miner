@@ -724,6 +724,11 @@ static esp_err_t GET_system_info(httpd_req_t * req)
         cJSON_AddStringToObject(root, "power_fault", VCORE_get_fault_string(GLOBAL_STATE));
     }
 
+    if (GLOBAL_STATE->block_height > 0) {
+        cJSON_AddNumberToObject(root, "blockHeight", GLOBAL_STATE->block_height);
+        cJSON_AddStringToObject(root, "minerTag", GLOBAL_STATE->miner_tag);
+    }
+
     free(ssid);
     free(hostname);
     free(stratumURL);
