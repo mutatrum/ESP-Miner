@@ -118,6 +118,7 @@ typedef struct
 
     int block_height;
     char * miner_tag;
+    char network_diff_string[DIFF_STRING_SIZE];
 } GlobalState;
 
 #endif /* GLOBAL_STATE_H_ */

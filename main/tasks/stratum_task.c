@@ -216,6 +216,9 @@ void decode_mining_notification(GlobalState * GLOBAL_STATE, const mining_notify 
 
         offset++;
     }
+
+    double network_difficulty = networkDifficulty(mining_notification->target);
+    suffixString(network_difficulty, GLOBAL_STATE->network_diff_string, DIFF_STRING_SIZE, 0);    
 }
 
 void stratum_task(void * pvParameters)

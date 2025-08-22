@@ -68,4 +68,5 @@ export interface ISystemInfo {
 
     blockHeight?: number,
     minerTag?: string,
+    networkDifficulty?: string,
 }

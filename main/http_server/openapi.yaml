@@ -147,6 +147,7 @@ components:
         - statsFrequency
         - blockHeight
         - minerTag
+        - networkDifficulty
       properties:
         ASICModel:
           type: string
@@ -327,6 +328,9 @@ components:
         minerTag:
           type: string
           description: Miner tag extracted from coinbase transaction
+        networkDifficulty:
+          type: string
+          description: Current network difficulty in human-readable format
 
     Settings:
       type: object
