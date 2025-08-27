@@ -146,7 +146,7 @@ components:
         - displayTimeout
         - statsFrequency
         - blockHeight
-        - minerTag
+        - scriptsig
         - networkDifficulty
       properties:
         ASICModel:
@@ -325,9 +325,9 @@ components:
         blockHeight:
           type: integer
           description: Current block height
-        minerTag:
+        scriptsig:
           type: string
-          description: Miner tag extracted from coinbase transaction
+          description: Scriptsig extracted from coinbase transaction
         networkDifficulty:
           type: string
           description: Current network difficulty in human-readable format

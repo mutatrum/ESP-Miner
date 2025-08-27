@@ -204,38 +204,38 @@ void decode_mining_notification(GlobalState * GLOBAL_STATE, const mining_notify 
         GLOBAL_STATE->block_height = block_height;
     }
 
-    size_t miner_tag_length = scriptsig_len - 1 - block_height_len - (strlen(GLOBAL_STATE->extranonce_str) / 2) - GLOBAL_STATE->extranonce_2_len;
-    if (miner_tag_length <= 0) return;
+    size_t scriptsig_length = scriptsig_len - 1 - block_height_len - (strlen(GLOBAL_STATE->extranonce_str) / 2) - GLOBAL_STATE->extranonce_2_len;
+    if (scriptsig_length <= 0) return;
     
-    char * miner_tag = malloc(miner_tag_length + 1);
+    char * scriptsig = malloc(scriptsig_length + 1);
 
     int coinbase_1_tag_len = coinbase_1_len - coinbase_1_offset;
-    hex2bin(mining_notification->coinbase_1 + (coinbase_1_offset * 2), (uint8_t *) miner_tag, coinbase_1_tag_len);
+    hex2bin(mining_notification->coinbase_1 + (coinbase_1_offset * 2), (uint8_t *) scriptsig, coinbase_1_tag_len);
 
-    int coinbase_2_tag_len = miner_tag_length - coinbase_1_tag_len;
+    int coinbase_2_tag_len = scriptsig_length - coinbase_1_tag_len;
 
     if (coinbase_2_len < coinbase_2_tag_len) return;
     
     if (coinbase_2_tag_len > 0) {
-        hex2bin(mining_notification->coinbase_2, (uint8_t *) miner_tag + coinbase_1_tag_len, coinbase_2_tag_len);
+        hex2bin(mining_notification->coinbase_2, (uint8_t *) scriptsig + coinbase_1_tag_len, coinbase_2_tag_len);
     }
 
-    for (int i = 0; i < miner_tag_length; i++) {
-        if (!isprint((unsigned char)miner_tag[i])) {
-            miner_tag[i] = '.';
+    for (int i = 0; i < scriptsig_length; i++) {
+        if (!isprint((unsigned char)scriptsig[i])) {
+            scriptsig[i] = '.';
         }
     }
 
-    miner_tag[miner_tag_length] = '\0';
+    scriptsig[scriptsig_length] = '\0';
 
-    if (GLOBAL_STATE->miner_tag == NULL || strcmp(miner_tag, GLOBAL_STATE->miner_tag) != 0) {
-        ESP_LOGI(TAG, "Miner tag: %s", miner_tag);
+    if (GLOBAL_STATE->scriptsig == NULL || strcmp(scriptsig, GLOBAL_STATE->scriptsig) != 0) {
+        ESP_LOGI(TAG, "Scriptsig: %s", scriptsig);
 
-        char * previous_miner_tag = GLOBAL_STATE->miner_tag;
-        GLOBAL_STATE->miner_tag = miner_tag;
+        char * previous_miner_tag = GLOBAL_STATE->scriptsig;
+        GLOBAL_STATE->scriptsig = scriptsig;
         free(previous_miner_tag);
     } else {
-        free(miner_tag);
+        free(scriptsig);
     }
 }
 

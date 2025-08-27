@@ -86,7 +86,7 @@ export class SystemService {
         overheat_mode: 0,
 
         blockHeight: 811111,
-        minerTag: "pool",
+        scriptsig: "..%..h..,H...ckpool.eu/solo.ckpool.org/",
         networkDiffString: "25.3T",
       }
     ).pipe(delay(1000));

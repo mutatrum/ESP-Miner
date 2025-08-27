@@ -726,7 +726,7 @@ static esp_err_t GET_system_info(httpd_req_t * req)
 
     if (GLOBAL_STATE->block_height > 0) {
         cJSON_AddNumberToObject(root, "blockHeight", GLOBAL_STATE->block_height);
-        cJSON_AddStringToObject(root, "minerTag", GLOBAL_STATE->miner_tag);
+        cJSON_AddStringToObject(root, "scriptsig", GLOBAL_STATE->scriptsig);
         cJSON_AddStringToObject(root, "networkDifficulty", GLOBAL_STATE->network_diff_string);
     }
 

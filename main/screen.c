@@ -271,7 +271,7 @@ static lv_obj_t * create_scr_mining() {
     lv_label_set_text(hashrate_label, "Block: --");
 
     network_difficulty_label = lv_label_create(scr);
-    lv_label_set_text(network_difficulty_label, "Network: --");
+    lv_label_set_text(network_difficulty_label, "Difficulty: --");
 
     lv_obj_t *label3 = lv_label_create(scr);
     lv_label_set_text(label3, "Scriptsig:");
@@ -457,11 +457,11 @@ static void screen_update_cb(lv_timer_t * timer)
     }
     
     if (strcmp(&lv_label_get_text(network_difficulty_label)[9], GLOBAL_STATE->network_diff_string) != 0) {
-        lv_label_set_text_fmt(network_difficulty_label, "Network: %s", GLOBAL_STATE->network_diff_string);
+        lv_label_set_text_fmt(network_difficulty_label, "Difficulty: %s", GLOBAL_STATE->network_diff_string);
     }
 
-    if (GLOBAL_STATE->miner_tag != NULL && strcmp(lv_label_get_text(scriptsig_label), GLOBAL_STATE->miner_tag) != 0) {
-        lv_label_set_text(scriptsig_label, GLOBAL_STATE->miner_tag);
+    if (GLOBAL_STATE->scriptsig != NULL && strcmp(lv_label_get_text(scriptsig_label), GLOBAL_STATE->scriptsig) != 0) {
+        lv_label_set_text(scriptsig_label, GLOBAL_STATE->scriptsig);
     }
 
     // Update WiFi RSSI periodically

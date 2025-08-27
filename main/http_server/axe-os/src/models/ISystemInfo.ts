@@ -67,6 +67,6 @@ export interface ISystemInfo {
     overclockEnabled?: number,
 
     blockHeight?: number,
-    minerTag?: string,
+    scriptsig?: string,
     networkDifficulty?: string,
 }
