@@ -87,7 +87,7 @@ export class SystemService {
 
         blockHeight: 811111,
         scriptsig: "..%..h..,H...ckpool.eu/solo.ckpool.org/",
-        networkDiffString: "25.3T",
+        networkDifficulty: "25.3T",
       }
     ).pipe(delay(1000));
   }
