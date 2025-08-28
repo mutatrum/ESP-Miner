@@ -10,6 +10,10 @@
     font-family: 'Nippo-Regular';
 }
 
+code {
+    font-family: 'Courier New', Courier, monospace;
+}
+
 @import "app/layout/styles/layout/layout.scss";
 @import "app/layout/styles/theme/themes/vela/bitaxe/theme.scss";
 
