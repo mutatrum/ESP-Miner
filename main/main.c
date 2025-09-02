@@ -6,6 +6,8 @@
 #include "asic_result_task.h"
 #include "asic_task.h"
 #include "create_jobs_task.h"
+#include "fan_controller_task.h"
+#include "asic_management_task.h"
 #include "statistics_task.h"
 #include "system.h"
 #include "http_server.h"
@@ -107,6 +109,8 @@ void app_main(void)
 
     GLOBAL_STATE.ASIC_initalized = true;
 
+    xTaskCreate(FAN_CONTROLLER_task, "fan_controller", 8192, (void *) &GLOBAL_STATE, 10, NULL);
+    xTaskCreate(ASIC_MANAGEMENT_task, "asic_management", 8192, (void *) &GLOBAL_STATE, 10, NULL);
     xTaskCreate(stratum_task, "stratum admin", 8192, (void *) &GLOBAL_STATE, 5, NULL);
     xTaskCreate(create_jobs_task, "stratum miner", 8192, (void *) &GLOBAL_STATE, 10, NULL);
     xTaskCreate(ASIC_task, "asic", 8192, (void *) &GLOBAL_STATE, 10, NULL);
