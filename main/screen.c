@@ -287,7 +287,7 @@ static lv_obj_t * create_scr_mining() {
     lv_obj_t * scr = create_flex_screen(4);
 
     mining_block_height_label = lv_label_create(scr);
-    lv_label_set_text(mining_hashrate_label, "Block: --");
+    lv_label_set_text(mining_block_height_label, "Block: --");
 
     mining_network_difficulty_label = lv_label_create(scr);
     lv_label_set_text(mining_network_difficulty_label, "Difficulty: --");
@@ -297,7 +297,7 @@ static lv_obj_t * create_scr_mining() {
 
     mining_scriptsig_label = lv_label_create(scr);
     lv_label_set_text(mining_scriptsig_label, "--");
-    lv_obj_set_width(smining_criptsig_label, LV_HOR_RES);
+    lv_obj_set_width(mining_scriptsig_label, LV_HOR_RES);
     lv_label_set_long_mode(mining_scriptsig_label, LV_LABEL_LONG_SCROLL_CIRCULAR);
 
     return scr;
