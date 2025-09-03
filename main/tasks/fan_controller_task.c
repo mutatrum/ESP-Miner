@@ -20,20 +20,22 @@
 
 static const char * TAG = "fan_controller";
 
-static double prev_pid_input = 0.0;
-static double pid_input = 0.0;
-static double pid_output = 0.0;
-static double min_fan_pct = 25.0;
-static double pid_setPoint = 60.0; // Default, will be overwritten by NVS
-static double pid_p = 3.0;
-static double pid_i = 0.5;
-static double pid_d = 0.5;
-
-static PIDController pid;
-
 void FAN_CONTROLLER_task(void * pvParameters)
 {
     ESP_LOGI(TAG, "Starting");
+
+    PIDController pid = {0};
+
+    double pid_input = 0.0;
+    double pid_output = 0.0;
+    double min_fan_pct = 25.0;
+    double pid_setPoint = 60.0; // Default, will be overwritten by NVS
+    double pid_p = 2.0;
+    double pid_i = 0.1;
+    double pid_d = 1.0;
+    float filtered_temp = 60.0;
+    float alpha = 0.2;
+    int log_counter = 0;
 
     GlobalState * GLOBAL_STATE = (GlobalState *) pvParameters;
 
@@ -56,7 +58,10 @@ void FAN_CONTROLLER_task(void * pvParameters)
         //enable the PID auto control for the FAN if set
         if (nvs_config_get_u16(NVS_CONFIG_AUTO_FAN_SPEED, 1) == 1) {
             if (power_management->chip_temp_avg >= 0) { // Ignore invalid temperature readings (-1)
-                pid_input = power_management->chip_temp_avg;
+
+                float raw_temp = power_management->chip_temp_avg;
+                filtered_temp = alpha * raw_temp + (1.0 - alpha) * filtered_temp;
+                pid_input = filtered_temp;
                 
                 pid_compute(&pid);
                 // Uncomment for debugging PID output directly after compute
@@ -67,10 +72,11 @@ void FAN_CONTROLLER_task(void * pvParameters)
                     Thermal_set_fan_percent(&GLOBAL_STATE->DEVICE_CONFIG, pid_output / 100.0);
                 }
 
-                if (prev_pid_input != pid_input) {
+                log_counter += POLL_RATE;
+                if (log_counter >= 2000) {
+                    log_counter = 0;
                     ESP_LOGI(TAG, "Temp: %.1f °C, SetPoint: %.1f °C, Output: %.1f%% (P:%.1f I:%.1f D_val:%.1f)",
                             pid_input, pid_setPoint, pid_output, pid.dispKp, pid.dispKi, pid.dispKd); // Log current effective Kp, Ki, Kd
-                    prev_pid_input = pid_input;
                 }
                     
             } else {

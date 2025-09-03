@@ -15,7 +15,7 @@
 #include "power.h"
 #include "asic.h"
 
-#define POLL_RATE 1800
+#define POLL_RATE 100
 #define THROTTLE_TEMP 75.0
 
 #define TPS546_THROTTLE_TEMP 105.0
