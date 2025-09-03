@@ -69,7 +69,7 @@ void app_main(void)
 
     SYSTEM_init_peripherals(&GLOBAL_STATE);
 
-    xTaskCreate(POWER_MANAGEMENT_task, "power management", 8192, (void *) &GLOBAL_STATE, 10, NULL);
+    xTaskCreate(POWER_MANAGEMENT_task, "power management", 4096, (void *) &GLOBAL_STATE, 10, NULL);
 
     //start the API for AxeOS
     start_rest_server((void *) &GLOBAL_STATE);
@@ -109,11 +109,11 @@ void app_main(void)
 
     GLOBAL_STATE.ASIC_initalized = true;
 
-    xTaskCreate(FAN_CONTROLLER_task, "fan_controller", 8192, (void *) &GLOBAL_STATE, 10, NULL);
-    xTaskCreate(ASIC_MANAGEMENT_task, "asic_management", 8192, (void *) &GLOBAL_STATE, 10, NULL);
+    xTaskCreate(FAN_CONTROLLER_task, "fan_controller", 3072, (void *) &GLOBAL_STATE, 10, NULL);
+    xTaskCreate(ASIC_MANAGEMENT_task, "asic_management", 3072, (void *) &GLOBAL_STATE, 10, NULL);
     xTaskCreate(stratum_task, "stratum admin", 8192, (void *) &GLOBAL_STATE, 5, NULL);
-    xTaskCreate(create_jobs_task, "stratum miner", 8192, (void *) &GLOBAL_STATE, 10, NULL);
-    xTaskCreate(ASIC_task, "asic", 8192, (void *) &GLOBAL_STATE, 10, NULL);
-    xTaskCreate(ASIC_result_task, "asic result", 8192, (void *) &GLOBAL_STATE, 15, NULL);
-    xTaskCreate(statistics_task, "statistics", 8192, (void *) &GLOBAL_STATE, 3, NULL);
+    xTaskCreate(create_jobs_task, "stratum miner", 3072, (void *) &GLOBAL_STATE, 10, NULL);
+    xTaskCreate(ASIC_task, "asic", 2048, (void *) &GLOBAL_STATE, 10, NULL);
+    xTaskCreate(ASIC_result_task, "asic result", 4096, (void *) &GLOBAL_STATE, 15, NULL);
+    xTaskCreate(statistics_task, "statistics", 2048, (void *) &GLOBAL_STATE, 3, NULL);
 }
