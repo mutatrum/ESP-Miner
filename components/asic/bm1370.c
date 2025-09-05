@@ -34,6 +34,15 @@
 
 #define MISC_CONTROL 0x18
 
+#define BM_NONCE_ERROR_CNT  0x4C
+#define BM_UNK_CNT_88       0x88
+#define BM_UNK_CNT_89       0x89
+#define BM_UNK_CNT_8A       0x8A
+#define BM_UNK_CNT_8B       0x8B
+#define BM_NONCE_TOTAL_CNT  0x8C
+#define BM_UNK_CNT_90       0x90
+#define BM_GOLDEN_NONCE_CNT 0x94
+
 typedef struct __attribute__((__packed__))
 {
     uint16_t preamble;
@@ -102,7 +111,6 @@ static void _send_simple(uint8_t * data, uint8_t total_length)
 
 static void _send_chain_inactive(void)
 {
-
     unsigned char read_address[2] = {0x00, 0x00};
     // send serial data
     _send_BM1370((TYPE_CMD | GROUP_ALL | CMD_INACTIVE), read_address, 2, BM1370_SERIALTX_DEBUG);
@@ -110,7 +118,6 @@ static void _send_chain_inactive(void)
 
 static void _set_chip_address(uint8_t chipAddr)
 {
-
     unsigned char read_address[2] = {chipAddr, 0x00};
     // send serial data
     _send_BM1370((TYPE_CMD | GROUP_SINGLE | CMD_SETADDRESS), read_address, 2, BM1370_SERIALTX_DEBUG);
@@ -322,6 +329,10 @@ task_result * BM1370_process_work(void * pvParameters)
         return NULL;
     }
 
+    // printf("rx: ");
+    // prettyHex((uint8_t *)&asic_result, sizeof(asic_result));
+    // printf("\n");
+
     // uint8_t job_id = asic_result.job_id;
     // uint8_t rx_job_id = ((int8_t)job_id & 0xf0) >> 1;
     // ESP_LOGI(TAG, "Job ID: %02X, RX: %02X", job_id, rx_job_id);
@@ -349,4 +360,31 @@ task_result * BM1370_process_work(void * pvParameters)
     result.rolled_version = rolled_version;
 
     return &result;
+}
+
+void get_hashrate_cnt() {
+    // uint8_t buf[9] = {0};
+    _send_BM1370((TYPE_CMD | GROUP_SINGLE | CMD_READ), (uint8_t[]){0x00, BM_UNK_CNT_90}, 2, true);
+    // int resp = SERIAL_rx(buf, 11, 10);
+    // int value = (int)((buf[4] << 8) + buf[5]);
+    // ESP_LOGI(TAG, "CNT     %02X: [%02x %02x %02x %02x %02x %02x %02x %02x %02x]", BM_UNK_CNT_90, buf[0], buf[1], buf[2], buf[3], buf[4],buf[5],buf[6],buf[7], buf[8]);
+    // float hashes = 4.096 * (float)value;
+    // // ESP_LOGW(TAG,"hashes %f",hashes);
+    // return hashes;
+}
+
+void get_hashrate_error_cnt() {
+    // uint8_t buf[9] = {0};
+    _send_BM1370((TYPE_CMD | GROUP_SINGLE | CMD_READ), (uint8_t[]){0x00, BM_NONCE_ERROR_CNT}, 2, true);
+    // int resp = SERIAL_rx(buf, 11, 10);
+    // int value = (int)((buf[4] << 8) + buf[5]);
+    // ESP_LOGI(TAG, "CNT ERR %02X: [%02x %02x %02x %02x %02x %02x %02x %02x %02x]", BM_NONCE_ERROR_CNT, buf[0], buf[1], buf[2], buf[3], buf[4],buf[5],buf[6],buf[7], buf[8]);
+    // float hashes_error = 4.096 * (float)value;
+    // ESP_LOGW(TAG,"hashes error %f",hashes_error);
+    // return hashes_error;
+}
+
+void reset_counters() {
+    _send_BM1370((TYPE_CMD | GROUP_SINGLE | CMD_WRITE), (uint8_t[]){0x00, BM_UNK_CNT_90,0x00,0x00,0x00,0x00}, 6, true);
+    _send_BM1370((TYPE_CMD | GROUP_SINGLE | CMD_WRITE), (uint8_t[]){0x00, BM_NONCE_ERROR_CNT,0x00,0x00,0x00,0x00}, 6, true);
 }

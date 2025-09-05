@@ -14,6 +14,7 @@
 #include "PID.h"
 #include "power.h"
 #include "asic.h"
+#include "bm1370.h"
 
 #define POLL_RATE 1800
 #define MAX_TEMP 90.0

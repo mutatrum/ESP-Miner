@@ -10,6 +10,7 @@
 #include "power.h"
 #include "connect.h"
 #include "vcore.h"
+#include "bm1370.h"
 
 #define DEFAULT_POLL_RATE 5000
 
@@ -120,6 +121,9 @@ void statistics_task(void * pvParameters)
 
     TickType_t taskWakeTime = xTaskGetTickCount();
 
+    float curr_hash = -1;
+    float curr_err = -1;
+
     while (1) {
         const int64_t currentTime = esp_timer_get_time() / 1000;
         statsFrequency = nvs_config_get_u16(NVS_CONFIG_STATISTICS_FREQUENCY, 0) * 1000;
@@ -151,5 +155,16 @@ void statistics_task(void * pvParameters)
         }
 
         vTaskDelayUntil(&taskWakeTime, DEFAULT_POLL_RATE / portTICK_PERIOD_MS); // taskWakeTime is automatically updated
+
+        if(curr_hash < 0) {
+            float gh_hash = get_hashrate_cnt();
+            float gh_err = get_hashrate_error_cnt();
+    
+            if (gh_hash != curr_hash || gh_err != curr_err) {
+                curr_hash = gh_hash;
+                curr_err = gh_err;
+                ESP_LOGI(TAG, "Hashrate: %.2f GH/s, Errors: %.2f GH/s", gh_hash, gh_err);
+            }
+        }
     }
 }
