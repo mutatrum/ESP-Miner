@@ -58,6 +58,11 @@ void FAN_CONTROLLER_task(void * pvParameters)
         //enable the PID auto control for the FAN if set
         if (nvs_config_get_u16(NVS_CONFIG_AUTO_FAN_SPEED, 1) == 1) {
             if (power_management->chip_temp_avg >= 0) { // Ignore invalid temperature readings (-1)
+                if (power_management->chip_temp2_avg > 0) {
+                    pid_input = (power_management->chip_temp_avg + power_management->chip_temp2_avg) / 2.0; // TODO: Or max of both?
+                } else {
+                    pid_input = power_management->chip_temp_avg;
+                }
 
                 float raw_temp = power_management->chip_temp_avg;
                 filtered_temp = alpha * raw_temp + (1.0 - alpha) * filtered_temp;

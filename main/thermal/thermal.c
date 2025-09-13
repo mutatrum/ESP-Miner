@@ -1,6 +1,8 @@
 #include "thermal.h"
 
 #include "esp_log.h"
+#include "EMC2101.h"
+#include "EMC2103.h"
 
 static const char * TAG = "thermal";
 
@@ -68,26 +70,15 @@ float Thermal_get_chip_temp(GlobalState * GLOBAL_STATE)
     return -1;
 }
 
-thermal_temps_t Thermal_get_chip_temps(GlobalState * GLOBAL_STATE)
+float Thermal_get_chip_temp2(GlobalState * GLOBAL_STATE)
 {
-    thermal_temps_t temps = {-1.0f, -1.0f};
-    
     if (!GLOBAL_STATE->ASIC_initalized) {
-        return temps;
+        return -1;
     }
 
     int8_t temp_offset = GLOBAL_STATE->DEVICE_CONFIG.emc_temp_offset;
-    
     if (GLOBAL_STATE->DEVICE_CONFIG.EMC2103) {
-        EMC2103_temps_t raw_temps = EMC2103_get_external_temps();
-        temps.temp1 = raw_temps.temp1 + temp_offset;
-        temps.temp2 = raw_temps.temp2 + temp_offset;
+        return EMC2103_get_external_temp2() + temp_offset;
     }
-    
-    return temps;
-}
-
-bool Thermal_has_dual_sensors(DeviceConfig * DEVICE_CONFIG)
-{
-    return DEVICE_CONFIG->EMC2103;
+    return -1;
 }
