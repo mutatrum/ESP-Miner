@@ -51,7 +51,6 @@ void FAN_CONTROLLER_task(void * pvParameters)
     pid_set_mode(&pid, AUTOMATIC);        // This calls pid_initialize() internally
 
     while (1) {
-
         // Refresh PID setpoint from NVS in case it was changed via API
         pid_setPoint = (double)nvs_config_get_u16(NVS_CONFIG_TEMP_TARGET, pid_setPoint);
 
@@ -98,6 +97,8 @@ void FAN_CONTROLLER_task(void * pvParameters)
             power_management->fan_perc = fs;
             Thermal_set_fan_percent(&GLOBAL_STATE->DEVICE_CONFIG, (float) fs / 100.0);
         }
+
+        power_management->fan_rpm = Thermal_get_fan_speed(&GLOBAL_STATE->DEVICE_CONFIG);
 
         // looper:
         vTaskDelay(POLL_RATE / portTICK_PERIOD_MS);
