@@ -2,7 +2,6 @@ import { Pipe, PipeTransform } from '@angular/core';
 
 interface SuffixConfig {
   threshold: number;
-  divisor: number;
   suffix: string;
 }
 
@@ -12,13 +11,13 @@ interface SuffixConfig {
 })
 export class DifficultyPipe implements PipeTransform {
   private readonly suffixes: SuffixConfig[] = [
-    { threshold: 1_000_000_000_000_000_000, divisor: 1_000_000_000_000_000, suffix: 'E' },
-    { threshold: 1_000_000_000_000_000, divisor: 1_000_000_000_000, suffix: 'P' },
-    { threshold: 1_000_000_000_000, divisor: 1_000_000_000, suffix: 'T' },
-    { threshold: 1_000_000_000, divisor: 1_000_000, suffix: 'G' },
-    { threshold: 1_000_000, divisor: 1_000, suffix: 'M' },
-    { threshold: 1_000, divisor: 1_000, suffix: 'k' },
-    { threshold: 0, divisor: 1, suffix: '' }
+    { threshold: 1e18, suffix: 'E' },
+    { threshold: 1e15, suffix: 'P' },
+    { threshold: 1e12, suffix: 'T' },
+    { threshold: 1e9,  suffix: 'G' },
+    { threshold: 1e6,  suffix: 'M' },
+    { threshold: 1e3,  suffix: 'k' },
+    { threshold: 1  ,  suffix: ''  }
   ];
 
   transform(value: number | null | undefined): string {
@@ -27,7 +26,7 @@ export class DifficultyPipe implements PipeTransform {
     }
 
     const config = this.suffixes.find(s => value >= s.threshold) || this.suffixes[this.suffixes.length - 1];
-    const dval = value / config.divisor;
+    const dval = config.suffix === '' ? value : value / config.threshold;
 
     let result: string;
     if (config.suffix === '') {
