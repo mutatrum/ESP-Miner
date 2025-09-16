@@ -1,5 +1,5 @@
 import { Component, OnDestroy } from '@angular/core';
-import { Observable, Subject, switchMap, shareReplay, timer } from 'rxjs';
+import { Observable, Subject, switchMap, shareReplay, timer, takeUntil } from 'rxjs';
 import { SystemService } from 'src/app/services/system.service';
 import { ISystemScoreboardEntry } from 'src/models/ISystemScoreboard';
 
@@ -16,11 +16,11 @@ export class ScoreboardComponent implements OnDestroy {
   constructor(
     private systemService: SystemService,
   ) {
-    this.scoreboard$ = timer(0, 2000).pipe(
+    this.scoreboard$ = timer(0, 5000).pipe(
       switchMap(() => this.systemService.getScoreboard()),
-      shareReplay(1)
+      shareReplay({refCount: true, bufferSize: 1}),
+      takeUntil(this.destroy$)
     );
-
   }
 
   ngOnDestroy() {
