@@ -18,6 +18,7 @@ typedef struct {
     uint32_t ntime;
     uint32_t nonce;
     uint32_t version_bits;
+    char nvs_entry[128];
 } ScoreboardEntry;
 
 typedef struct {
@@ -26,6 +27,7 @@ typedef struct {
     SemaphoreHandle_t mutex;
 } Scoreboard;
 
+void scoreboard_init(Scoreboard *scoreboard);
 void scoreboard_add(Scoreboard *scoreboard, double difficulty, const char *job_id, const char *extranonce2, uint32_t ntime, uint32_t nonce, uint32_t version_bits);
 
 #endif /* SCOREBOARD_H */

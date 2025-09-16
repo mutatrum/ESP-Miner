@@ -61,11 +61,13 @@ void app_main(void)
 
     SYSTEM_init_system(&GLOBAL_STATE);
     statistics_init(&GLOBAL_STATE);
+    scoreboard_init(&GLOBAL_STATE.SYSTEM_MODULE.scoreboard);
 
     // init AP and connect to wifi
     wifi_init(&GLOBAL_STATE);
 
     SYSTEM_init_peripherals(&GLOBAL_STATE);
+
 
     xTaskCreate(POWER_MANAGEMENT_task, "power management", 8192, (void *) &GLOBAL_STATE, 10, NULL);
 
