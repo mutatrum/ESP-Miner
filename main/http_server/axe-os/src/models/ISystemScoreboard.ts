@@ -6,5 +6,3 @@ export interface ISystemScoreboardEntry {
     nonce: string;
     version_bits: string;
 }
-
-
