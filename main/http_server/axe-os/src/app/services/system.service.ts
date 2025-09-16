@@ -4,6 +4,7 @@ import { delay, Observable, of } from 'rxjs';
 import { ISystemInfo } from 'src/models/ISystemInfo';
 import { ISystemStatistics } from 'src/models/ISystemStatistics';
 import { ISystemASIC } from 'src/models/ISystemASIC';
+import { ISystemScoreboardEntry } from 'src/models/ISystemScoreboard';
 
 import { environment } from '../../environments/environment';
 
@@ -113,6 +114,31 @@ export class SystemService {
         [491.327834852684,63,15.33935546875,58125]
       ]
     }).pipe(delay(1000));
+  }
+
+  public getScoreboard(uri: string = ''): Observable<ISystemScoreboardEntry[]> {
+    if (environment.production) {
+      return this.httpClient.get(`${uri}/api/system/scoreboard`) as Observable<ISystemScoreboardEntry[]>;
+    }
+
+    // Mock data for development
+    return of([
+      {
+        difficulty: 2000,
+        job_id: "123456",
+        extranonce2: "000000",
+        ntime: 61125,
+        nonce: "00000000",
+        version_bits: "20000000"
+      },
+      {
+        difficulty: 1000,
+        job_id: "123457",
+        extranonce2: "000001",
+        ntime: 61126,
+        nonce: "00000001",
+        version_bits: "20000000"
+      }]).pipe(delay(1000));
   }
 
   public restart(uri: string = '') {

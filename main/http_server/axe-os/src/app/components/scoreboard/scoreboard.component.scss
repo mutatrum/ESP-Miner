@@ -1,0 +1,36 @@
+.scoreboard-card {
+    width: 100%;
+    box-sizing: border-box;
+}
+
+.scoreboard-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.scoreboard-table th,
+.scoreboard-table td {
+    padding: 0.5rem;
+    text-align: left;
+}
+
+.scoreboard-table th {
+    font-weight: bold;
+}
+
+.trophy-column {
+    width: 50px;
+    text-align: center;
+}
+
+.pi-trophy.gold {
+    color: #FFD700;
+}
+
+.pi-trophy.silver {
+    color: #C0C0C0;
+}
+
+.pi-trophy.bronze {
+    color: #CD7F32;
+}

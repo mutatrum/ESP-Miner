@@ -92,6 +92,8 @@ void SYSTEM_init_system(GlobalState * GLOBAL_STATE)
     // set the best diff string
     suffixString(module->best_nonce_diff, module->best_diff_string, DIFF_STRING_SIZE, 0);
     suffixString(module->best_session_nonce_diff, module->best_session_diff_string, DIFF_STRING_SIZE, 0);
+
+    module->scoreboard.mutex = xSemaphoreCreateMutex();
 }
 
 esp_err_t SYSTEM_init_peripherals(GlobalState * GLOBAL_STATE) {

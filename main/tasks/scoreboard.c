@@ -4,16 +4,6 @@
 
 static const char * TAG = "scoreboard";
 
-esp_err_t scoreboard_init(Scoreboard *scoreboard)
-{
-    scoreboard->mutex = xSemaphoreCreateMutex();
-    if (scoreboard->mutex == NULL) {
-        ESP_LOGE(TAG, "Failed to create mutex");
-        return ESP_ERR_NO_MEM;
-    }
-    return ESP_OK;
-}
-
 void scoreboard_add(Scoreboard *scoreboard, double difficulty, const char *job_id, const char *extranonce2, uint32_t ntime, uint32_t nonce, uint32_t version_bits)
 {
     int i = (scoreboard->count < MAX_SCOREBOARD) ? scoreboard->count : MAX_SCOREBOARD - 1;

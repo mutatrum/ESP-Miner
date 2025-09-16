@@ -17,8 +17,6 @@ void ASIC_result_task(void *pvParameters)
 {
     GlobalState *GLOBAL_STATE = (GlobalState *)pvParameters;
 
-    scoreboard_init(&GLOBAL_STATE->SYSTEM_MODULE.scoreboard);
-
     while (1)
     {
         //task_result *asic_result = (*GLOBAL_STATE->ASIC_functions.receive_result_fn)(GLOBAL_STATE);
