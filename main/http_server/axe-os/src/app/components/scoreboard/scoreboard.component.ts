@@ -1,6 +1,7 @@
-import { Component, OnDestroy } from '@angular/core';
-import { Observable, Subject, switchMap, shareReplay, timer, takeUntil } from 'rxjs';
+import { Component, OnInit, OnDestroy } from '@angular/core';
+import { Observable, Subject, switchMap, shareReplay, timer, takeUntil, finalize } from 'rxjs';
 import { SystemService } from 'src/app/services/system.service';
+import { LoadingService } from 'src/app/services/loading.service';
 import { ISystemScoreboardEntry } from 'src/models/ISystemScoreboard';
 
 @Component({
@@ -8,19 +9,26 @@ import { ISystemScoreboardEntry } from 'src/models/ISystemScoreboard';
   templateUrl: './scoreboard.component.html',
   styleUrls: ['./scoreboard.component.scss']
 })
-export class ScoreboardComponent implements OnDestroy {
+export class ScoreboardComponent implements OnInit, OnDestroy {
   public scoreboard$: Observable<ISystemScoreboardEntry[]>;
 
   private destroy$ = new Subject<void>();
 
   constructor(
     private systemService: SystemService,
+    private loadingService: LoadingService,
   ) {
     this.scoreboard$ = timer(0, 5000).pipe(
-      switchMap(() => this.systemService.getScoreboard()),
+      switchMap(() => this.systemService.getScoreboard().pipe(
+        finalize(() => this.loadingService.loading$.next(false))
+      )),
       shareReplay({refCount: true, bufferSize: 1}),
       takeUntil(this.destroy$)
     );
+  }
+
+  ngOnInit() {
+    this.loadingService.loading$.next(true);
   }
 
   ngOnDestroy() {
