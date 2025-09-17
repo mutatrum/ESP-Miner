@@ -45,7 +45,7 @@ export class UpdateComponent {
     this.info$ = timer(0, 5000).pipe(
       switchMap(() => this.systemService.getInfo()),
       distinctUntilChanged((prev, curr) => JSON.stringify(prev) === JSON.stringify(curr)),
-      shareReplay({refCount: true, bufferSize: 1})
+      shareReplay(1)
     );
   }
 
