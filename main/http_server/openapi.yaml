@@ -701,7 +701,7 @@ paths:
                       - version_bits
                     properties:
                       difficulty:
-                        type: string
+                        type: number
                         description: Difficulty of the share
                       job_id:
                         type: string
