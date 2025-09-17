@@ -1,36 +1,26 @@
-.scoreboard-card {
-    width: 100%;
-    box-sizing: border-box;
-}
-
-.scoreboard-table {
-    width: 100%;
+table {
     border-collapse: collapse;
 }
 
-.scoreboard-table th,
-.scoreboard-table td {
-    padding: 0.5rem;
+th,
+td {
+    padding: 0 0.5rem 0.5rem;
+    white-space: nowrap;
     text-align: left;
+
+    &:last-child {
+        padding-right: 0;
+    }
+}
+th {
+    &:first-child {
+        padding-left: 0;
+    }
+}
+td {
+    padding-top: 0.5rem;
 }
 
-.scoreboard-table th {
-    font-weight: bold;
-}
-
-.trophy-column {
-    width: 50px;
-    text-align: center;
-}
-
-.pi-trophy.gold {
-    color: #FFD700;
-}
-
-.pi-trophy.silver {
-    color: #C0C0C0;
-}
-
-.pi-trophy.bronze {
-    color: #CD7F32;
+thead tr {
+    border-bottom: 1px solid var(--surface-border);
 }

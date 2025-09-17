@@ -1,29 +1,23 @@
 <div class="card" *ngIf="scoreboard$ | async as scoreboard">
     <h2>Scoreboard</h2>
 
-    <div class="card scoreboard-card">
-        <table class="scoreboard-table">
+    <div class="card overflow-x-auto">
+        <table class="w-full">
             <thead>
                 <tr>
-                    <th>Rank</th>
-                    <th>Difficulty</th>
-                    <th>Job ID</th>
-                    <th>ExtraNonce2</th>
-                    <th>Time</th>
-                    <th>Nonce</th>
-                    <th>Version Bits</th>
+                    <th *ngFor="let field of [
+                        'Rank', 'Difficulty', 'Job ID', 'ExtraNonce2', 'Time', 'Nonce', 'Version Bits'
+                    ]" class="text-500 font-medium">{{field}}</th>
                 </tr>
             </thead>
             <tbody>
                 <tr *ngFor="let entry of scoreboard; let i = index">
-                    <td class="trophy-column">
-                        <i class="pi pi-trophy" [ngClass]="{
-                            'gold': i === 0,
-                            'silver': i === 1,
-                            'bronze': i === 2
-                        }" *ngIf="i < 3"></i>
+                    <td>
+                        <i class="pi pi-trophy" *ngIf="i < 3" [ngStyle]="{
+                            'color': i === 0 ? 'gold' : i === 1 ? 'silver' : 'peru'
+                        }"></i>
                     </td>
-                    <td class="font-bold text-900">{{ entry.difficulty | suffix }}</td>
+                    <td class="text-900">{{ entry.difficulty | suffix }}</td>
                     <td class="code">{{ entry.job_id }}</td>
                     <td class="code">{{ entry.extranonce2 }}</td>
                     <td>{{ entry.ntime * 1000 | date:'yyyy-MM-dd HH:mm:ss' }}</td>
