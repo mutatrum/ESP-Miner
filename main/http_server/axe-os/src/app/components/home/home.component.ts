@@ -1,6 +1,6 @@
 import { Component, OnInit, ViewChild, OnDestroy } from '@angular/core';
 import { interval, map, Observable, shareReplay, startWith, switchMap, tap, first, Subject, takeUntil } from 'rxjs';
-import { HashSuffixPipe } from 'src/app/pipes/hash-suffix.pipe';
+import { SuffixPipe } from 'src/app/pipes/suffix.pipe';
 import { QuicklinkService } from 'src/app/services/quicklink.service';
 import { ShareRejectionExplanationService } from 'src/app/services/share-rejection-explanation.service';
 import { LoadingService } from 'src/app/services/loading.service';
@@ -163,7 +163,7 @@ export class HomeComponent implements OnInit, OnDestroy {
               if (tooltipItem.dataset.label === 'ASIC Temp') {
                 label += tooltipItem.raw + ' °C';
               } else {
-                label += HashSuffixPipe.transform(tooltipItem.raw);
+                label += SuffixPipe.transform(tooltipItem.raw) + 'H/s';
               }
               return label;
             }
@@ -188,7 +188,7 @@ export class HomeComponent implements OnInit, OnDestroy {
         y: {
           ticks: {
             color: primaryColor,
-            callback: (value: number) => HashSuffixPipe.transform(value)
+            callback: (value: number) => SuffixPipe.transform(value) + 'H/s'
           },
           grid: {
             color: surfaceBorder,
@@ -318,7 +318,7 @@ export class HomeComponent implements OnInit, OnDestroy {
           [
             this.pageDefaultTitle,
             info.hostname,
-            (info.hashRate ? HashSuffixPipe.transform(info.hashRate * 1000000000) : false),
+            (info.hashRate ? SuffixPipe.transform(info.hashRate * 1000000000) + 'H/s' : false),
             (info.temp ? `${info.temp}${info.temp2 > -1 ? `/${info.temp2}` : ''}${info.vrTemp ? `/${info.vrTemp}` : ''} °C` : false),
             (!info.power_fault ? `${info.power} W` : false),
             (info.bestDiff ? info.bestDiff : false),

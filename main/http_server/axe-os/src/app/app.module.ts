@@ -27,8 +27,7 @@ import { DesignComponent } from './components/design/design.component';
 import { AppLayoutModule } from './layout/app.layout.module';
 import { ANSIPipe } from './pipes/ansi.pipe';
 import { DateAgoPipe } from './pipes/date-ago.pipe';
-import { HashSuffixPipe } from './pipes/hash-suffix.pipe';
-import { DifficultyPipe } from './pipes/difficulty.pipe';
+import { SuffixPipe } from './pipes/suffix.pipe';
 import { PrimeNGModule } from './prime-ng.module';
 import { MessageModule } from 'primeng/message';
 import { TooltipModule } from 'primeng/tooltip';
@@ -59,7 +58,7 @@ const components = [
     SwarmComponent,
     ScoreboardComponent,
     SettingsComponent,
-    HashSuffixPipe,
+    SuffixPipe,
     ThemeConfigComponent,
     DesignComponent,
     PoolComponent,
@@ -81,8 +80,7 @@ const components = [
     MessageModule,
     TooltipModule,
     DialogModule,
-    DynamicDialogModule,
-    DifficultyPipe
+    DynamicDialogModule
   ],
   providers: [
     { provide: LocationStrategy, useClass: HashLocationStrategy },

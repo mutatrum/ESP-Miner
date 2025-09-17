@@ -23,7 +23,7 @@
                             'bronze': i === 2
                         }" *ngIf="i < 3"></i>
                     </td>
-                    <td class="font-bold text-900">{{ entry.difficulty | difficultySuffix }}</td>
+                    <td class="font-bold text-900">{{ entry.difficulty | suffix }}</td>
                     <td class="code">{{ entry.job_id }}</td>
                     <td class="code">{{ entry.extranonce2 }}</td>
                     <td>{{ entry.ntime * 1000 | date:'yyyy-MM-dd HH:mm:ss' }}</td>
