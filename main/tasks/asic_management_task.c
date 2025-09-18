@@ -14,6 +14,7 @@
 #include "PID.h"
 #include "power.h"
 #include "asic.h"
+#include "nvs_config.h"
 
 #define POLL_RATE 100
 #define THROTTLE_TEMP 75.0
@@ -27,11 +28,15 @@
 static const char * TAG = "asic_management";
 
 static uint16_t current_voltage;
-static float current_frequency;
+static float current_frequency = START_FREQUENCY;
 static bool is_frequency_transitioning;
 
-void ASIC_MANAGEMENT_init_frequency(PowerManagementModule * power_management)
+void ASIC_MANAGEMENT_init_frequency(void * pvParameters)
 {
+    GlobalState * GLOBAL_STATE = (GlobalState *) pvParameters;
+
+    PowerManagementModule * power_management = &GLOBAL_STATE->POWER_MANAGEMENT_MODULE;
+
     float frequency = nvs_config_get_float(NVS_CONFIG_ASIC_FREQUENCY_FLOAT, -1);
     if (frequency < 0) { // fallback if the float value is not yet set
         frequency = (float) nvs_config_get_u16(NVS_CONFIG_ASIC_FREQUENCY, CONFIG_ASIC_FREQUENCY);
@@ -59,7 +64,7 @@ void ASIC_MANAGEMENT_task(void * pvParameters)
             VCORE_set_voltage(GLOBAL_STATE, (double) target_voltage / 1000.0);
             current_voltage = target_voltage;
         }
-        
+
         float target_frequency = nvs_config_get_float(NVS_CONFIG_ASIC_FREQUENCY_FLOAT, CONFIG_ASIC_FREQUENCY);
         if (fabs(current_frequency - target_frequency) < EPSILON) {
             if (is_frequency_transitioning) {
@@ -67,32 +72,29 @@ void ASIC_MANAGEMENT_task(void * pvParameters)
                 is_frequency_transitioning = false;
             }
         } else {
-            if (!is_frequency_transitioning) {
-                if (current_frequency == 0) {
-                    current_frequency = START_FREQUENCY;
-                    ESP_LOGI(TAG, "Ramping up frequency from %g MHz to %g MHz", current_frequency, target_frequency);
-                } else {
-                    ESP_LOGI(TAG, "New ASIC frequency requested: %g MHz (current: %g MHz)", target_frequency, current_frequency);
+            bool is_overheat_mode = nvs_config_get_u16(NVS_CONFIG_OVERHEAT_MODE, 0) == 1;
+            if (!is_overheat_mode) {
+                if (!is_frequency_transitioning) {
+                    ESP_LOGI(TAG, "Ramping %s frequency from %g MHz to %g MHz", current_frequency < target_frequency ? "up" : "down", current_frequency, target_frequency);
+                    is_frequency_transitioning = true;
                 }
-                is_frequency_transitioning = true;
-            }
-    
-            if (fabs(target_frequency - current_frequency) < STEP_SIZE) {
-                current_frequency = target_frequency;
-            } else {
-                if (target_frequency > current_frequency) {
-                    current_frequency = (floor(current_frequency / STEP_SIZE) + 1) * STEP_SIZE;
-                } else {
-                    current_frequency = (ceil(current_frequency / STEP_SIZE) - 1) * STEP_SIZE;
 
+                if (fabs(target_frequency - current_frequency) > STEP_SIZE) {
+                    if (target_frequency > current_frequency) {
+                        target_frequency = (floor(current_frequency / STEP_SIZE) + 1) * STEP_SIZE;
+                    } else {
+                        target_frequency = (ceil(current_frequency / STEP_SIZE) - 1) * STEP_SIZE;
+                    }
                 }
             }
-    
-            ASIC_set_frequency(GLOBAL_STATE, current_frequency);
-            power_management->frequency_value = current_frequency;
-        }      
+
+            ESP_LOGI(TAG, "New ASIC frequency requested: %g MHz (current: %g MHz)", target_frequency, current_frequency);
+            ASIC_set_frequency(GLOBAL_STATE, target_frequency);
+            power_management->frequency_value = target_frequency;
+            current_frequency = target_frequency;      
+        }
 
         // looper:
         vTaskDelay(POLL_RATE / portTICK_PERIOD_MS);        
-    }        
+    }
 }

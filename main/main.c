@@ -105,7 +105,7 @@ void app_main(void)
     SERIAL_set_baud(ASIC_set_max_baud(&GLOBAL_STATE));
     SERIAL_clear_buffer();
 
-    ASIC_MANAGEMENT_init_frequency(&GLOBAL_STATE.POWER_MANAGEMENT_MODULE);
+    ASIC_MANAGEMENT_init_frequency(&GLOBAL_STATE);
 
     xTaskCreate(POWER_MANAGEMENT_task, "power management", 4096, (void *) &GLOBAL_STATE, 10, NULL);
 

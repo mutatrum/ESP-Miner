@@ -331,11 +331,14 @@ bool self_test(void * pvParameters)
         tests_done(GLOBAL_STATE, false);
     }
 
-    ASIC_MANAGEMENT_init_frequency(&GLOBAL_STATE->POWER_MANAGEMENT_MODULE);
+    ASIC_MANAGEMENT_init_frequency(&GLOBAL_STATE);
 
     GLOBAL_STATE->DEVICE_CONFIG.family.asic.difficulty = DIFFICULTY;
 
     uint8_t chips_detected = ASIC_init(GLOBAL_STATE);
+
+    // TODO: ramp frequency here
+
     uint8_t chips_expected = GLOBAL_STATE->DEVICE_CONFIG.family.asic_count;
     ESP_LOGI(TAG, "%u chips detected, %u expected", chips_detected, chips_expected);
 
@@ -439,7 +442,7 @@ bool self_test(void * pvParameters)
 
     ESP_LOGI(TAG, "Hashrate: %f", hash_rate);
 
-    float expected_hashrate_mhs = GLOBAL_STATE->POWER_MANAGEMENT_MODULE.frequency_value 
+    float expected_hashrate_mhs = GLOBAL_STATE->POWER_MANAGEMENT_MODULE.frequency_value
                                 * GLOBAL_STATE->DEVICE_CONFIG.family.asic.small_core_count 
                                 * GLOBAL_STATE->DEVICE_CONFIG.family.asic.hashrate_test_percentage_target
                                 / 1000.0f;
