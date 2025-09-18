@@ -124,6 +124,8 @@ export class SystemService {
     // Mock data for development
     return of([
       {
+        rank: 0,
+        since: 3606,
         difficulty: 2000,
         job_id: "123456",
         extranonce2: "000000",
@@ -132,6 +134,8 @@ export class SystemService {
         version_bits: "20000000"
       },
       {
+        rank: 1,
+        since: 3605,
         difficulty: 1000,
         job_id: "123457",
         extranonce2: "000001",

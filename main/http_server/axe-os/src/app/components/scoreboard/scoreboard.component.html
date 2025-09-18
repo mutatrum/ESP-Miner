@@ -6,25 +6,62 @@
             <thead>
                 <tr>
                     <th *ngFor="let field of [
-                        'Rank', 'Difficulty', 'Job ID', 'ExtraNonce2', 'Time', 'Nonce', 'Version Bits'
-                    ]" class="text-500 font-medium">{{field}}</th>
+                        {
+                            name: 'rank',
+                            label: 'Rank'
+                        },
+                        {
+                            name: 'difficulty',
+                            label: 'Difficulty'
+                        },
+                        {
+                            name: 'job_id',
+                            label: 'Job ID'
+                        },
+                        {
+                            name: 'extranonce2',
+                            label: 'ExtraNonce2'
+                        },
+                        {
+                            name: 'ntime',
+                            label: 'Time'
+                        },
+                        {
+                            name: 'nonce',
+                            label: 'Nonce'
+                        },
+                        {
+                            name: 'version_bits',
+                            label: 'Version Bits'
+                        }
+                    ]">
+                        <div class="flex align-items-center cursor-pointer select-none h-full" (click)="sortBy(field.name)">
+                            <span class="flex-1">{{field.label}}</span>
+                            <i class="pi text-xs flex items-center" [ngClass]="{
+                                'pi-sort-alt': sortField !== field.name,
+                                'pi-sort-amount-up-alt': sortField === field.name && sortDirection === 'asc',
+                                'pi-sort-amount-down': sortField === field.name && sortDirection === 'desc'
+                            }"></i>
+                        </div>
+                    </th>
                 </tr>
             </thead>
-            <tbody>
-                <tr *ngFor="let entry of scoreboard; let i = index">
-                    <td>
-                        <i class="pi pi-trophy" *ngIf="i < 3" [ngStyle]="{
-                            'color': i === 0 ? 'gold' : i === 1 ? 'silver' : 'peru'
+            <ng-container *ngFor="let entry of scoreboard">
+                <tr>
+                    <td text-center>
+                        <i class="pi pi-trophy" *ngIf="entry.rank < 3" [ngStyle]="{
+                            'color': entry.rank === 0 ? 'gold' : entry.rank === 1 ? 'silver' : 'peru'
                         }"></i>
+                        <span *ngIf="entry.rank >= 3" class="text-500 text-xs">{{ entry.rank + 1 }}</span> 
                     </td>
-                    <td class="text-900">{{ entry.difficulty | suffix }}</td>
+                    <td pTooltip="{{ entry.difficulty }}" tooltipPosition="top" class="text-900">{{ entry.difficulty | suffix }}</td>
                     <td class="code">{{ entry.job_id }}</td>
                     <td class="code">{{ entry.extranonce2 }}</td>
-                    <td>{{ entry.ntime * 1000 | date:'yyyy-MM-dd HH:mm:ss' }}</td>
+                    <td pTooltip="{{ entry.since | dateAgo }}" tooltipPosition="top">{{ entry.ntime * 1000 | date:'yyyy-MM-dd HH:mm:ss' }}</td>
                     <td class="code">{{ entry.nonce }}</td>
                     <td class="code">{{ entry.version_bits }}</td>
                 </tr>
-            </tbody>
+            </ng-container>
         </table>
     </div>
 </div>
