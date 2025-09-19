@@ -15,7 +15,7 @@ const SWARM_SORTING = 'SCOREBOARD_SORTING';
 export class ScoreboardComponent implements OnInit, OnDestroy {
   public scoreboard$: Observable<ISystemScoreboardEntry[]>;
   public sortField: string = '';
-  public sortDirection: 'asc' | 'desc' = 'asc';  
+  public sortDirection: 'asc' | 'desc' = 'asc';
 
   private refresh$ = new Subject<void>();
   private destroy$ = new Subject<void>();
@@ -57,7 +57,7 @@ export class ScoreboardComponent implements OnInit, OnDestroy {
       sortField: this.sortField,
       sortDirection: this.sortDirection
     });
-    this.refresh$.next();    
+    this.refresh$.next();
   }
 
   private sortData(data: ISystemScoreboardEntry[], field: string, direction: 'asc' | 'desc'): ISystemScoreboardEntry[] {
