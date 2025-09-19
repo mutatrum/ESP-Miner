@@ -6,7 +6,6 @@ td {
     padding: 0 0.5rem 0.5rem;
     white-space: nowrap;
     text-align: left;
-    vertical-align: top;
 
     &:first-child {
         padding-left: 0;
@@ -17,10 +16,6 @@ td {
 }
 td {
     padding-top: 0.5rem;
-
-    p {
-        line-height: 1.4;
-    }
 }
 tbody tr {
     border-top: 1px solid var(--surface-border);
