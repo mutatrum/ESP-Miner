@@ -29,7 +29,7 @@
                 </thead>
                 <tbody>
                     <tr *ngFor="let entry of scoreboard">
-                        <td class="text-center">
+                        <td>
                             <i class="pi pi-trophy" *ngIf="entry.rank < 3" [ngStyle]="{
                                 'color': entry.rank === 0 ? 'gold' : entry.rank === 1 ? 'silver' : 'peru'
                             }"></i>
