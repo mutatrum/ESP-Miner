@@ -38,7 +38,7 @@
                         <td pTooltip="{{ entry.difficulty }}" tooltipPosition="top" class="text-900">{{ entry.difficulty | suffix }}</td>
                         <td class="code">{{ entry.job_id }}</td>
                         <td class="code">{{ entry.extranonce2 }}</td>
-                        <td pTooltip="{{ entry.since | dateAgo }}" tooltipPosition="top">{{ entry.ntime * 1000 | date:'yyyy-MM-dd HH:mm:ss' }}</td>
+                        <td pTooltip="{{ entry.since | dateAgo: {intervals: 2} }}" tooltipPosition="top">{{ entry.ntime * 1000 | date:'yyyy-MM-dd HH:mm:ss' }}</td>
                         <td class="code">{{ entry.nonce }}</td>
                         <td class="code">{{ entry.version_bits }}</td>
                     </tr>
