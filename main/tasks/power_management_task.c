@@ -54,10 +54,7 @@ void POWER_MANAGEMENT_task(void * pvParameters)
             power_management->fan_perc = 100;
             Thermal_set_fan_percent(&GLOBAL_STATE->DEVICE_CONFIG, 1);
 
-            // Turn off core voltage
-            VCORE_set_voltage(GLOBAL_STATE, 0.0f);
-
-            nvs_config_set_u16(NVS_CONFIG_ASIC_VOLTAGE, 1000);
+            nvs_config_set_u16(NVS_CONFIG_ASIC_VOLTAGE, 0);
             nvs_config_set_u16(NVS_CONFIG_ASIC_FREQUENCY, 50);
             nvs_config_set_float(NVS_CONFIG_ASIC_FREQUENCY_FLOAT, 50);
             nvs_config_set_u16(NVS_CONFIG_FAN_SPEED, 100);

@@ -49,50 +49,68 @@ void ASIC_MANAGEMENT_init_frequency(void * pvParameters)
     power_management->frequency_value = frequency;
 }
 
+bool ASIC_MANAGEMENT_adjust_voltage(void * pvParameters)
+{
+    GlobalState * GLOBAL_STATE = (GlobalState *) pvParameters;
+
+    uint16_t target_voltage = nvs_config_get_u16(NVS_CONFIG_ASIC_VOLTAGE, CONFIG_ASIC_VOLTAGE);
+    if (target_voltage != current_voltage) {
+        ESP_LOGI(TAG, "Setting new vcore voltage to %umV", target_voltage);
+        VCORE_set_voltage(GLOBAL_STATE, (double) target_voltage / 1000.0);
+        current_voltage = target_voltage;
+        return true;
+    }
+    return false;
+}
+
+bool ASIC_MANAGEMENT_adjust_frequency(void * pvParameters)
+{
+    GlobalState * GLOBAL_STATE = (GlobalState *) pvParameters;
+
+    PowerManagementModule * power_management = &GLOBAL_STATE->POWER_MANAGEMENT_MODULE;
+
+    float target_frequency = nvs_config_get_float(NVS_CONFIG_ASIC_FREQUENCY_FLOAT, CONFIG_ASIC_FREQUENCY);
+    if (fabs(current_frequency - target_frequency) < EPSILON) {
+        if (is_frequency_transitioning) {
+            ESP_LOGI(TAG, "Successfully transitioned to %g MHz", target_frequency);
+            is_frequency_transitioning = false;
+        }
+        return false;
+    }
+    bool is_overheat_mode = nvs_config_get_u16(NVS_CONFIG_OVERHEAT_MODE, 0) == 1;
+    if (!is_overheat_mode) {
+        if (!is_frequency_transitioning) {
+            ESP_LOGI(TAG, "Ramping %s frequency from %g MHz to %g MHz", current_frequency < target_frequency ? "up" : "down", current_frequency, target_frequency);
+            is_frequency_transitioning = true;
+        }
+
+        if (fabs(target_frequency - current_frequency) > STEP_SIZE) {
+            if (target_frequency > current_frequency) {
+                target_frequency = (floor(current_frequency / STEP_SIZE) + 1) * STEP_SIZE;
+            } else {
+                target_frequency = (ceil(current_frequency / STEP_SIZE) - 1) * STEP_SIZE;
+            }
+        }
+    }
+
+    ESP_LOGI(TAG, "New ASIC frequency requested: %g MHz (current: %g MHz)", target_frequency, current_frequency);
+    ASIC_set_frequency(GLOBAL_STATE, target_frequency);
+    power_management->frequency_value = target_frequency;
+    current_frequency = target_frequency;      
+    return true;
+}
+
 void ASIC_MANAGEMENT_task(void * pvParameters)
 {
     ESP_LOGI(TAG, "Starting");
 
     GlobalState * GLOBAL_STATE = (GlobalState *) pvParameters;
 
-    PowerManagementModule * power_management = &GLOBAL_STATE->POWER_MANAGEMENT_MODULE;
-
     while (1) {
-        uint16_t target_voltage = nvs_config_get_u16(NVS_CONFIG_ASIC_VOLTAGE, CONFIG_ASIC_VOLTAGE);
-        if (target_voltage != current_voltage) {
-            ESP_LOGI(TAG, "Setting new vcore voltage to %umV", target_voltage);
-            VCORE_set_voltage(GLOBAL_STATE, (double) target_voltage / 1000.0);
-            current_voltage = target_voltage;
-        }
 
-        float target_frequency = nvs_config_get_float(NVS_CONFIG_ASIC_FREQUENCY_FLOAT, CONFIG_ASIC_FREQUENCY);
-        if (fabs(current_frequency - target_frequency) < EPSILON) {
-            if (is_frequency_transitioning) {
-                ESP_LOGI(TAG, "Successfully transitioned to %g MHz", target_frequency);
-                is_frequency_transitioning = false;
-            }
-        } else {
-            bool is_overheat_mode = nvs_config_get_u16(NVS_CONFIG_OVERHEAT_MODE, 0) == 1;
-            if (!is_overheat_mode) {
-                if (!is_frequency_transitioning) {
-                    ESP_LOGI(TAG, "Ramping %s frequency from %g MHz to %g MHz", current_frequency < target_frequency ? "up" : "down", current_frequency, target_frequency);
-                    is_frequency_transitioning = true;
-                }
+        ASIC_MANAGEMENT_adjust_voltage(GLOBAL_STATE);
 
-                if (fabs(target_frequency - current_frequency) > STEP_SIZE) {
-                    if (target_frequency > current_frequency) {
-                        target_frequency = (floor(current_frequency / STEP_SIZE) + 1) * STEP_SIZE;
-                    } else {
-                        target_frequency = (ceil(current_frequency / STEP_SIZE) - 1) * STEP_SIZE;
-                    }
-                }
-            }
-
-            ESP_LOGI(TAG, "New ASIC frequency requested: %g MHz (current: %g MHz)", target_frequency, current_frequency);
-            ASIC_set_frequency(GLOBAL_STATE, target_frequency);
-            power_management->frequency_value = target_frequency;
-            current_frequency = target_frequency;      
-        }
+        ASIC_MANAGEMENT_adjust_frequency(GLOBAL_STATE);
 
         // looper:
         vTaskDelay(POLL_RATE / portTICK_PERIOD_MS);        
