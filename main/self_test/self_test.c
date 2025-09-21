@@ -444,7 +444,7 @@ bool self_test(void * pvParameters)
 
     ESP_LOGI(TAG, "Hashrate: %f", hash_rate);
 
-    float expected_hashrate_mhs = GLOBAL_STATE->POWER_MANAGEMENT_MODULE.frequency_value
+    float expected_hashrate_mhs = GLOBAL_STATE->POWER_MANAGEMENT_MODULE.frequency_value 
                                 * GLOBAL_STATE->DEVICE_CONFIG.family.asic.small_core_count 
                                 * GLOBAL_STATE->DEVICE_CONFIG.family.asic.hashrate_test_percentage_target
                                 / 1000.0f;
