@@ -68,7 +68,10 @@ void app_main(void)
 
     SYSTEM_init_peripherals(&GLOBAL_STATE);
 
-    xTaskCreate(POWER_MANAGEMENT_task, "power management", 8192, (void *) &GLOBAL_STATE, 10, NULL);
+    if (xTaskCreate(POWER_MANAGEMENT_task, "power management", 8192, (void *) &GLOBAL_STATE, 10, NULL) != pdPASS) {
+        ESP_LOGE(TAG, "Failed to create power management task");
+        return;
+    }
 
     //start the API for AxeOS
     start_rest_server((void *) &GLOBAL_STATE);
@@ -108,9 +111,24 @@ void app_main(void)
 
     GLOBAL_STATE.ASIC_initalized = true;
 
-    xTaskCreate(stratum_task, "stratum admin", 8192, (void *) &GLOBAL_STATE, 5, NULL);
-    xTaskCreate(create_jobs_task, "stratum miner", 8192, (void *) &GLOBAL_STATE, 10, NULL);
-    xTaskCreate(ASIC_task, "asic", 8192, (void *) &GLOBAL_STATE, 10, NULL);
-    xTaskCreate(ASIC_result_task, "asic result", 8192, (void *) &GLOBAL_STATE, 15, NULL);
-    xTaskCreate(statistics_task, "statistics", 8192, (void *) &GLOBAL_STATE, 3, NULL);
+    if (xTaskCreate(stratum_task, "stratum admin", 8192, (void *) &GLOBAL_STATE, 5, NULL) != pdPASS) {
+        ESP_LOGE(TAG, "Failed to create stratum admin task");
+        return;
+    }
+    if (xTaskCreate(create_jobs_task, "stratum miner", 8192, (void *) &GLOBAL_STATE, 10, NULL) != pdPASS) {
+        ESP_LOGE(TAG, "Failed to create stratum miner task");
+        return;
+    }
+    if (xTaskCreate(ASIC_task, "asic", 8192, (void *) &GLOBAL_STATE, 10, NULL) != pdPASS) {
+        ESP_LOGE(TAG, "Failed to create asic task");
+        return;
+    }
+    if (xTaskCreate(ASIC_result_task, "asic result", 8192, (void *) &GLOBAL_STATE, 15, NULL) != pdPASS) {
+        ESP_LOGE(TAG, "Failed to create asic result task");
+        return;
+    }
+    if (xTaskCreate(statistics_task, "statistics", 8192, (void *) &GLOBAL_STATE, 3, NULL) != pdPASS) {
+        ESP_LOGE(TAG, "Failed to create statistics task");
+        return;
+    }
 }
