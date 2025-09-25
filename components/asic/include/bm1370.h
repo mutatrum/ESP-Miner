@@ -28,8 +28,7 @@ int BM1370_set_max_baud(void);
 int BM1370_set_default_baud(void);
 void BM1370_send_hash_frequency(float frequency);
 task_result * BM1370_process_work(void * GLOBAL_STATE);
-void get_hashrate_cnt();
-void get_hashrate_error_cnt();
-void reset_counters();
+void BM1370_read_registers(void);
+void BM1370_reset_registers(void);
 
 #endif /* BM1370_H_ */

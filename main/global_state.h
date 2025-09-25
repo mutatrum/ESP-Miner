@@ -7,6 +7,7 @@
 #include "common.h"
 #include "power_management_task.h"
 #include "statistics_task.h"
+#include "hashrate_monitor_task.h"
 #include "serial.h"
 #include "stratum_api.h"
 #include "work_queue.h"
@@ -32,6 +33,7 @@ typedef struct
     double historical_hashrate[HISTORY_LENGTH];
     int historical_hashrate_init;
     double current_hashrate;
+    uint32_t current_error_count_register;
     int64_t start_time;
     uint64_t shares_accepted;
     uint64_t shares_rejected;
@@ -95,6 +97,7 @@ typedef struct
     PowerManagementModule POWER_MANAGEMENT_MODULE;
     SelfTestModule SELF_TEST_MODULE;
     StatisticsModule STATISTICS_MODULE;
+    HashrateMonitorModule HASHRATE_MONITOR_MODULE;
 
     char * extranonce_str;
     int extranonce_2_len;

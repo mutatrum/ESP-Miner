@@ -17,6 +17,8 @@ export interface ISystemInfo {
     maxPower: number,
     nominalVoltage: number,
     hashRate: number,
+    hashrateRegister: number,
+    errorCountRegister: number,
     expectedHashrate: number,
     bestDiff: string,
     bestSessionDiff: string,

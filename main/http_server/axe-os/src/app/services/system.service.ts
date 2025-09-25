@@ -36,6 +36,8 @@ export class SystemService {
         maxPower: 25,
         nominalVoltage: 5,
         hashRate: 475,
+        hashrateRegister: 475,
+        errorCountRegister: 3,
         expectedHashrate: 420,
         bestDiff: "0",
         bestSessionDiff: "0",

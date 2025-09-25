@@ -117,12 +117,10 @@ void statistics_task(void * pvParameters)
     GlobalState * GLOBAL_STATE = (GlobalState *) pvParameters;
     SystemModule * sys_module = &GLOBAL_STATE->SYSTEM_MODULE;
     PowerManagementModule * power_management = &GLOBAL_STATE->POWER_MANAGEMENT_MODULE;
+    HashrateMonitorModule * hashrate_monitor = &GLOBAL_STATE->HASHRATE_MONITOR_MODULE;
     struct StatisticsData statsData = {};
 
     TickType_t taskWakeTime = xTaskGetTickCount();
-
-    float curr_hash = -1;
-    float curr_err = -1;
 
     while (1) {
         const int64_t currentTime = esp_timer_get_time() / 1000;
@@ -137,6 +135,8 @@ void statistics_task(void * pvParameters)
 
                 statsData.timestamp = currentTime;
                 statsData.hashrate = sys_module->current_hashrate;
+                statsData.hashrateRegister = hashrate_monitor->hashrate;
+                statsData.errorCountRegister = hashrate_monitor->error_count;
                 statsData.chipTemperature = power_management->chip_temp_avg;
                 statsData.vrTemperature = power_management->vr_temp;
                 statsData.power = power_management->power;
@@ -155,16 +155,5 @@ void statistics_task(void * pvParameters)
         }
 
         vTaskDelayUntil(&taskWakeTime, DEFAULT_POLL_RATE / portTICK_PERIOD_MS); // taskWakeTime is automatically updated
-
-        if(curr_hash < 0) {
-            float gh_hash = get_hashrate_cnt();
-            float gh_err = get_hashrate_error_cnt();
-    
-            if (gh_hash != curr_hash || gh_err != curr_err) {
-                curr_hash = gh_hash;
-                curr_err = gh_err;
-                ESP_LOGI(TAG, "Hashrate: %.2f GH/s, Errors: %.2f GH/s", gh_hash, gh_err);
-            }
-        }
     }
 }

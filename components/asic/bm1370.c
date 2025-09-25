@@ -24,6 +24,8 @@
 #define TYPE_JOB 0x20
 #define TYPE_CMD 0x40
 
+#define REGISTER_RESPONSE 0x80
+
 #define GROUP_SINGLE 0x00
 #define GROUP_ALL 0x10
 
@@ -42,6 +44,7 @@
 #define BM_NONCE_TOTAL_CNT  0x8C
 #define BM_UNK_CNT_90       0x90
 #define BM_GOLDEN_NONCE_CNT 0x94
+#define BM_TEMP             0xB4
 
 typedef struct __attribute__((__packed__))
 {
@@ -328,17 +331,50 @@ task_result * BM1370_process_work(void * pvParameters)
     if (receive_work((uint8_t *)&asic_result, sizeof(asic_result)) == ESP_FAIL) {
         return NULL;
     }
-
-    // printf("rx: ");
-    // prettyHex((uint8_t *)&asic_result, sizeof(asic_result));
-    // printf("\n");
-
-    // uint8_t job_id = asic_result.job_id;
-    // uint8_t rx_job_id = ((int8_t)job_id & 0xf0) >> 1;
-    // ESP_LOGI(TAG, "Job ID: %02X, RX: %02X", job_id, rx_job_id);
-
-    // uint8_t job_id = asic_result.job_id & 0xf8;
-    // ESP_LOGI(TAG, "Job ID: %02X, Core: %01X", job_id, asic_result.job_id & 0x07);
+    
+    result.is_register_response = (asic_result.crc & REGISTER_RESPONSE) == 0;
+    
+    if (result.is_register_response) {
+        switch(asic_result.job_id) {
+            case BM_NONCE_ERROR_CNT:
+                result.register_type = REGISTER_ERROR_COUNT;
+                break;
+            case BM_UNK_CNT_88:
+                result.register_type = REGISTER_DOMAIN_0_COUNT;
+                break;
+            case BM_UNK_CNT_89:
+                result.register_type = REGISTER_DOMAIN_1_COUNT;
+                break;
+            case BM_UNK_CNT_8A:
+                result.register_type = REGISTER_DOMAIN_2_COUNT;
+                break;
+            case BM_UNK_CNT_8B:
+                result.register_type = REGISTER_DOMAIN_3_COUNT;
+                break;
+            case BM_NONCE_TOTAL_CNT:
+                result.register_type = REGISTER_TOTAL_COUNT;
+                break;
+            case BM_TEMP:
+                result.register_type = REGISTER_TEMPERATURE;
+                break;
+            case BM_UNK_CNT_90:
+            case BM_GOLDEN_NONCE_CNT:
+                return NULL;
+        }
+        result.asic_nr = asic_result.midstate_num >> 1;
+        result.value = ntohl(asic_result.nonce);
+        
+        return &result;
+    }
+    
+                // case 0xb4: {
+                //     if (asic_result.data & 0x80000000) {
+                //         float ftemp = (float) (asic_result.data & 0x0000ffff) * 0.171342f - 299.5144f;
+                //         ESP_LOGI(TAG, "asic %d temp: %.3f", (int) asic_result.asic_nr, ftemp);
+                //         board->setChipTemp(asic_result.asic_nr, ftemp);
+                //     }
+                //     break;
+                // }
 
     uint8_t job_id = (asic_result.job_id & 0xf0) >> 1;
     uint8_t core_id = (uint8_t)((ntohl(asic_result.nonce) >> 25) & 0x7f); // BM1370 has 80 cores, so it should be coded on 7 bits
@@ -362,29 +398,28 @@ task_result * BM1370_process_work(void * pvParameters)
     return &result;
 }
 
-void get_hashrate_cnt() {
-    // uint8_t buf[9] = {0};
-    _send_BM1370((TYPE_CMD | GROUP_SINGLE | CMD_READ), (uint8_t[]){0x00, BM_UNK_CNT_90}, 2, true);
-    // int resp = SERIAL_rx(buf, 11, 10);
-    // int value = (int)((buf[4] << 8) + buf[5]);
-    // ESP_LOGI(TAG, "CNT     %02X: [%02x %02x %02x %02x %02x %02x %02x %02x %02x]", BM_UNK_CNT_90, buf[0], buf[1], buf[2], buf[3], buf[4],buf[5],buf[6],buf[7], buf[8]);
-    // float hashes = 4.096 * (float)value;
-    // // ESP_LOGW(TAG,"hashes %f",hashes);
-    // return hashes;
+void BM1370_read_registers(void) {
+    _send_BM1370((TYPE_CMD | GROUP_SINGLE | CMD_READ), (uint8_t[]){0x00, BM_NONCE_ERROR_CNT}, 2, false);
+    vTaskDelay(1 / portTICK_PERIOD_MS);
+    _send_BM1370((TYPE_CMD | GROUP_SINGLE | CMD_READ), (uint8_t[]){0x00, BM_UNK_CNT_88     }, 2, false);
+    vTaskDelay(1 / portTICK_PERIOD_MS);
+    _send_BM1370((TYPE_CMD | GROUP_SINGLE | CMD_READ), (uint8_t[]){0x00, BM_UNK_CNT_89     }, 2, false);
+    vTaskDelay(1 / portTICK_PERIOD_MS);
+    _send_BM1370((TYPE_CMD | GROUP_SINGLE | CMD_READ), (uint8_t[]){0x00, BM_UNK_CNT_8A     }, 2, false);
+    vTaskDelay(1 / portTICK_PERIOD_MS);
+    _send_BM1370((TYPE_CMD | GROUP_SINGLE | CMD_READ), (uint8_t[]){0x00, BM_UNK_CNT_8B     }, 2, false);
+    vTaskDelay(1 / portTICK_PERIOD_MS);
+    _send_BM1370((TYPE_CMD | GROUP_SINGLE | CMD_READ), (uint8_t[]){0x00, BM_NONCE_TOTAL_CNT}, 2, false);
+    vTaskDelay(1 / portTICK_PERIOD_MS);
+    // _send_BM1370((TYPE_CMD | GROUP_SINGLE | CMD_READ), (uint8_t[]){0x00, BM_TEMP           }, 2, false);
+    // vTaskDelay(1 / portTICK_PERIOD_MS);
 }
 
-void get_hashrate_error_cnt() {
-    // uint8_t buf[9] = {0};
-    _send_BM1370((TYPE_CMD | GROUP_SINGLE | CMD_READ), (uint8_t[]){0x00, BM_NONCE_ERROR_CNT}, 2, true);
-    // int resp = SERIAL_rx(buf, 11, 10);
-    // int value = (int)((buf[4] << 8) + buf[5]);
-    // ESP_LOGI(TAG, "CNT ERR %02X: [%02x %02x %02x %02x %02x %02x %02x %02x %02x]", BM_NONCE_ERROR_CNT, buf[0], buf[1], buf[2], buf[3], buf[4],buf[5],buf[6],buf[7], buf[8]);
-    // float hashes_error = 4.096 * (float)value;
-    // ESP_LOGW(TAG,"hashes error %f",hashes_error);
-    // return hashes_error;
-}
-
-void reset_counters() {
-    _send_BM1370((TYPE_CMD | GROUP_SINGLE | CMD_WRITE), (uint8_t[]){0x00, BM_UNK_CNT_90,0x00,0x00,0x00,0x00}, 6, true);
-    _send_BM1370((TYPE_CMD | GROUP_SINGLE | CMD_WRITE), (uint8_t[]){0x00, BM_NONCE_ERROR_CNT,0x00,0x00,0x00,0x00}, 6, true);
+void BM1370_reset_registers(void) {
+    _send_BM1370((TYPE_CMD | GROUP_SINGLE | CMD_WRITE), (uint8_t[]){0x00, BM_NONCE_ERROR_CNT, 0x00, 0x00, 0x00, 0x00}, 6, false);
+    _send_BM1370((TYPE_CMD | GROUP_SINGLE | CMD_WRITE), (uint8_t[]){0x00, BM_UNK_CNT_88,      0x00, 0x00, 0x00, 0x00}, 6, false);
+    _send_BM1370((TYPE_CMD | GROUP_SINGLE | CMD_WRITE), (uint8_t[]){0x00, BM_UNK_CNT_89,      0x00, 0x00, 0x00, 0x00}, 6, false);
+    _send_BM1370((TYPE_CMD | GROUP_SINGLE | CMD_WRITE), (uint8_t[]){0x00, BM_UNK_CNT_8A,      0x00, 0x00, 0x00, 0x00}, 6, false);
+    _send_BM1370((TYPE_CMD | GROUP_SINGLE | CMD_WRITE), (uint8_t[]){0x00, BM_UNK_CNT_8B,      0x00, 0x00, 0x00, 0x00}, 6, false);
+    _send_BM1370((TYPE_CMD | GROUP_SINGLE | CMD_WRITE), (uint8_t[]){0x00, BM_NONCE_TOTAL_CNT, 0x00, 0x00, 0x00, 0x00}, 6, false);
 }

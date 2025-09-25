@@ -8,6 +8,8 @@ struct StatisticsData
 {
     int64_t timestamp;
     double hashrate;
+    double hashrateRegister;
+    uint32_t errorCountRegister;
     float chipTemperature;
     float vrTemperature;
     float power;
