@@ -12,33 +12,15 @@ static const char *TAG = "hashrate_monitor";
 
 static float frequency_value;
 
-void hashrate_monitor_task(void *pvParameters)
-{
-    GlobalState * GLOBAL_STATE = (GlobalState *)pvParameters;
-    HashrateMonitorModule * HASHRATE_MONITOR_MODULE = &GLOBAL_STATE->HASHRATE_MONITOR_MODULE;
-    int asic_count = GLOBAL_STATE->DEVICE_CONFIG.family.asic_count;
-
-    HASHRATE_MONITOR_MODULE->total_measurement = malloc(asic_count * sizeof(measurement_t));
-    HASHRATE_MONITOR_MODULE->domain_0_measurement = malloc(asic_count * sizeof(measurement_t));
-    HASHRATE_MONITOR_MODULE->domain_1_measurement = malloc(asic_count * sizeof(measurement_t));
-    HASHRATE_MONITOR_MODULE->domain_2_measurement = malloc(asic_count * sizeof(measurement_t));
-    HASHRATE_MONITOR_MODULE->domain_3_measurement = malloc(asic_count * sizeof(measurement_t));
-    HASHRATE_MONITOR_MODULE->error_measurement = malloc(asic_count * sizeof(measurement_t));
-
-    HASHRATE_MONITOR_MODULE->is_initialized = true;
-    TickType_t taskWakeTime = xTaskGetTickCount();
-    while (1) {
-        ASIC_read_registers(GLOBAL_STATE);
-        vTaskDelayUntil(&taskWakeTime, POLL_RATE / portTICK_PERIOD_MS);
-    }
-}
-
 static float sum_hashrates(measurement_t * measurement, int asic_count)
 {
     if (asic_count == 1) return measurement[0].hashrate;
 
     float total = 0;
-    for (int i = 0; i < asic_count; i++) total += measurement[i].hashrate;
+    for (int i = 0; i < asic_count; i++) {
+        if (measurement[i].hashrate == 0.0) return 0.0;
+        total += measurement[i].hashrate;
+    }
     return total;
 }
 
@@ -75,6 +57,44 @@ static void update_measurement(uint32_t time_ms, uint32_t value, measurement_t *
     measurement[asic_nr].time_ms = time_ms;    
 }
 
+void hashrate_monitor_task(void *pvParameters)
+{
+    GlobalState * GLOBAL_STATE = (GlobalState *)pvParameters;
+    HashrateMonitorModule * HASHRATE_MONITOR_MODULE = &GLOBAL_STATE->HASHRATE_MONITOR_MODULE;
+    int asic_count = GLOBAL_STATE->DEVICE_CONFIG.family.asic_count;
+
+    HASHRATE_MONITOR_MODULE->total_measurement = malloc(asic_count * sizeof(measurement_t));
+    HASHRATE_MONITOR_MODULE->domain_0_measurement = malloc(asic_count * sizeof(measurement_t));
+    HASHRATE_MONITOR_MODULE->domain_1_measurement = malloc(asic_count * sizeof(measurement_t));
+    HASHRATE_MONITOR_MODULE->domain_2_measurement = malloc(asic_count * sizeof(measurement_t));
+    HASHRATE_MONITOR_MODULE->domain_3_measurement = malloc(asic_count * sizeof(measurement_t));
+    HASHRATE_MONITOR_MODULE->error_measurement = malloc(asic_count * sizeof(measurement_t));
+
+    HASHRATE_MONITOR_MODULE->is_initialized = true;
+
+    TickType_t taskWakeTime = xTaskGetTickCount();
+    while (1) {
+        ASIC_read_registers(GLOBAL_STATE);
+
+        vTaskDelay(100 / portTICK_PERIOD_MS);
+
+        float hashrate = sum_hashrates(HASHRATE_MONITOR_MODULE->total_measurement, asic_count);
+
+        if (hashrate == 0.0) {
+            HASHRATE_MONITOR_MODULE->hashrate = 0.0;
+        } else {
+            if (HASHRATE_MONITOR_MODULE->hashrate == 0.0f) {
+                HASHRATE_MONITOR_MODULE->hashrate = GLOBAL_STATE->POWER_MANAGEMENT_MODULE.expected_hashrate;
+            }
+            HASHRATE_MONITOR_MODULE->hashrate = ((HASHRATE_MONITOR_MODULE->hashrate * (EMA_ALPHA - 1)) + hashrate) / EMA_ALPHA;
+        }
+
+        HASHRATE_MONITOR_MODULE->error_count = sum_values(HASHRATE_MONITOR_MODULE->error_measurement, asic_count);
+
+        vTaskDelayUntil(&taskWakeTime, POLL_RATE / portTICK_PERIOD_MS);
+    }
+}
+
 void hashrate_monitor_register_read(void *pvParameters, register_type_t register_type, uint8_t asic_nr, uint32_t value)
 {
     uint32_t time_ms = esp_timer_get_time() / 1000;
@@ -99,13 +119,6 @@ void hashrate_monitor_register_read(void *pvParameters, register_type_t register
     switch(register_type) {
         case REGISTER_TOTAL_COUNT:
             update_measurement(time_ms, value, HASHRATE_MONITOR_MODULE->total_measurement, asic_nr);
-
-            float hashrate = sum_hashrates(HASHRATE_MONITOR_MODULE->total_measurement, asic_count);
-            if (HASHRATE_MONITOR_MODULE->hashrate == 0.0f) {
-                HASHRATE_MONITOR_MODULE->hashrate = hashrate;
-            } else {
-                HASHRATE_MONITOR_MODULE->hashrate = ((HASHRATE_MONITOR_MODULE->hashrate * (EMA_ALPHA - 1)) + hashrate) / EMA_ALPHA;
-            }
             break;
         case REGISTER_DOMAIN_0_COUNT:
             update_measurement(time_ms, value, HASHRATE_MONITOR_MODULE->domain_0_measurement, asic_nr);
@@ -121,8 +134,6 @@ void hashrate_monitor_register_read(void *pvParameters, register_type_t register
             break;
         case REGISTER_ERROR_COUNT:
             update_measurement(time_ms, value, HASHRATE_MONITOR_MODULE->error_measurement, asic_nr);
-
-            HASHRATE_MONITOR_MODULE->error_count = sum_values(HASHRATE_MONITOR_MODULE->error_measurement, asic_count);
             break;
         case REGISTER_TEMPERATURE:
             /*
