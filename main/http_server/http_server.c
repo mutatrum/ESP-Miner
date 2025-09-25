@@ -785,6 +785,31 @@ static esp_err_t GET_system_info(httpd_req_t * req)
         cJSON_AddStringToObject(root, "networkDifficulty", GLOBAL_STATE->network_diff_string);
     }
 
+    cJSON *hashrate_monitor = cJSON_CreateObject();
+    cJSON_AddItemToObject(root, "hashrateMonitor", hashrate_monitor);
+    
+    cJSON *asics_array = cJSON_CreateArray();
+    cJSON_AddItemToObject(hashrate_monitor, "asics", asics_array);
+
+    if (GLOBAL_STATE->HASHRATE_MONITOR_MODULE.is_initialized) {
+        for (int i = 0; i < GLOBAL_STATE->DEVICE_CONFIG.family.asic_count; i++) {
+            cJSON *asic = cJSON_CreateObject();
+            cJSON_AddItemToArray(asics_array, asic);
+            cJSON_AddNumberToObject(asic, "total", GLOBAL_STATE->HASHRATE_MONITOR_MODULE.total_measurement[i].hashrate);
+    
+            float domains[4] = { 0 };
+            domains[0] = GLOBAL_STATE->HASHRATE_MONITOR_MODULE.domain_0_measurement[i].hashrate;
+            domains[1] = GLOBAL_STATE->HASHRATE_MONITOR_MODULE.domain_1_measurement[i].hashrate;
+            domains[2] = GLOBAL_STATE->HASHRATE_MONITOR_MODULE.domain_2_measurement[i].hashrate;
+            domains[3] = GLOBAL_STATE->HASHRATE_MONITOR_MODULE.domain_3_measurement[i].hashrate;
+            cJSON_AddItemToObject(asic, "domains", cJSON_CreateFloatArray(domains, 4));
+    
+            cJSON_AddNumberToObject(asic, "error", GLOBAL_STATE->HASHRATE_MONITOR_MODULE.error_measurement[i].hashrate);
+        }
+    }
+    cJSON_AddNumberToObject(hashrate_monitor, "hashrate", GLOBAL_STATE->HASHRATE_MONITOR_MODULE.hashrate);
+    cJSON_AddNumberToObject(hashrate_monitor, "errorCount", GLOBAL_STATE->HASHRATE_MONITOR_MODULE.error_count);
+
     free(ssid);
     free(hostname);
     free(stratumURL);

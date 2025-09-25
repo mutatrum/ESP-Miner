@@ -19,6 +19,7 @@ typedef struct {
 
     float hashrate;
     int error_count;
+    bool is_initialized;
 } HashrateMonitorModule;
 
 void hashrate_monitor_task(void *pvParameters);

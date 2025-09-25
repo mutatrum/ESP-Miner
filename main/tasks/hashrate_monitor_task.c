@@ -25,6 +25,7 @@ void hashrate_monitor_task(void *pvParameters)
     HASHRATE_MONITOR_MODULE->domain_3_measurement = malloc(asic_count * sizeof(measurement_t));
     HASHRATE_MONITOR_MODULE->error_measurement = malloc(asic_count * sizeof(measurement_t));
 
+    HASHRATE_MONITOR_MODULE->is_initialized = true;
     TickType_t taskWakeTime = xTaskGetTickCount();
     while (1) {
         ASIC_read_registers(GLOBAL_STATE);
@@ -67,7 +68,7 @@ static void update_measurement(uint32_t time_ms, uint32_t value, measurement_t *
         float seconds = (time_ms - previous_time_ms) / 1000.0;
         float rate = (value - measurement[asic_nr].value) / seconds;
         float hashrate = rate * 0x100000000; // difficulty 1 hash counter
-        measurement[asic_nr].hashrate = hashrate;
+        measurement[asic_nr].hashrate = hashrate / 1e9; // Convert to Gh/s
     }
 
     measurement[asic_nr].value = value;
@@ -99,7 +100,7 @@ void hashrate_monitor_register_read(void *pvParameters, register_type_t register
         case REGISTER_TOTAL_COUNT:
             update_measurement(time_ms, value, HASHRATE_MONITOR_MODULE->total_measurement, asic_nr);
 
-            float hashrate = sum_hashrates(HASHRATE_MONITOR_MODULE->total_measurement, asic_count) / 1e9; // Convert to Gh/s
+            float hashrate = sum_hashrates(HASHRATE_MONITOR_MODULE->total_measurement, asic_count);
             if (HASHRATE_MONITOR_MODULE->hashrate == 0.0f) {
                 HASHRATE_MONITOR_MODULE->hashrate = hashrate;
             } else {
