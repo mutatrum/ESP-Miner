@@ -36,8 +36,6 @@ export class SystemService {
         maxPower: 25,
         nominalVoltage: 5,
         hashRate: 475,
-        hashrateRegister: 475,
-        errorCountRegister: 3,
         expectedHashrate: 420,
         bestDiff: "0",
         bestSessionDiff: "0",
@@ -93,6 +91,15 @@ export class SystemService {
         blockHeight: 811111,
         scriptsig: "..%..h..,H...ckpool.eu/solo.ckpool.org/",
         networkDifficulty: "25.3T",
+        hashrateMonitor: {
+          asics: [{
+            total: 1069.8,
+            domains: [273.1, 298.9, 263.7, 255.9],
+            error: 0,
+          }],
+          hashrate: 1069.8,
+          errorCount: 3,
+        }
       }
     ).pipe(delay(1000));
   }

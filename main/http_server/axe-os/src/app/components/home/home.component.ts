@@ -347,7 +347,7 @@ export class HomeComponent implements OnInit, OnDestroy {
       }),
       map(info => {
         info.hashRate = info.hashRate * 1000000000;
-        info.hashrateRegister = info.hashrateRegister * 1000000000;
+        info.hashrateMonitor.hashrate = info.hashrateMonitor?.hashrate * 1000000000;
         info.expectedHashrate = info.expectedHashrate * 1000000000;
         info.voltage = info.voltage / 1000;
         info.current = info.current / 1000;
@@ -512,8 +512,8 @@ export class HomeComponent implements OnInit, OnDestroy {
   static getDataForLabel(label: eChartLabel | undefined, info: ISystemInfo): number {
     switch (label) {
       case eChartLabel.hashrate:           return info.hashRate;
-      case eChartLabel.hashrateRegister:   return info.hashrateRegister;
-      case eChartLabel.errorCountRegister: return info.errorCountRegister;
+      case eChartLabel.hashrateRegister:   return info.hashrateMonitor?.hashrate;
+      case eChartLabel.errorCountRegister: return info.hashrateMonitor?.errorCount;
       case eChartLabel.asicTemp:           return info.temp;
       case eChartLabel.vrTemp:             return info.vrTemp;
       case eChartLabel.asicVoltage:        return info.coreVoltageActual;
