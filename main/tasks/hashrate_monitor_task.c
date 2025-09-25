@@ -47,8 +47,9 @@ static void update_measurement(uint32_t time_ms, uint32_t value, measurement_t *
 {
     uint32_t previous_time_ms = measurement[asic_nr].time_ms;
     if (previous_time_ms != 0) {
+        uint32_t value_diff = value - measurement[asic_nr].value; // Compute counter difference, handling uint32_t wraparound
         float seconds = (time_ms - previous_time_ms) / 1000.0;
-        float rate = (value - measurement[asic_nr].value) / seconds;
+        float rate = (float)value_diff / seconds;
         float hashrate = rate * 0x100000000; // difficulty 1 hash counter
         measurement[asic_nr].hashrate = hashrate / 1e9; // Convert to Gh/s
     }
