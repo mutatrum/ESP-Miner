@@ -99,7 +99,8 @@ export class SystemService {
           }],
           hashrate: 1069.8,
           errorCount: 3,
-        }
+        },
+        blockFound: 0,
       }
     ).pipe(delay(1000));
   }

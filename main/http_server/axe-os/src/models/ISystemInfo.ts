@@ -83,4 +83,5 @@ export interface ISystemInfo {
     networkDifficulty?: string,
 
     hashrateMonitor: IHashrateMonitor,
+    blockFound: number,
 }
