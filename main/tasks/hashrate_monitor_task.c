@@ -8,6 +8,8 @@
 #define POLL_RATE 5000
 #define EMA_ALPHA 12
 
+#define HASH_CNT_LSB 0x100000000uLL // Hash counters are incremented on difficulty 1 (2^32 hashes)
+
 static const char *TAG = "hashrate_monitor";
 
 static float frequency_value;
@@ -49,8 +51,7 @@ static void update_measurement(uint32_t time_ms, uint32_t value, measurement_t *
     if (previous_time_ms != 0) {
         uint32_t value_diff = value - measurement[asic_nr].value; // Compute counter difference, handling uint32_t wraparound
         float seconds = (time_ms - previous_time_ms) / 1000.0;
-        float rate = (float)value_diff / seconds;
-        float hashrate = rate * 0x100000000; // difficulty 1 hash counter
+        float hashrate = (float)value_diff / seconds * HASH_CNT_LSB;
         measurement[asic_nr].hashrate = hashrate / 1e9; // Convert to Gh/s
     }
 
@@ -136,17 +137,17 @@ void hashrate_monitor_register_read(void *pvParameters, register_type_t register
         case REGISTER_ERROR_COUNT:
             update_measurement(time_ms, value, HASHRATE_MONITOR_MODULE->error_measurement, asic_nr);
             break;
-        case REGISTER_TEMPERATURE:
-            /*
-                // From NerdAxe codebase:
-                if (asic_result.data & 0x80000000) {
-                    float ftemp = (float) (asic_result.data & 0x0000ffff) * 0.171342f - 299.5144f;
-                    ESP_LOGI(TAG, "asic %d temp: %.3f", (int) asic_result.asic_nr, ftemp);
-                    board->setChipTemp(asic_result.asic_nr, ftemp);
-                }
-                break;
-            */
+        case REGISTER_INVALID:
             break;
     }
 }
 
+/*
+    // From NerdAxe codebase, temparature conversion?
+    if (asic_result.data & 0x80000000) {
+        float ftemp = (float) (asic_result.data & 0x0000ffff) * 0.171342f - 299.5144f;
+        ESP_LOGI(TAG, "asic %d temp: %.3f", (int) asic_result.asic_nr, ftemp);
+        board->setChipTemp(asic_result.asic_nr, ftemp);
+    }
+    break;
+*/

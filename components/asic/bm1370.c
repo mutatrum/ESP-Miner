@@ -36,15 +36,14 @@
 
 #define MISC_CONTROL 0x18
 
-#define BM_NONCE_ERROR_CNT  0x4C
-#define BM_UNK_CNT_88       0x88
-#define BM_UNK_CNT_89       0x89
-#define BM_UNK_CNT_8A       0x8A
-#define BM_UNK_CNT_8B       0x8B
-#define BM_NONCE_TOTAL_CNT  0x8C
-#define BM_UNK_CNT_90       0x90
-#define BM_GOLDEN_NONCE_CNT 0x94
-#define BM_TEMP             0xB4
+static const register_type_t REGISTER_MAP[] = {
+    [0x4C] = REGISTER_ERROR_COUNT,
+    [0x88] = REGISTER_DOMAIN_0_COUNT,
+    [0x89] = REGISTER_DOMAIN_1_COUNT,
+    [0x8A] = REGISTER_DOMAIN_2_COUNT,
+    [0x8B] = REGISTER_DOMAIN_3_COUNT,
+    [0x8C] = REGISTER_TOTAL_COUNT
+};
 
 typedef struct __attribute__((__packed__))
 {
@@ -335,31 +334,10 @@ task_result * BM1370_process_work(void * pvParameters)
     result.is_register_response = (asic_result.crc & REGISTER_RESPONSE) == 0;
     
     if (result.is_register_response) {
-        switch(asic_result.job_id) {
-            case BM_NONCE_ERROR_CNT:
-                result.register_type = REGISTER_ERROR_COUNT;
-                break;
-            case BM_UNK_CNT_88:
-                result.register_type = REGISTER_DOMAIN_0_COUNT;
-                break;
-            case BM_UNK_CNT_89:
-                result.register_type = REGISTER_DOMAIN_1_COUNT;
-                break;
-            case BM_UNK_CNT_8A:
-                result.register_type = REGISTER_DOMAIN_2_COUNT;
-                break;
-            case BM_UNK_CNT_8B:
-                result.register_type = REGISTER_DOMAIN_3_COUNT;
-                break;
-            case BM_NONCE_TOTAL_CNT:
-                result.register_type = REGISTER_TOTAL_COUNT;
-                break;
-            case BM_TEMP:
-                result.register_type = REGISTER_TEMPERATURE;
-                break;
-            case BM_UNK_CNT_90:
-            case BM_GOLDEN_NONCE_CNT:
-                return NULL;
+        result.register_type = REGISTER_MAP[asic_result.job_id];
+        if (result.register_type == REGISTER_INVALID) {
+            ESP_LOGW(TAG, "Unknown register read: %02x", asic_result.job_id);
+            return NULL;
         }
         result.asic_nr = asic_result.midstate_num >> 1;
         result.value = ntohl(asic_result.nonce);
@@ -398,28 +376,13 @@ task_result * BM1370_process_work(void * pvParameters)
     return &result;
 }
 
-void BM1370_read_registers(void) {
-    _send_BM1370((TYPE_CMD | GROUP_SINGLE | CMD_READ), (uint8_t[]){0x00, BM_NONCE_ERROR_CNT}, 2, false);
-    vTaskDelay(1 / portTICK_PERIOD_MS);
-    _send_BM1370((TYPE_CMD | GROUP_SINGLE | CMD_READ), (uint8_t[]){0x00, BM_UNK_CNT_88     }, 2, false);
-    vTaskDelay(1 / portTICK_PERIOD_MS);
-    _send_BM1370((TYPE_CMD | GROUP_SINGLE | CMD_READ), (uint8_t[]){0x00, BM_UNK_CNT_89     }, 2, false);
-    vTaskDelay(1 / portTICK_PERIOD_MS);
-    _send_BM1370((TYPE_CMD | GROUP_SINGLE | CMD_READ), (uint8_t[]){0x00, BM_UNK_CNT_8A     }, 2, false);
-    vTaskDelay(1 / portTICK_PERIOD_MS);
-    _send_BM1370((TYPE_CMD | GROUP_SINGLE | CMD_READ), (uint8_t[]){0x00, BM_UNK_CNT_8B     }, 2, false);
-    vTaskDelay(1 / portTICK_PERIOD_MS);
-    _send_BM1370((TYPE_CMD | GROUP_SINGLE | CMD_READ), (uint8_t[]){0x00, BM_NONCE_TOTAL_CNT}, 2, false);
-    vTaskDelay(1 / portTICK_PERIOD_MS);
-    // _send_BM1370((TYPE_CMD | GROUP_SINGLE | CMD_READ), (uint8_t[]){0x00, BM_TEMP           }, 2, false);
-    // vTaskDelay(1 / portTICK_PERIOD_MS);
-}
-
-void BM1370_reset_registers(void) {
-    _send_BM1370((TYPE_CMD | GROUP_SINGLE | CMD_WRITE), (uint8_t[]){0x00, BM_NONCE_ERROR_CNT, 0x00, 0x00, 0x00, 0x00}, 6, false);
-    _send_BM1370((TYPE_CMD | GROUP_SINGLE | CMD_WRITE), (uint8_t[]){0x00, BM_UNK_CNT_88,      0x00, 0x00, 0x00, 0x00}, 6, false);
-    _send_BM1370((TYPE_CMD | GROUP_SINGLE | CMD_WRITE), (uint8_t[]){0x00, BM_UNK_CNT_89,      0x00, 0x00, 0x00, 0x00}, 6, false);
-    _send_BM1370((TYPE_CMD | GROUP_SINGLE | CMD_WRITE), (uint8_t[]){0x00, BM_UNK_CNT_8A,      0x00, 0x00, 0x00, 0x00}, 6, false);
-    _send_BM1370((TYPE_CMD | GROUP_SINGLE | CMD_WRITE), (uint8_t[]){0x00, BM_UNK_CNT_8B,      0x00, 0x00, 0x00, 0x00}, 6, false);
-    _send_BM1370((TYPE_CMD | GROUP_SINGLE | CMD_WRITE), (uint8_t[]){0x00, BM_NONCE_TOTAL_CNT, 0x00, 0x00, 0x00, 0x00}, 6, false);
+void BM1370_read_registers(void) 
+{
+    int size = sizeof(REGISTER_MAP) / sizeof(REGISTER_MAP[0]);
+    for (int reg = 0; reg < size; reg++) {
+        if (REGISTER_MAP[reg] != REGISTER_INVALID) {
+            _send_BM1370((TYPE_CMD | GROUP_SINGLE | CMD_READ), (uint8_t[]){0x00, reg}, 2, false);
+            vTaskDelay(1 / portTICK_PERIOD_MS);
+        }
+    }
 }
