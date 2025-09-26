@@ -6,7 +6,7 @@ typedef struct StatisticsData * StatisticsNextNodePtr;
 
 struct StatisticsData
 {
-    int64_t timestamp;
+    uint32_t timestamp;
     float hashrate;
     float chipTemperature;
     float vrTemperature;
