@@ -217,8 +217,8 @@ void POWER_MANAGEMENT_task(void * pvParameters)
             bool success = ASIC_set_frequency(GLOBAL_STATE, asic_frequency);
             
             if (success) {
-                power_management->expected_hashrate = asic_frequency * GLOBAL_STATE->DEVICE_CONFIG.family.asic.small_core_count * GLOBAL_STATE->DEVICE_CONFIG.family.asic_count / 1000.0;
-                power_management->frequency_value = expected_hashrate(GLOBAL_STATE, asic_frequency);
+                power_management->frequency_value = asic_frequency;
+                power_management->expected_hashrate = expected_hashrate(GLOBAL_STATE, asic_frequency);
             }
             
             last_asic_frequency = asic_frequency;
