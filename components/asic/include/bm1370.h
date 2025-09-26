@@ -29,6 +29,5 @@ int BM1370_set_default_baud(void);
 void BM1370_send_hash_frequency(float frequency);
 task_result * BM1370_process_work(void * GLOBAL_STATE);
 void BM1370_read_registers(void);
-void BM1370_reset_registers(void);
 
 #endif /* BM1370_H_ */
