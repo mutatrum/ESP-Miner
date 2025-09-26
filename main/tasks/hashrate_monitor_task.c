@@ -45,14 +45,21 @@ static void clear_measurements(HashrateMonitorModule * HASHRATE_MONITOR_MODULE, 
     memset(HASHRATE_MONITOR_MODULE->error_measurement, 0, asic_count * sizeof(measurement_t));
 }
 
+static float hash_counter_to_ghs(uint32_t duration_ms, uint32_t counter)
+{
+    if (duration_ms == 0) return 0.0f;
+    float seconds = duration_ms / 1000.0;
+    float hashrate = counter / seconds * (float)HASH_CNT_LSB; // Make sure it stays in float
+    return hashrate / 1e9f; // Convert to Gh/s
+}
+
 static void update_measurement(uint32_t time_ms, uint32_t value, measurement_t * measurement, int asic_nr)
 {
     uint32_t previous_time_ms = measurement[asic_nr].time_ms;
     if (previous_time_ms != 0) {
-        uint32_t value_diff = value - measurement[asic_nr].value; // Compute counter difference, handling uint32_t wraparound
-        float seconds = (time_ms - previous_time_ms) / 1000.0;
-        float hashrate = (float)value_diff / seconds * HASH_CNT_LSB;
-        measurement[asic_nr].hashrate = hashrate / 1e9; // Convert to Gh/s
+        uint32_t duration_ms = time_ms - previous_time_ms;
+        uint32_t counter = value - measurement[asic_nr].value; // Compute counter difference, handling uint32_t wraparound
+        measurement[asic_nr].hashrate = hash_counter_to_ghs(duration_ms, counter);
     }
 
     measurement[asic_nr].value = value;
