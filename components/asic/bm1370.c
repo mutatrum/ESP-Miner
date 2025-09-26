@@ -24,8 +24,6 @@
 #define TYPE_JOB 0x20
 #define TYPE_CMD 0x40
 
-#define REGISTER_RESPONSE 0x80
-
 #define GROUP_SINGLE 0x00
 #define GROUP_ALL 0x10
 
@@ -47,12 +45,31 @@ static const register_type_t REGISTER_MAP[] = {
 
 typedef struct __attribute__((__packed__))
 {
-    uint16_t preamble;
-    uint32_t nonce;
-    uint8_t midstate_num;
-    uint8_t job_id;
-    uint16_t version;
-    uint8_t crc;
+    uint32_t nonce;                   // 2-5
+    uint8_t midstate_num;             // 6
+    uint8_t id;                       // 7
+    uint16_t version;                 // 8-9
+} bm1370_asic_result_job_t;
+
+typedef struct __attribute__((__packed__))
+{
+    uint32_t value;                   // 2-5
+    uint8_t                   : 1;    // 6:0
+    uint8_t asic_nr           : 7;    // 6:1-7
+    uint8_t register_address;         // 7
+    uint16_t                  : 16;   // 8-9
+} bm1370_asic_result_cmd_t;
+
+typedef struct __attribute__((__packed__))
+{
+    uint16_t preamble;                // 0-1
+    union {
+        bm1370_asic_result_job_t job; // 2-9
+        bm1370_asic_result_cmd_t cmd; // 2-9
+    };
+    uint8_t crc             : 5;      // 10:0-5
+    uint8_t                 : 2;      // 10:6-7
+    uint8_t is_job_response : 1;      // 10:8
 } bm1370_asic_result_t;
 
 static const char * TAG = "bm1370";
@@ -327,37 +344,28 @@ task_result * BM1370_process_work(void * pvParameters)
 {
     bm1370_asic_result_t asic_result = {0};
 
+    memset(&result, 0, sizeof(task_result));
+
     if (receive_work((uint8_t *)&asic_result, sizeof(asic_result)) == ESP_FAIL) {
         return NULL;
     }
     
-    result.is_register_response = (asic_result.crc & REGISTER_RESPONSE) == 0;
-    
-    if (result.is_register_response) {
-        result.register_type = REGISTER_MAP[asic_result.job_id];
+    if (!asic_result.is_job_response) {
+        result.register_type = REGISTER_MAP[asic_result.cmd.register_address];
         if (result.register_type == REGISTER_INVALID) {
-            ESP_LOGW(TAG, "Unknown register read: %02x", asic_result.job_id);
+            ESP_LOGW(TAG, "Unknown register read: %02x", asic_result.cmd.register_address);
             return NULL;
         }
-        result.asic_nr = asic_result.midstate_num >> 1;
-        result.value = ntohl(asic_result.nonce);
+        result.asic_nr = asic_result.cmd.asic_nr;
+        result.value = ntohl(asic_result.cmd.value);
         
         return &result;
     }
-    
-                // case 0xb4: {
-                //     if (asic_result.data & 0x80000000) {
-                //         float ftemp = (float) (asic_result.data & 0x0000ffff) * 0.171342f - 299.5144f;
-                //         ESP_LOGI(TAG, "asic %d temp: %.3f", (int) asic_result.asic_nr, ftemp);
-                //         board->setChipTemp(asic_result.asic_nr, ftemp);
-                //     }
-                //     break;
-                // }
 
-    uint8_t job_id = (asic_result.job_id & 0xf0) >> 1;
-    uint8_t core_id = (uint8_t)((ntohl(asic_result.nonce) >> 25) & 0x7f); // BM1370 has 80 cores, so it should be coded on 7 bits
-    uint8_t small_core_id = asic_result.job_id & 0x0f; // BM1370 has 16 small cores, so it should be coded on 4 bits
-    uint32_t version_bits = (ntohs(asic_result.version) << 13); // shift the 16 bit value left 13
+    uint8_t job_id = (asic_result.job.id & 0xf0) >> 1;
+    uint8_t core_id = (uint8_t)((ntohl(asic_result.job.nonce) >> 25) & 0x7f); // BM1370 has 80 cores, so it should be coded on 7 bits
+    uint8_t small_core_id = asic_result.job.id & 0x0f; // BM1370 has 16 small cores, so it should be coded on 4 bits
+    uint32_t version_bits = (ntohs(asic_result.job.version) << 13); // shift the 16 bit value left 13
     ESP_LOGI(TAG, "Job ID: %02X, Core: %d/%d, Ver: %08" PRIX32, job_id, core_id, small_core_id, version_bits);
 
     GlobalState * GLOBAL_STATE = (GlobalState *) pvParameters;
@@ -370,7 +378,7 @@ task_result * BM1370_process_work(void * pvParameters)
     uint32_t rolled_version = GLOBAL_STATE->ASIC_TASK_MODULE.active_jobs[job_id]->version | version_bits;
 
     result.job_id = job_id;
-    result.nonce = asic_result.nonce;
+    result.nonce = asic_result.job.nonce;
     result.rolled_version = rolled_version;
 
     return &result;

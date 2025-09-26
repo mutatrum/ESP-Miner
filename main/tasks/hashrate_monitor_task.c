@@ -138,6 +138,7 @@ void hashrate_monitor_register_read(void *pvParameters, register_type_t register
             update_measurement(time_ms, value, HASHRATE_MONITOR_MODULE->error_measurement, asic_nr);
             break;
         case REGISTER_INVALID:
+            ESP_LOGE(TAG, "Invalid register type");
             break;
     }
 }

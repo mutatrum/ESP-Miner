@@ -27,7 +27,7 @@ void ASIC_result_task(void *pvParameters)
             continue;
         }
 
-        if (asic_result->is_register_response) {
+        if (asic_result->register_type != REGISTER_INVALID) {
             hashrate_monitor_register_read(GLOBAL_STATE, asic_result->register_type, asic_result->asic_nr, asic_result->value);
             continue;
         }

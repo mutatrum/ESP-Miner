@@ -18,7 +18,6 @@ typedef enum
 
 typedef struct
 {
-    bool is_register_response;
     // -- job result response
     uint8_t job_id;
     uint32_t nonce;
