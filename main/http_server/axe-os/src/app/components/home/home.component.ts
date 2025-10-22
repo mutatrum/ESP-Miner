@@ -20,6 +20,7 @@ import { eChartLabel } from 'src/models/enum/eChartLabel';
 import { chartLabelValue } from 'src/models/enum/eChartLabel';
 import { chartLabelKey } from 'src/models/enum/eChartLabel';
 import { LocalStorageService } from 'src/app/local-storage.service';
+import chroma from 'chroma-js';
 
 type PoolLabel = 'Primary' | 'Fallback';
 const HOME_CHART_DATA_SOURCES = 'HOME_CHART_DATA_SOURCES';
@@ -615,11 +616,12 @@ export class HomeComponent implements OnInit, OnDestroy {
     return highest;
   }
 
-  public calculateAsicDomainIntensity(info: ISystemInfo, asicCount: number, domain: number): number {
-    const highestPercentage = this.getHighestAsicDomainPercentage(info.hashrateMonitor.asics);
-    const domainPercentage = (domain * 100) / info.hashrateMonitor.asics[asicCount].total;
-
-    return domainPercentage / highestPercentage;
+  public calculateAsicDomainIntensity(info: ISystemInfo, asic: number, domain: number): string {
+    const l = chroma.scale(['red', 'grey', 'green']).domain([0,2]).padding(-0.5);
+    const totalDomains = info.hashrateMonitor.asics.length * info.hashrateMonitor.asics[0].domains.length;
+    const expectedHashrate = info.expectedHashrate / totalDomains;
+    const v = this.normalizeHashrate(info.hashrateMonitor.asics[asic].domains[domain]) / expectedHashrate;
+    return l(v).hex();
   }
 
   public normalizeHashrate(hashrate: number): number {
