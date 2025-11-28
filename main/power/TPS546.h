@@ -16,6 +16,13 @@
 /* These are the inital values for the voltage regulator configuration */
 /* when the config revision stored in the TPS546 doesn't match, these values are used */
 
+// Desired persistent configs
+#define DESIRED_ON_OFF_CONFIG          0x1B  // Require OPERATION, ignore EN/UVLO
+#define DESIRED_PIN_DETECT_OVERRIDE    0x0000  // Ignore all pins
+
+// Stacking/sync (adjust per flavor if needed)
+#define INIT_STACK_CONFIG              0x0000  // Single phase
+#define INIT_SYNC_CONFIG               0xF0    // Default
 
 //#define TPS546_INIT_ON_OFF_CONFIG 0x18 /* use ON_OFF command to control power */
 #define OPERATION_OFF 0x00
@@ -166,7 +173,6 @@ typedef struct
 #define TPS546_STATUS_MFR_RESET   0x08 //bit 3 - A RESET_VOUT event has occurred.
 #define TPS546_STATUS_MFR_BCX     0x04 //bit 2 - A BCX fault event has occurred.
 #define TPS546_STATUS_MFR_SYNC    0x02 //bit 1 - A SYNC fault has been detected.
-
 
 /* public functions */
 esp_err_t TPS546_init(TPS546_CONFIG config);
