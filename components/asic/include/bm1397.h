@@ -2,10 +2,9 @@
 #define BM1397_H_
 
 #include "common.h"
-#include "driver/gpio.h"
 #include "mining.h"
 
-#define BM1397_SERIALTX_DEBUG true
+#define BM1397_SERIALTX_DEBUG false
 #define BM1397_SERIALRX_DEBUG false
 #define BM1397_DEBUG_WORK false //causes insane amount of debug output
 #define BM1397_DEBUG_JOBS false //causes insane amount of debug output
@@ -26,15 +25,16 @@ typedef struct __attribute__((__packed__))
     uint8_t midstate3[32];
 } job_packet;
 
-uint8_t BM1397_init(uint64_t frequency, uint16_t asic_count, uint16_t difficulty);
+uint8_t BM1397_init(float frequency, uint16_t asic_count, uint16_t difficulty);
 void BM1397_send_work(void * GLOBAL_STATE, bm_job * next_bm_job);
-void BM1397_set_job_difficulty_mask(int);
 void BM1397_set_version_mask(uint32_t version_mask);
 int BM1397_set_max_baud(void);
 int BM1397_set_default_baud(void);
 void BM1397_send_hash_frequency(float frequency);
 task_result * BM1397_process_work(void * GLOBAL_STATE);
 void BM1397_set_nonce_percent(uint64_t frequency, uint16_t chain_chip_count);
+void BM1397_read_registers(void);
 float BM1397_get_timeout(uint64_t frequency, uint16_t chain_chip_count, int versions_to_roll);
+void BM1397_set_job_difficulty_mask(int difficulty);
 
 #endif /* BM1397_H_ */

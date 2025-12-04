@@ -1,11 +1,10 @@
 import { HttpErrorResponse } from '@angular/common/http';
-import { Component, Input, OnInit, OnDestroy } from '@angular/core';
+import { Component, Input, OnInit, OnDestroy, OnChanges, SimpleChanges } from '@angular/core';
 import { FormBuilder, FormGroup, FormControl, Validators } from '@angular/forms';
 import { ToastrService } from 'ngx-toastr';
-import { forkJoin, startWith, Subject, takeUntil, pairwise } from 'rxjs';
+import { forkJoin, startWith, Subject, takeUntil, pairwise, BehaviorSubject, Observable } from 'rxjs';
 import { LoadingService } from 'src/app/services/loading.service';
 import { SystemService } from 'src/app/services/system.service';
-import { eASICModel } from 'src/models/enum/eASICModel';
 import { ActivatedRoute } from '@angular/router';
 
 type Dropdown = {
@@ -14,13 +13,16 @@ type Dropdown = {
 }[]
 
 const DISPLAY_TIMEOUT_STEPS = [0, 1, 2, 5, 15, 30, 60, 60 * 2, 60 * 4, 60* 8, -1];
+const STATS_FREQUENCY_STEPS = [0, 30, 60, 60 * 2, 60 * 6, 60 * 14, 60 * 28, 60 * 60];
 
 @Component({
   selector: 'app-edit',
-  templateUrl: './edit.component.html',
-  styleUrls: ['./edit.component.scss']
+  templateUrl: './edit.component.html'
 })
-export class EditComponent implements OnInit, OnDestroy {
+
+export class EditComponent implements OnInit, OnDestroy, OnChanges {
+  private formSubject = new BehaviorSubject<FormGroup | null>(null);
+  public form$: Observable<FormGroup | null> = this.formSubject.asObservable();
 
   public form!: FormGroup;
 
@@ -29,10 +31,6 @@ export class EditComponent implements OnInit, OnDestroy {
 
   public savedChanges: boolean = false;
   public settingsUnlocked: boolean = false;
-  public eASICModel = eASICModel;
-  public ASICModel!: eASICModel;
-  public restrictedModels: eASICModel[] = Object.values(eASICModel)
-    .filter((v): v is eASICModel => typeof v === 'string');
 
   @Input() uri = '';
 
@@ -44,7 +42,10 @@ export class EditComponent implements OnInit, OnDestroy {
 
   private destroy$ = new Subject<void>();
 
+  public displays = ["NONE", "SSD1306 (128x32)", "SSD1309 (128x64)", "SH1107 (64x128)", "SH1107 (128x128)"];
+  public rotations = [0, 90, 180, 270];
   public displayTimeoutControl: FormControl;
+  public statsFrequencyControl: FormControl;
 
   constructor(
     private fb: FormBuilder,
@@ -84,12 +85,23 @@ export class EditComponent implements OnInit, OnDestroy {
       }
 
       this.form.patchValue({ displayTimeout: DISPLAY_TIMEOUT_STEPS[next] });
-      this.form.markAsDirty();
+      this.form.controls['displayTimeout'].markAsDirty();
+    });
+
+    this.statsFrequencyControl = new FormControl();
+    this.statsFrequencyControl.valueChanges.pipe(pairwise()).subscribe(([prev, next]) => {
+      if (prev === next) {
+        return;
+      }
+
+      this.form.patchValue({ statsFrequency: STATS_FREQUENCY_STEPS[next] });
+      this.form.controls['statsFrequency'].markAsDirty();
     });
   }
 
   private saveOverclockSetting(enabled: number) {
-    this.systemService.updateSystem(this.uri, { overclockEnabled: enabled })
+    const deviceUri = this.uri || '';
+    this.systemService.updateSystem(deviceUri, { overclockEnabled: enabled })
       .subscribe({
         next: () => {
           console.log(`Overclock setting saved: ${enabled === 1 ? 'enabled' : 'disabled'}`);
@@ -101,23 +113,35 @@ export class EditComponent implements OnInit, OnDestroy {
   }
 
   ngOnInit(): void {
+    this.loadDeviceSettings();
+  }
+
+  ngOnChanges(changes: SimpleChanges): void {
+    // When URI changes, reload the device settings
+    if (changes['uri'] && changes['uri'].currentValue && !changes['uri'].firstChange) {
+      this.loadDeviceSettings();
+    }
+  }
+
+  private loadDeviceSettings(): void {
+    const deviceUri = this.uri || '';
+
+
     // Fetch both system info and ASIC settings in parallel
     forkJoin({
-      info: this.systemService.getInfo(this.uri),
-      asicSettings: this.systemService.getAsicSettings(this.uri)
+      info: this.systemService.getInfo(deviceUri),
+      asic: this.systemService.getAsicSettings(deviceUri)
     })
     .pipe(
       this.loadingService.lockUIUntilComplete(),
       takeUntil(this.destroy$)
     )
-    .subscribe(({ info, asicSettings }) => {
-      this.ASICModel = info.ASICModel;
-
+    .subscribe(({ info, asic }) => {
       // Store the frequency and voltage options from the API
-      this.defaultFrequency = asicSettings.defaultFrequency;
-      this.frequencyOptions = asicSettings.frequencyOptions;
-      this.defaultVoltage = asicSettings.defaultVoltage;
-      this.voltageOptions = asicSettings.voltageOptions;
+      this.defaultFrequency = asic.defaultFrequency;
+      this.frequencyOptions = asic.frequencyOptions;
+      this.defaultVoltage = asic.defaultVoltage;
+      this.voltageOptions = asic.voltageOptions;
 
       // Check if overclock is enabled in NVS
       if (info.overclockEnabled === 1) {
@@ -130,33 +154,38 @@ export class EditComponent implements OnInit, OnDestroy {
 
         this.form = this.fb.group({
           display: [info.display, [Validators.required]],
-          flipscreen: [info.flipscreen == 1],
+          rotation: [info.rotation, [Validators.required]],
           invertscreen: [info.invertscreen == 1],
           displayTimeout: [info.displayTimeout, [
             Validators.required,
-            Validators.pattern(/^[^:]*$/),
             Validators.min(-1),
             Validators.max(this.displayTimeoutMaxValue)
           ]],
           coreVoltage: [info.coreVoltage, [Validators.required]],
           frequency: [info.frequency, [Validators.required]],
           autofanspeed: [info.autofanspeed == 1, [Validators.required]],
-          fanspeed: [info.fanspeed, [Validators.required]],
+          minfanspeed: [info.minFanSpeed, [Validators.required]],
+          manualFanSpeed: [info.manualFanSpeed, [Validators.required]],
           temptarget: [info.temptarget, [Validators.required]],
           overheat_mode: [info.overheat_mode, [Validators.required]],
-          statsLimit: [info.statsLimit, [Validators.required]],
-          statsDuration: [info.statsDuration, [Validators.required]],
+          statsFrequency: [info.statsFrequency, [
+            Validators.required,
+            Validators.min(0),
+            Validators.max(this.statsFrequencyMaxValue)
+          ]]
         });
+
+        this.formSubject.next(this.form);
 
       this.form.controls['autofanspeed'].valueChanges.pipe(
         startWith(this.form.controls['autofanspeed'].value),
         takeUntil(this.destroy$)
       ).subscribe(autofanspeed => {
         if (autofanspeed) {
-          this.form.controls['fanspeed'].disable();
+          this.form.controls['manualFanSpeed'].disable();
           this.form.controls['temptarget'].enable();
         } else {
-          this.form.controls['fanspeed'].enable();
+          this.form.controls['manualFanSpeed'].enable();
           this.form.controls['temptarget'].disable();
         }
       });
@@ -170,6 +199,16 @@ export class EditComponent implements OnInit, OnDestroy {
 
       this.displayTimeoutControl.setValue(
         DISPLAY_TIMEOUT_STEPS.findIndex(x => x === info.displayTimeout)
+      );
+
+      // Add custom value to predefined steps
+      if (STATS_FREQUENCY_STEPS.filter(x => x === info.statsFrequency).length === 0) {
+        STATS_FREQUENCY_STEPS.push(info.statsFrequency);
+        STATS_FREQUENCY_STEPS.sort((a, b) => a - b);
+      }
+
+      this.statsFrequencyControl.setValue(
+        STATS_FREQUENCY_STEPS.findIndex(x => x === info.statsFrequency)
       );
     });
   }
@@ -186,20 +225,21 @@ export class EditComponent implements OnInit, OnDestroy {
       delete form.stratumPassword;
     }
 
-    this.systemService.updateSystem(this.uri, form)
+    const deviceUri = this.uri || '';
+    this.systemService.updateSystem(deviceUri, form)
       .pipe(this.loadingService.lockUIUntilComplete())
       .subscribe({
         next: () => {
           const successMessage = this.uri ? `Saved settings for ${this.uri}` : 'Saved settings';
           if (this.isRestartRequired) {
-            this.toastr.warning('You must restart this device after saving for changes to take effect', 'Warning');
+            this.toastr.warning('You must restart this device after saving for changes to take effect.');
           }
-          this.toastr.success(successMessage, 'Success!');
+          this.toastr.success(successMessage);
           this.savedChanges = true;
         },
         error: (err: HttpErrorResponse) => {
           const errorMessage = this.uri ? `Could not save settings for ${this.uri}. ${err.message}` : `Could not save settings. ${err.message}`;
-          this.toastr.error(errorMessage, 'Error');
+          this.toastr.error(errorMessage);
           this.savedChanges = false;
         }
       });
@@ -229,12 +269,12 @@ export class EditComponent implements OnInit, OnDestroy {
       .pipe(this.loadingService.lockUIUntilComplete())
       .subscribe({
         next: () => {
-          const successMessage = this.uri ? `Bitaxe at ${this.uri} restarted` : 'Bitaxe restarted';
-          this.toastr.success(successMessage, 'Success');
+          const successMessage = this.uri ? `Device at ${this.uri} restarted` : 'Device restarted';
+          this.toastr.success(successMessage);
         },
         error: (err: HttpErrorResponse) => {
           const errorMessage = this.uri ? `Failed to restart device at ${this.uri}. ${err.message}` : `Failed to restart device. ${err.message}`;
-          this.toastr.error(errorMessage, 'Error');
+          this.toastr.error(errorMessage);
         }
       });
   }
@@ -247,16 +287,20 @@ export class EditComponent implements OnInit, OnDestroy {
     return this.buildDropdown('coreVoltage', this.voltageOptions, this.defaultVoltage);
   }
 
-  getDisplays() {
-    return ["NONE", "SSD1306 (128x32)", "SSD1309 (128x64)", "SH1107 (64x128)", "SH1107 (128x128)"];
-  }
-
   get displayTimeoutMaxSteps(): number {
     return DISPLAY_TIMEOUT_STEPS.length - 1;
   }
 
   get displayTimeoutMaxValue(): number {
     return DISPLAY_TIMEOUT_STEPS[this.displayTimeoutMaxSteps - 1];
+  }
+
+  get statsFrequencyMaxSteps(): number {
+    return STATS_FREQUENCY_STEPS.length - 1;
+  }
+
+  get statsFrequencyMaxValue(): number {
+    return STATS_FREQUENCY_STEPS[this.statsFrequencyMaxSteps];
   }
 
   buildDropdown(formField: string, apiOptions: number[], defaultValue: number): Dropdown {
@@ -294,11 +338,10 @@ export class EditComponent implements OnInit, OnDestroy {
       'coreVoltage',
       'frequency',
       'autofanspeed',
-      'fanspeed',
+      'manualFanSpeed',
       'temptarget',
       'overheat_mode',
-      'statsLimit',
-      'statsDuration'
+      'statsFrequency'
     ];
   }
 

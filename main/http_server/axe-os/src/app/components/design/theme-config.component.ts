@@ -1,4 +1,6 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, OnDestroy } from '@angular/core';
+import { Subject } from 'rxjs';
+import { takeUntil } from 'rxjs/operators';
 import { LayoutService } from '../../layout/service/app.layout.service';
 import { ThemeService } from '../../services/theme.service';
 
@@ -14,10 +16,9 @@ interface ThemeOption {
   selector: 'app-theme-config',
   template: `
     <div class="card">
-      <h5>Theme Configuration</h5>
       <div class="grid">
         <div class="col-12">
-          <h6>Color Scheme</h6>
+          <h5>Color Scheme</h5>
           <div class="flex gap-3">
             <div class="flex align-items-center">
               <p-radioButton name="colorScheme" [value]="'dark'" [(ngModel)]="selectedScheme"
@@ -33,7 +34,7 @@ interface ThemeOption {
         </div>
 
         <div class="col-12 mt-4">
-          <h6>Theme Colors</h6>
+          <h5>Theme Colors</h5>
           <div class="grid gap-2">
             <div *ngFor="let theme of themes" class="col-2 theme-color">
               <button pButton [class]="'p-button-rounded p-button-text color-dot'"
@@ -185,37 +186,39 @@ export class ThemeConfigComponent implements OnInit {
     },
     {
       name: 'Purple',
-      primaryColor: '#9c27b0',
+      primaryColor: '#b340fa',
       accentColors: {
-        '--primary-color': '#9c27b0',
+        '--primary-color': '#b340fa',
         '--primary-color-text': '#ffffff',
-        '--highlight-bg': '#9c27b0',
+        '--highlight-bg': '#b340fa',
         '--highlight-text-color': '#ffffff',
         '--focus-ring': '0 0 0 0.2rem rgba(156,39,176,0.2)',
         // PrimeNG Slider
         '--slider-bg': '#dee2e6',
-        '--slider-range-bg': '#9c27b0',
-        '--slider-handle-bg': '#9c27b0',
+        '--slider-range-bg': '#b340fa',
+        '--slider-handle-bg': '#b340fa',
         // Progress Bar
         '--progressbar-bg': '#dee2e6',
-        '--progressbar-value-bg': '#9c27b0',
+        '--progressbar-value-bg': '#b340fa',
         // PrimeNG Checkbox
-        '--checkbox-border': '#9c27b0',
-        '--checkbox-bg': '#9c27b0',
+        '--checkbox-border': '#b340fa',
+        '--checkbox-bg': '#b340fa',
         '--checkbox-hover-bg': '#8e24aa',
         // PrimeNG Button
-        '--button-bg': '#9c27b0',
+        '--button-bg': '#b340fa',
         '--button-hover-bg': '#8e24aa',
-        '--button-focus-shadow': '0 0 0 2px #ffffff, 0 0 0 4px #9c27b0',
+        '--button-focus-shadow': '0 0 0 2px #ffffff, 0 0 0 4px #b340fa',
         // Toggle button
-        '--togglebutton-bg': '#9c27b0',
-        '--togglebutton-border': '1px solid #9c27b0',
+        '--togglebutton-bg': '#b340fa',
+        '--togglebutton-border': '1px solid #b340fa',
         '--togglebutton-hover-bg': '#8e24aa',
         '--togglebutton-hover-border': '1px solid #8e24aa',
         '--togglebutton-text-color': '#ffffff'
       }
     }
   ];
+
+  private destroy$ = new Subject<void>();
 
   constructor(
     public layoutService: LayoutService,
@@ -225,22 +228,27 @@ export class ThemeConfigComponent implements OnInit {
   }
 
   ngOnInit() {
-    // Load saved theme settings from NVS
-    this.themeService.getThemeSettings().subscribe(
-      settings => {
-        if (settings) {
-          // Apply saved color scheme
-          if (settings.colorScheme) {
-            this.selectedScheme = settings.colorScheme;
+    this.themeService.getThemeSettings()
+      .pipe(takeUntil(this.destroy$))
+      .subscribe({
+        next: (settings) => {
+          if (settings) {
+            if (settings.colorScheme) {
+              this.selectedScheme = settings.colorScheme;
+            }
+            if (settings.accentColors) {
+              this.applyThemeColors(settings.accentColors);
+              this.currentColor = settings.accentColors['--primary-color'];
+            }
           }
-          // Apply accent colors if they exist
-          if (settings.accentColors) {
-            this.applyThemeColors(settings.accentColors);
-          }
-        }
-      },
-      error => console.error('Error loading theme settings:', error)
-    );
+        },
+        error: (error) => console.error('Error loading theme settings:', error)
+      });
+  }
+
+  ngOnDestroy() {
+    this.destroy$.next();
+    this.destroy$.complete();
   }
 
   private applyThemeColors(colors: { [key: string]: string }) {
@@ -254,26 +262,24 @@ export class ThemeConfigComponent implements OnInit {
     const config = { ...this.layoutService.config() };
     config.colorScheme = scheme;
     this.layoutService.config.set(config);
-    // Save color scheme to NVS
-    this.themeService.saveThemeSettings({ 
-      colorScheme: scheme 
-    }).subscribe(
-      () => { },
-      error => console.error('Error saving theme settings:', error)
-    );
+
+    this.themeService.saveThemeSettings({ colorScheme: scheme })
+      .pipe(takeUntil(this.destroy$))
+      .subscribe({
+        error: (error) => console.error('Error saving theme settings:', error)
+      });
   }
 
   changeTheme(theme: ThemeOption) {
-    // Update CSS variables
     this.applyThemeColors(theme.accentColors);
     this.currentColor = theme.primaryColor;
-    // Save theme settings to NVS
+
     this.themeService.saveThemeSettings({
       colorScheme: this.selectedScheme,
       accentColors: theme.accentColors
-    }).subscribe(
-      () => { },
-      error => console.error('Error saving theme settings:', error)
-    );
+    }).pipe(takeUntil(this.destroy$))
+      .subscribe({
+        error: (error) => console.error('Error saving theme settings:', error)
+      });
   }
 }

@@ -1,64 +1,97 @@
-import { eASICModel } from './enum/eASICModel';
-
 interface ISharesRejectedStat {
     message: string;
     count: number;
 }
 
-export interface ISystemInfo {
+interface IHashrateMonitorAsic {
+    total: number;
+    domains?: number[];
+    errorCount: number;
+}
 
+interface IHashrateMonitor {
+    asics: IHashrateMonitorAsic[];
+}
+
+export interface ISystemInfo {
     display: string;
-    flipscreen: number;
+    rotation: number;
     invertscreen: number;
     displayTimeout: number;
     power: number,
     voltage: number,
     current: number,
     temp: number,
+    temp2: number,
     vrTemp: number,
     maxPower: number,
     nominalVoltage: number,
     hashRate: number,
+    hashRate_1m: number,
+    hashRate_10m: number,
+    hashRate_1h: number,
     expectedHashrate: number,
-    bestDiff: string,
-    bestSessionDiff: string,
+    errorPercentage: number,
+    bestDiff: number,
+    bestSessionDiff: number,
     freeHeap: number,
+    freeHeapInternal: number,
+    freeHeapSpiram: number,
     coreVoltage: number,
     hostname: string,
     macAddr: string,
     ssid: string,
     wifiStatus: string,
+    ipv4: string,
+    ipv6: string,
     wifiRSSI: number,
     apEnabled: number,
     sharesAccepted: number,
     sharesRejected: number,
     sharesRejectedReasons: ISharesRejectedStat[];
     uptimeSeconds: number,
-    asicCount: number,
     smallCoreCount: number,
-    ASICModel: eASICModel,
+    ASICModel: string,
     stratumURL: string,
     stratumPort: number,
+    stratumUser: string,
+    stratumSuggestedDifficulty: number,
+    stratumExtranonceSubscribe: number,
     fallbackStratumURL: string,
     fallbackStratumPort: number,
-    isUsingFallbackStratum: boolean,
-    stratumUser: string,
     fallbackStratumUser: string,
+    fallbackStratumSuggestedDifficulty: number,
+    fallbackStratumExtranonceSubscribe: number,
+    poolDifficulty: number,
+    responseTime: number,
+    isUsingFallbackStratum: boolean,
+    poolAddrFamily: number,
     frequency: number,
     version: string,
+    axeOSVersion: string,
     idfVersion: string,
+    resetReason: string,
     boardVersion: string,
     autofanspeed: number,
+    minFanSpeed: number,
     fanspeed: number,
+    manualFanSpeed: number,
     temptarget: number,
     fanrpm: number,
-    statsLimit: number,
-    statsDuration: number,
+    fan2rpm: number,
+    statsFrequency: number,
     coreVoltageActual: number,
 
     boardtemp1?: number,
     boardtemp2?: number,
     overheat_mode: number,
-    power_fault?: string
-    overclockEnabled?: number
+    power_fault?: string,
+    overclockEnabled?: number,
+
+    blockHeight?: number,
+    scriptsig?: string,
+    networkDifficulty?: number,
+
+    hashrateMonitor: IHashrateMonitor,
+    blockFound: number,
 }

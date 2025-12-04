@@ -83,13 +83,30 @@ components:
             * 12 - WPA3_EXT_PSK (deprecated, use WPA3_PSK)
           examples:
             - 3
+    HashrateMonitorAsic:
+      type: object
+      required:
+        - total
+        - domains
+        - error
+      properties:
+        total:
+          type: number
+          description: Hashrate
+        domains:
+          type: array
+          description: Hashrate per domain
+          items:
+            type: string
+        error:
+          description: Error hashrate
+          type: number
 
     SystemInfo:
       type: object
       required:
         - ASICModel
         - apEnabled
-        - asicCount
         - autofanspeed
         - bestDiff
         - bestSessionDiff
@@ -97,17 +114,25 @@ components:
         - coreVoltage
         - coreVoltageActual
         - current
+        - fallbackStratumExtranonceSubscribe
         - fallbackStratumPort
+        - fallbackStratumSuggestedDifficulty
         - fallbackStratumURL
         - fallbackStratumUser
         - fanrpm
         - fanspeed
         - temptarget
-        - flipscreen
+        - rotation
         - freeHeap
+        - freeHeapInternal
+        - freeHeapSpiram
         - frequency
         - hashRate
+        - hashRate_1m
+        - hashRate_10m
+        - hashRate_1h
         - expectedHashrate
+        - errorPercentage
         - hostname
         - idfVersion
         - invertscreen
@@ -115,30 +140,43 @@ components:
         - isUsingFallbackStratum
         - macAddr
         - maxPower
+        - minimumFanSpeed
         - nominalVoltage
         - overheat_mode
         - overclockEnabled
+        - poolDifficulty
         - power
+        - power_fault
+        - resetReason
         - runningPartition
         - sharesAccepted
         - sharesRejected
         - sharesRejectedReasons
         - smallCoreCount
         - ssid
-        - stratumDiff
+        - ipv4
+        - ipv6
+        - stratumExtranonceSubscribe
         - stratumPort
+        - stratumSuggestedDifficulty
         - stratumURL
         - stratumUser
         - temp
+        - temp2
         - uptimeSeconds
         - version
+        - axeOSVersion
         - voltage
         - vrTemp
         - wifiStatus
         - wifiRSSI
         - displayTimeout
-        - statisticsLimit
-        - statisticsDuration
+        - statsFrequency
+        - blockHeight
+        - scriptsig
+        - networkDifficulty
+        - blockFound
+        - hashrateMonitor
       properties:
         ASICModel:
           type: string
@@ -146,17 +184,14 @@ components:
         apEnabled:
           type: number
           description: Whether AP mode is enabled (0=no, 1=yes)
-        asicCount:
-          type: number
-          description: Number of ASICs detected
         autofanspeed:
           type: number
           description: Automatic fan speed control (0=manual, 1=auto)
         bestDiff:
-          type: string
+          type: number
           description: Best difficulty achieved
         bestSessionDiff:
-          type: string
+          type: number
           description: Best difficulty achieved in current session
         boardVersion:
           type: string
@@ -170,9 +205,15 @@ components:
         current:
           type: number
           description: Current draw in milliamps
+        fallbackStratumExtranonceSubscribe:
+          type: boolean
+          description: Enable fallback pool extranonce subscription
         fallbackStratumPort:
           type: number
           description: Fallback stratum server port
+        fallbackStratumSuggestedDifficulty:
+          type: number
+          description: Fallback pool suggested difficulty
         fallbackStratumURL:
           type: string
           description: Fallback stratum server URL
@@ -188,18 +229,36 @@ components:
         temptarget:
           type: number
           description: Target Temperature for the PID Controller
-        flipscreen:
+        rotation:
           type: number
-          description: Screen flip setting (0=normal, 1=flipped)
+          description: Screen rotation setting (0, 90, 180, 270)
         freeHeap:
           type: number
           description: Available heap memory in bytes
+        freeHeapInternal:
+          type: number
+          description: Available internal heap memory in bytes
+        freeHeapSpiram:
+          type: number
+          description: Available Spiram heap memory in bytes
         frequency:
           type: number
           description: ASIC frequency in MHz
         hashRate:
           type: number
-          description: Current hash rate
+          description: Current hashrate
+        hashRate_1m:
+          type: number
+          description: Current hashrate 1m average
+        hashRate_10m:
+          type: number
+          description: Current hashrate 10m average
+        hashRate_1h:
+          type: number
+          description: Current hashrate 1h average
+        errorPercentage:
+          description: Hash error percentage
+          type: number
         hostname:
           type: string
           description: Device hostname
@@ -221,6 +280,9 @@ components:
         maxPower:
           type: integer
           description: Maxmium power draw of the board in watts
+        minimumFanSpeed:
+          type: integer
+          description: Minimum fan speed percentage when using auto fan control
         nominalVoltage:
           type: integer
           description: Nominal board voltage
@@ -230,12 +292,18 @@ components:
         overclockEnabled:
           type: integer
           description: Set custom voltage/frequency in AxeOS
+        poolDifficulty:
+          type: number
+          description: Current pool difficulty
         power:
           type: number
           description: Power consumption in watts
         power_fault:
           type: string
           description: Voltage regulator fault reason, if any
+        resetReason:
+          type: string
+          description: Reason for the last system reset
         runningPartition:
           type: string
           description: Currently active OTA partition
@@ -256,12 +324,21 @@ components:
         ssid:
           type: string
           description: Connected WiFi network SSID
-        stratumDiff:
-          type: number
-          description: Current stratum difficulty
+        ipv4:
+          type: string
+          description: IPv4 address
+        ipv6:
+          type: string
+          description: IPv6 address
+        stratumExtranonceSubscribe:
+          type: boolean
+          description: Enable pool extranonce subscription
         stratumPort:
           type: number
           description: Primary stratum server port
+        stratumSuggestedDifficulty:
+          type: number
+          description: Pool suggested difficulty
         stratumURL:
           type: string
           description: Primary stratum server URL
@@ -271,12 +348,18 @@ components:
         temp:
           type: number
           description: Average chip temperature
+        temp2:
+          type: number
+          description: Average chip temperature from second sensor
         uptimeSeconds:
           type: number
           description: System uptime in seconds
         version:
           type: string
           description: Firmware version
+        axeOSVersion:
+          type: string
+          description: AxeOS version
         voltage:
           type: number
           description: Input voltage
@@ -292,16 +375,36 @@ components:
         displayTimeout:
           type: number
           description: Turn off display after timeout
-        statsLimit:
+        statsFrequency:
           type: number
-          description: Max limit data points for statistics
-        statsDuration:
+          description: Statistics frequency in seconds
+        blockHeight:
+          type: integer
+          description: Current block height
+        scriptsig:
+          type: string
+          description: Scriptsig extracted from coinbase transaction
+        networkDifficulty:
           type: number
-          description: Statistics duration in hours
+          description: Current network difficulty
+        blockFound:
+          type: number
+          description: Whether a block was found (0=no, 1=yes)
+        hashrateMonitor:
+          type: object
+          properties:
+            asics:
+              type: array
+              description: Hashrate register value per ASIC
+              items:
+                $ref: '#/components/schemas/HashrateMonitorAsic'
 
     Settings:
       type: object
       properties:
+        useFallbackStratum:
+          type: number
+          description: Forces the use the fallback stratum pool
         stratumURL:
           type: string
           description: Primary stratum server URL
@@ -381,9 +484,9 @@ components:
           minimum: 1
           examples:
             - 450
-        flipscreen:
+        rotation:
           type: integer
-          description: Whether to flip the screen orientation (0=normal, 1=flipped)
+          description: Whether to rotate the screen orientation (0, 90, 180, 270 degrees)
           enum: [0, 1]
           examples:
             - 0
@@ -432,20 +535,12 @@ components:
           maximum: 71582
           examples:
             - 10
-        statsLimit:
+        statsFrequency:
           type: integer
-          description: Set max limit data points for statistics (0=live data points only)
+          description: Set statistics frequency in seconds (0=disabled)
           minimum: 0
-          maximum: 720
           examples:
-            - 0
-        statsDuration:
-          type: integer
-          description: Set statistics duration in hours
-          minimum: 1
-          maximum: 720
-          examples:
-            - 1
+            - 120
       additionalProperties: true
 
   responses:
@@ -517,6 +612,9 @@ paths:
                 type: object
                 required:
                   - ASICModel
+                  - swarmColor
+                  - asicCount
+                  - deviceModel
                   - defaultFrequency
                   - frequencyOptions
                   - defaultVoltage
@@ -532,6 +630,19 @@ paths:
                       - BM1397
                     examples:
                       - "BM1366"
+                  deviceModel:
+                    type: string
+                    description: Device model name
+                    examples:
+                      - "Ultra"
+                  swarmColor:
+                    type: string
+                    description: Swarm color
+                    examples:
+                      - "purple"
+                  asicCount:
+                    type: number
+                    description: Number of ASICs detected
                   defaultFrequency:
                     type: number
                     description: Default frequency for the ASIC model in MHz
@@ -566,6 +677,16 @@ paths:
       summary: Get system statistics
       description: Returns system statistics
       operationId: getSystemStatistics
+      parameters:
+        - in: query
+          name: columns
+          required: false
+          schema:
+            type: array
+            items:
+              type: string
+            example: hashrate,hashrate_1m,hashrate_10m,hashrate_1h,asicTemp,vrTemp,asicVoltage,voltage,power,current,fanSpeed,fanRpm,fan2Rpm,wifiRssi,freeHeap
+          description: List of labels for which data should be retrieved
       tags:
         - system
       responses:
@@ -601,40 +722,6 @@ paths:
         '500':
           description: Internal server error
 
-  /api/system/statistics/dashboard:
-    get:
-      summary: Get system statistics for dashboard
-      description: Returns system statistics for dashboard
-      operationId: getSystemStatisticsDashboard
-      tags:
-        - system
-      responses:
-        '200':
-          description: Successful operation
-          content:
-            application/json:
-              schema:
-                type: object
-                required:
-                  - currentTimestamp
-                  - statistics
-                properties:
-                  currentTimestamp:
-                    type: number
-                    description: Current timestamp as a reference
-                  statistics:
-                    type: array
-                    description: Statistics data point(s)
-                    items:
-                      type: array
-                      description: Statistics data values(s)
-                      items:
-                        type: number
-        '401':
-          description: Unauthorized - Client not in allowed network range
-        '500':
-          description: Internal server error
-
   /api/system/restart:
     post:
       summary: Restart the system
@@ -645,6 +732,21 @@ paths:
       responses:
         '200':
           description: System restart initiated
+        '401':
+          description: Unauthorized - Client not in allowed network range
+        '500':
+          description: Internal server error
+
+  /api/system/identify:
+    post:
+      summary: Identify the device
+      description: Let the device say Hi!
+      operationId: identifySystem
+      tags:
+        - system
+      responses:
+        '200':
+          description: Device identify initiated
         '401':
           description: Unauthorized - Client not in allowed network range
         '500':

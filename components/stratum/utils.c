@@ -2,139 +2,46 @@
 
 #include <string.h>
 #include <stdio.h>
+#include <math.h>
 
 #include "mbedtls/sha256.h"
 
-#ifndef bswap_16
-#define bswap_16(a) ((((uint16_t)(a) << 8) & 0xff00) | (((uint16_t)(a) >> 8) & 0xff))
-#endif
+#define HASH_CNT_LSB 0x100000000uLL // 2^32 hashes for difficulty 1
 
-#ifndef bswap_32
-#define bswap_32(a) ((((uint32_t)(a) << 24) & 0xff000000) | \
-                     (((uint32_t)(a) << 8) & 0xff0000) |    \
-                     (((uint32_t)(a) >> 8) & 0xff00) |      \
-                     (((uint32_t)(a) >> 24) & 0xff))
-#endif
+static const char hex_table[] = "0123456789abcdef";
 
-/*
- * General byte order swapping functions.
- */
-#define bswap16(x) __bswap16(x)
-#define bswap32(x) __bswap32(x)
-#define bswap64(x) __bswap64(x)
-
-uint32_t swab32(uint32_t v)
-{
-    return bswap_32(v);
-}
-
-// takes 80 bytes and flips every 4 bytes
-void flip80bytes(void *dest_p, const void *src_p)
-{
-    uint32_t *dest = dest_p;
-    const uint32_t *src = src_p;
-    int i;
-
-    for (i = 0; i < 20; i++)
-        dest[i] = swab32(src[i]);
-}
-
-void flip64bytes(void *dest_p, const void *src_p)
-{
-    uint32_t *dest = dest_p;
-    const uint32_t *src = src_p;
-    int i;
-
-    for (i = 0; i < 16; i++)
-        dest[i] = swab32(src[i]);
-}
-
-void flip32bytes(void *dest_p, const void *src_p)
-{
-    uint32_t *dest = dest_p;
-    const uint32_t *src = src_p;
-    int i;
-
-    for (i = 0; i < 8; i++)
-        dest[i] = swab32(src[i]);
-}
-
-int hex2char(uint8_t x, char *c)
-{
-    if (x <= 9)
-    {
-        *c = x + '0';
-    }
-    else if (x <= 15)
-    {
-        *c = x - 10 + 'a';
-    }
-    else
-    {
-        return -1;
-    }
-
-    return 0;
-}
+static const uint8_t hex_val_table[256] = {
+    ['0'] = 0, ['1'] = 1, ['2'] = 2, ['3'] = 3, ['4'] = 4,
+    ['5'] = 5, ['6'] = 6, ['7'] = 7, ['8'] = 8, ['9'] = 9,
+    ['a'] = 10, ['b'] = 11, ['c'] = 12, ['d'] = 13, ['e'] = 14, ['f'] = 15,
+    ['A'] = 10, ['B'] = 11, ['C'] = 12, ['D'] = 13, ['E'] = 14, ['F'] = 15
+};
 
 size_t bin2hex(const uint8_t *buf, size_t buflen, char *hex, size_t hexlen)
 {
-    if ((hexlen + 1) < buflen * 2)
-    {
+    if (hexlen < buflen * 2) {
         return 0;
     }
 
-    for (size_t i = 0; i < buflen; i++)
-    {
-        if (hex2char(buf[i] >> 4, &hex[2 * i]) < 0)
-        {
-            return 0;
-        }
-        if (hex2char(buf[i] & 0xf, &hex[2 * i + 1]) < 0)
-        {
-            return 0;
-        }
+    for (size_t i = 0; i < buflen; i++) {
+        hex[2 * i] = hex_table[buf[i] >> 4];
+        hex[2 * i + 1] = hex_table[buf[i] & 0x0F];
     }
-
     hex[2 * buflen] = '\0';
     return 2 * buflen;
-}
-
-uint8_t hex2val(char c)
-{
-    if (c >= '0' && c <= '9')
-    {
-        return c - '0';
-    }
-    else if (c >= 'a' && c <= 'f')
-    {
-        return c - 'a' + 10;
-    }
-    else if (c >= 'A' && c <= 'F')
-    {
-        return c - 'A' + 10;
-    }
-    else
-    {
-        return 0;
-    }
 }
 
 size_t hex2bin(const char *hex, uint8_t *bin, size_t bin_len)
 {
     size_t len = 0;
 
-    while (*hex && len < bin_len)
-    {
-        bin[len] = hex2val(*hex++) << 4;
-
-        if (!*hex)
-        {
-            len++;
+    while (len < bin_len && hex[0]) {
+        if (!hex[1]) {
+            bin[len++] = hex_val_table[(unsigned char)hex[0]] << 4;
             break;
         }
-
-        bin[len++] |= hex2val(*hex++);
+        bin[len++] = (hex_val_table[(unsigned char)hex[0]] << 4) | hex_val_table[(unsigned char)hex[1]];
+        hex += 2;
     }
 
     return len;
@@ -165,54 +72,15 @@ void print_hex(const uint8_t *b, size_t len,
     fflush(stdout);
 }
 
-char *double_sha256(const char *hex_string)
-{
-    size_t bin_len = strlen(hex_string) / 2;
-    uint8_t *bin = malloc(bin_len);
-    hex2bin(hex_string, bin, bin_len);
-
-    unsigned char first_hash_output[32], second_hash_output[32];
-
-    mbedtls_sha256(bin, bin_len, first_hash_output, 0);
-    mbedtls_sha256(first_hash_output, 32, second_hash_output, 0);
-
-    free(bin);
-
-    char *output_hash = malloc(64 + 1);
-    bin2hex(second_hash_output, 32, output_hash, 65);
-    return output_hash;
-}
-
-uint8_t *double_sha256_bin(const uint8_t *data, const size_t data_len)
+void double_sha256_bin(const uint8_t *data, const size_t data_len, uint8_t dest[32])
 {
     uint8_t first_hash_output[32];
-    uint8_t *second_hash_output = malloc(32);
 
     mbedtls_sha256(data, data_len, first_hash_output, 0);
-    mbedtls_sha256(first_hash_output, 32, second_hash_output, 0);
-
-    return second_hash_output;
+    mbedtls_sha256(first_hash_output, 32, dest, 0);
 }
 
-void single_sha256_bin(const uint8_t *data, const size_t data_len, uint8_t *dest)
-{
-    // mbedtls_sha256(data, data_len, dest, 0);
-
-    // Initialize SHA256 context
-    mbedtls_sha256_context sha256_ctx;
-    mbedtls_sha256_init(&sha256_ctx);
-    mbedtls_sha256_starts(&sha256_ctx, 0);
-
-    // Compute first SHA256 hash of header
-    mbedtls_sha256_update(&sha256_ctx, data, 64);
-    unsigned char hash[32];
-    mbedtls_sha256_finish(&sha256_ctx, hash);
-
-    // Compute midstate from hash
-    memcpy(dest, hash, 32);
-}
-
-void midstate_sha256_bin(const uint8_t *data, const size_t data_len, uint8_t *dest)
+void midstate_sha256_bin(const uint8_t *data, const size_t data_len, uint8_t dest[32])
 {
     mbedtls_sha256_context midstate;
 
@@ -221,40 +89,36 @@ void midstate_sha256_bin(const uint8_t *data, const size_t data_len, uint8_t *de
     mbedtls_sha256_starts(&midstate, 0);
     mbedtls_sha256_update(&midstate, data, 64);
 
-    // memcpy(dest, midstate.state, 32);
-     flip32bytes(dest, midstate.state);
+    memcpy(dest, midstate.state, 32);
 }
 
-void swap_endian_words(const char *hex_words, uint8_t *output)
+void reverse_32bit_words(const uint8_t src[32], uint8_t dest[32])
 {
-    size_t hex_length = strlen(hex_words);
-    if (hex_length % 8 != 0)
-    {
-        fprintf(stderr, "Must be 4-byte word aligned\n");
-        exit(EXIT_FAILURE);
-    }
-
-    size_t binary_length = hex_length / 2;
-
-    for (size_t i = 0; i < binary_length; i += 4)
-    {
-        for (int j = 0; j < 4; j++)
-        {
-            unsigned int byte_val;
-            sscanf(hex_words + (i + j) * 2, "%2x", &byte_val);
-            output[i + (3 - j)] = byte_val;
-        }
-    }
+    const uint32_t *s = (const uint32_t *)src;
+    uint32_t *d = (uint32_t *)dest;
+    
+    d[0] = s[7];
+    d[1] = s[6];
+    d[2] = s[5];
+    d[3] = s[4];
+    d[4] = s[3];
+    d[5] = s[2];
+    d[6] = s[1];
+    d[7] = s[0];    
 }
 
-void reverse_bytes(uint8_t *data, size_t len)
+void reverse_endianness_per_word(uint8_t data[32])
 {
-    for (int i = 0; i < len / 2; ++i)
-    {
-        uint8_t temp = data[i];
-        data[i] = data[len - 1 - i];
-        data[len - 1 - i] = temp;
-    }
+    uint32_t *d = (uint32_t *)data;
+
+    d[0] = __builtin_bswap32(d[0]);
+    d[1] = __builtin_bswap32(d[1]);
+    d[2] = __builtin_bswap32(d[2]);
+    d[3] = __builtin_bswap32(d[3]);
+    d[4] = __builtin_bswap32(d[4]);
+    d[5] = __builtin_bswap32(d[5]);
+    d[6] = __builtin_bswap32(d[6]);
+    d[7] = __builtin_bswap32(d[7]);
 }
 
 // static const double truediffone = 26959535291011309493156476344723991336010898738574164086137773096960.0;
@@ -294,12 +158,80 @@ void prettyHex(unsigned char *buf, int len)
     printf("%02X]", buf[len - 1]);
 }
 
-uint32_t flip32(uint32_t val)
+/* Calculate the network difficulty from nBits */
+double networkDifficulty(uint32_t nBits)
 {
-    uint32_t ret = 0;
-    ret |= (val & 0xFF) << 24;
-    ret |= (val & 0xFF00) << 8;
-    ret |= (val & 0xFF0000) >> 8;
-    ret |= (val & 0xFF000000) >> 24;
-    return ret;
+    uint32_t mantissa = nBits & 0x007fffff;  // Extract the mantissa from nBits
+    uint8_t exponent = (nBits >> 24) & 0xff; // Extract the exponent from nBits
+
+    double target = (double) mantissa * pow(256, (exponent - 3)); // Calculate the target value
+
+    double difficulty = (pow(2, 208) * 65535) / target; // Calculate the difficulty
+
+    return difficulty;
+}
+
+/* Convert a uint64_t value into a truncated string for displaying with its
+ * associated suitable for Mega, Giga etc. Buf array needs to be long enough */
+void suffixString(uint64_t val, char * buf, size_t bufsiz, int sigdigits)
+{
+    const double dkilo = 1000.0;
+    const uint64_t kilo = 1000ull;
+    const uint64_t mega = 1000000ull;
+    const uint64_t giga = 1000000000ull;
+    const uint64_t tera = 1000000000000ull;
+    const uint64_t peta = 1000000000000000ull;
+    const uint64_t exa = 1000000000000000000ull;
+    char suffix[2] = "";
+    bool decimal = true;
+    double dval;
+
+    if (val >= exa) {
+        val /= peta;
+        dval = (double) val / dkilo;
+        strcpy(suffix, "E");
+    } else if (val >= peta) {
+        val /= tera;
+        dval = (double) val / dkilo;
+        strcpy(suffix, "P");
+    } else if (val >= tera) {
+        val /= giga;
+        dval = (double) val / dkilo;
+        strcpy(suffix, "T");
+    } else if (val >= giga) {
+        val /= mega;
+        dval = (double) val / dkilo;
+        strcpy(suffix, "G");
+    } else if (val >= mega) {
+        val /= kilo;
+        dval = (double) val / dkilo;
+        strcpy(suffix, "M");
+    } else if (val >= kilo) {
+        dval = (double) val / dkilo;
+        strcpy(suffix, "k");
+    } else {
+        dval = val;
+        decimal = false;
+    }
+
+    if (!sigdigits) {
+        if (decimal)
+            snprintf(buf, bufsiz, "%.2f%s", dval, suffix);
+        else
+            snprintf(buf, bufsiz, "%d%s", (unsigned int) dval, suffix);
+    } else {
+        /* Always show sigdigits + 1, padded on right with zeroes
+         * followed by suffix */
+        int ndigits = sigdigits - 1 - (dval > 0.0 ? floor(log10(dval)) : 0);
+
+        snprintf(buf, bufsiz, "%*.*f%s", sigdigits + 1, ndigits, dval, suffix);
+    }
+}
+
+float hashCounterToGhs(uint32_t duration_ms, uint32_t counter)
+{
+    if (duration_ms == 0) return 0.0f;
+    float seconds = duration_ms / 1000.0;
+    float hashrate = counter / seconds * (float)HASH_CNT_LSB; // Make sure it stays in float
+    return hashrate / 1e9f; // Convert to Gh/s
 }

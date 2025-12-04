@@ -2,7 +2,6 @@
 #define BM1368_H_
 
 #include "common.h"
-#include "driver/gpio.h"
 #include "mining.h"
 
 #define BM1368_SERIALTX_DEBUG false
@@ -24,16 +23,16 @@ typedef struct __attribute__((__packed__))
     uint8_t version[4];
 } BM1368_job;
 
-uint8_t BM1368_init(uint64_t frequency, uint16_t asic_count, uint16_t difficulty);
+uint8_t BM1368_init(float frequency, uint16_t asic_count, uint16_t difficulty);
 void BM1368_send_work(void * GLOBAL_STATE, bm_job * next_bm_job);
-void BM1368_set_job_difficulty_mask(int);
 void BM1368_set_version_mask(uint32_t version_mask);
 int BM1368_set_max_baud(void);
 int BM1368_set_default_baud(void);
 void BM1368_send_hash_frequency(float frequency);
-bool BM1368_set_frequency(float target_freq);
 task_result * BM1368_process_work(void * GLOBAL_STATE);
 void BM1368_set_nonce_percent(uint64_t frequency, uint16_t chain_chip_count);
+void BM1368_read_registers(void);
 float BM1368_get_timeout(uint64_t frequency, uint16_t chain_chip_count, int versions_to_roll);
+void BM1368_set_job_difficulty_mask(int difficulty);
 
 #endif /* BM1368_H_ */
