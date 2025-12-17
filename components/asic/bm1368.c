@@ -199,8 +199,7 @@ uint8_t BM1368_init(float frequency, uint16_t asic_count, uint16_t difficulty)
         _send_BM1368(TYPE_CMD | GROUP_ALL | CMD_WRITE, init_cmds[i], 6, false);
     }
 
-    address_interval = 256 / chip_counter;
-    int address_interval = 256 / _largest_power_of_two(chip_counter);
+    address_interval = 256 / _largest_power_of_two(chip_counter);
     for (uint8_t i = 0; i < chip_counter; i++) {
         _set_chip_address(i * address_interval);
     }

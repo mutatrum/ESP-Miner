@@ -264,7 +264,7 @@ uint8_t BM1370_init(float frequency, uint16_t asic_count, uint16_t difficulty)
     // _send_simple(init7, 7);
 
     // split the chip address space evenly
-    int address_interval = 256 / _largest_power_of_two(chip_counter);
+    address_interval = 256 / _largest_power_of_two(chip_counter);
     for (uint8_t i = 0; i < chip_counter; i++) {
         _set_chip_address(i * address_interval);
     }
