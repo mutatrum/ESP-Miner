@@ -321,7 +321,7 @@ uint8_t BM1370_init(float frequency, uint16_t asic_count, uint16_t difficulty)
     //ramp up the hash frequency
     do_frequency_transition(frequency, BM1370_send_hash_frequency);
 
-    BM1370_set_nonce_percent(frequency, chip_counter);
+    BM1370_set_nonce_percent(1400, chip_counter);
 
     BM1370_set_version_mask(STRATUM_DEFAULT_VERSION_MASK);
 

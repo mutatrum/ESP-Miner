@@ -44,34 +44,39 @@ void create_jobs_task(void *pvParameters)
             ESP_LOGI(TAG, "Set chip version rolls %i", (int)(GLOBAL_STATE->version_mask >> 13));
             ASIC_set_version_mask(GLOBAL_STATE, GLOBAL_STATE->version_mask);
 
-            GLOBAL_STATE->asic_job_frequency_ms = ASIC_get_asic_job_frequency_ms(GLOBAL_STATE);
-
-            ESP_LOGI(TAG, "ASIC Job Interval: %.2f ms", GLOBAL_STATE->asic_job_frequency_ms);
-
             GLOBAL_STATE->new_stratum_version_rolling_msg = false;
         }
 
         uint64_t extranonce_2 = 0;
-        while (GLOBAL_STATE->stratum_queue.count < 1 && GLOBAL_STATE->abandon_work == 0)
+        if(GLOBAL_STATE->DEVICE_CONFIG.family.asic.id != BM1397)
         {
-            if (should_generate_more_work(GLOBAL_STATE))
-            {
-                generate_work(GLOBAL_STATE, mining_notification, extranonce_2, difficulty);
-
-                // Increase extranonce_2 for the next job.
-                extranonce_2++;
-            }
-            else
-            {
-                // If no more work needed, wait a bit before checking again.
-                vTaskDelay(100 / portTICK_PERIOD_MS);
-            }
+            generate_work(GLOBAL_STATE, mining_notification, extranonce_2, difficulty);
+            xSemaphoreGive(GLOBAL_STATE->ASIC_TASK_MODULE.semaphore);
         }
+        else
+        {    
+            while (GLOBAL_STATE->stratum_queue.count < 1 && GLOBAL_STATE->abandon_work == 0)
+            {
+                if (should_generate_more_work(GLOBAL_STATE))
+                {
+                    generate_work(GLOBAL_STATE, mining_notification, extranonce_2, difficulty);
 
-        if (GLOBAL_STATE->abandon_work == 1)
-        {
-            GLOBAL_STATE->abandon_work = 0;
-            ASIC_jobs_queue_clear(&GLOBAL_STATE->ASIC_jobs_queue);
+                    // Increase extranonce_2 for the next job.
+                    extranonce_2++;
+                }
+                else
+                {
+                    // If no more work needed, wait a bit before checking again.
+                    vTaskDelay(100 / portTICK_PERIOD_MS);
+                }
+            }
+
+            if (GLOBAL_STATE->abandon_work == 1)
+            {
+                GLOBAL_STATE->abandon_work = 0;
+                ASIC_jobs_queue_clear(&GLOBAL_STATE->ASIC_jobs_queue);
+                
+            }
             xSemaphoreGive(GLOBAL_STATE->ASIC_TASK_MODULE.semaphore);
         }
 

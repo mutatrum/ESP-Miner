@@ -256,7 +256,7 @@ uint8_t BM1366_init(float frequency, uint16_t asic_count, uint16_t difficulty)
 
     do_frequency_transition(frequency, BM1366_send_hash_frequency);
 
-    BM1366_set_nonce_percent(frequency, chip_counter);
+    BM1366_set_nonce_percent(1400, chip_counter);
     BM1366_set_version_mask(STRATUM_DEFAULT_VERSION_MASK);
 
     return chip_counter;
