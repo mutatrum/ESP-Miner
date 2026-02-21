@@ -177,12 +177,15 @@ void get_difficulty_mask(double difficulty, uint8_t *job_difficulty_mask)
 
 double calculate_bm_timeout_ms(float frequency_mhz, uint16_t asic_count, uint16_t small_cores, uint16_t cores, float version_size, float timeout_percent, double default_time_ms)
 {
+    if (asic_count_up <= 0)
+        return default_time_ms;
+
     int cores_up = _next_power_of_two((int)cores);
     int small_cores_up = _next_power_of_two((int)small_cores);
     int asic_count_up = _next_power_of_two((int)asic_count);
 
     // some checks
-    if ((small_cores_up < cores_up) || (frequency_mhz <= 0.0f) || (small_cores_up <= 0) || (cores_up <= 0) || (asic_count_up <= 0))
+    if ((small_cores_up < cores_up) || (frequency_mhz <= 0.0f))
         return default_time_ms;
 
     // calulate the time to scan the full nonce * version space
