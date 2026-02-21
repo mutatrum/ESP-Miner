@@ -159,8 +159,8 @@ double calculate_bm_timeout_ms(float freq, uint16_t asic_count, uint16_t small_c
     double midstates = small_cores_up / cores_up;
     double serial_versions = version_size / midstates;
     double serial_nonces = NONCE_SPACE / (double)cores_up / (double)asic_count_up;
-    double fullspace_timeout = serial_versions * serial_nonces / freq;
+    double fullspace_timeout_ms = serial_versions * serial_nonces / freq / 1000.0;
 
-    return timeout_percent * ASIC_SET_NONCE_SPACE_PERCENT * fullspace_timeout;
+    return timeout_percent * ASIC_SET_NONCE_SPACE_PERCENT * fullspace_timeout_ms;
 }
 
