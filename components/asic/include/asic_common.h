@@ -34,6 +34,8 @@ typedef struct
     uint64_t timestamp_us;
 } task_result;
 
+static const double NONCE_SPACE = 4294967296.0; //  2^32
+static const double ASIC_SET_NONCE_SPACE_PERCENT = 1.0; // used by BM1362+
 
 unsigned char _reverse_bits(unsigned char num);
 int _largest_power_of_two(int num);
