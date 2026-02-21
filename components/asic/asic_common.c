@@ -26,6 +26,32 @@ unsigned char _reverse_bits(unsigned char num)
     return reversed;
 }
 
+int _largest_power_of_two(int num)
+{
+    int power = 0;
+
+    while (num > 1) {
+        num = num >> 1;
+        power++;
+    }
+
+    return 1 << power;
+}
+
+int _next_power_of_two(int num)
+{
+    if (num <= 1)
+        return 1;
+
+    int power = 1;
+
+    while (power < num) {
+        power <<= 1;
+    }
+
+    return power;
+}
+
 int count_asic_chips(uint16_t asic_count, uint16_t chip_id, int chip_id_response_length)
 {
     uint8_t buffer[11] = {0};
@@ -152,9 +178,9 @@ void get_difficulty_mask(double difficulty, uint8_t *job_difficulty_mask)
 double calculate_bm_timeout_ms(float freq, uint16_t asic_count, uint16_t small_cores, uint16_t cores, float version_size, float timeout_percent)
 {
     // calulate the fractional asic timeout for (nonce,version) of BM1397+ chips
-    int cores_up = _largest_power_of_two(cores);
-    int small_cores_up = _largest_power_of_two(small_cores);
-    int asic_count_up = _largest_power_of_two(asic_count);
+    int cores_up = _next_power_of_two(cores);
+    int small_cores_up = _next_power_of_two(small_cores);
+    int asic_count_up = _next_power_of_two(asic_count);
 
     double midstates = small_cores_up / cores_up;
     double serial_versions = version_size / midstates;
