@@ -175,17 +175,18 @@ void get_difficulty_mask(double difficulty, uint8_t *job_difficulty_mask)
     job_difficulty_mask[5] = _reverse_bits( mask        & 0xFF);
 }
 
-double calculate_bm_timeout_ms(float freq, uint16_t asic_count, uint16_t small_cores, uint16_t cores, float version_size, float timeout_percent)
+double calculate_bm_timeout_ms(float frequency_mhz, uint16_t asic_count, uint16_t small_cores, uint16_t cores, float version_size, float timeout_percent)
 {
     // calulate the fractional asic timeout for (nonce,version) of BM1397+ chips
     int cores_up = _next_power_of_two(cores);
     int small_cores_up = _next_power_of_two(small_cores);
     int asic_count_up = _next_power_of_two(asic_count);
 
-    double midstates = small_cores_up / cores_up;
+    // assumes small cores ~= cores * midstates
+    double midstates = (double)small_cores_up / (double)cores_up;
     double serial_versions = version_size / midstates;
     double serial_nonces = NONCE_SPACE / (double)cores_up / (double)asic_count_up;
-    double fullspace_timeout_ms = serial_versions * serial_nonces / freq / 1000.0;
+    double fullspace_timeout_ms = serial_versions * serial_nonces / frequency_mhz / 1000.0;
 
     return timeout_percent * ASIC_SET_NONCE_SPACE_PERCENT * fullspace_timeout_ms;
 }
