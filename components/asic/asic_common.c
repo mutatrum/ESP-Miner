@@ -180,11 +180,11 @@ double calculate_bm_timeout_ms(float frequency_mhz, uint16_t asic_count, uint16_
     if (asic_count <= 0)
         return default_time_ms;
 
+    // round up to the nearest power of 2
     int cores_up = _next_power_of_two((int)cores);
     int small_cores_up = _next_power_of_two((int)small_cores);
     int asic_count_up = _next_power_of_two((int)asic_count);
 
-    // some checks
     if ((small_cores_up < cores_up) || (frequency_mhz <= 0.0f))
         return default_time_ms;
 
