@@ -133,7 +133,7 @@ double ASIC_get_asic_job_frequency_ms(GlobalState * GLOBAL_STATE)
     switch (GLOBAL_STATE->DEVICE_CONFIG.family.asic.id) {
         case BM1397:
             // no version-rolling so same Nonce Space is splitted between Big Cores
-            return calculate_bm_timeout_ms(freq, asic_count, small_cores, cores, 4.0, ASIC_SET_TIMEOUT_PERCENT);
+            return calculate_bm_timeout_ms(freq, asic_count, small_cores, cores, 4.0, ASIC_SET_TIMEOUT_PERCENT, 20);
         case BM1366:
             // ASIC_calculate_bm_timeout_ms(GLOBAL_STATE, GLOBAL_STATE->version_mask >> 13, 1.0);
             return 2000 / GLOBAL_STATE->DEVICE_CONFIG.family.asic_count;
