@@ -7,6 +7,7 @@
 
 static const double NONCE_SPACE = 4294967296.0; //  2^32
 static const double ASIC_SET_NONCE_SPACE_PERCENT = 1.0;
+static const double ASIC_SET_TIMEOUT_PERCENT = 1.0;
 
 typedef enum
 {
@@ -43,5 +44,6 @@ int _largest_power_of_two(int num);
 int count_asic_chips(uint16_t asic_count, uint16_t chip_id, int chip_id_response_length);
 esp_err_t receive_work(uint8_t * buffer, int buffer_size, uint64_t *out_timestamp_us);
 void get_difficulty_mask(double difficulty, uint8_t *job_difficulty_mask);
+double calculate_bm_timeout_ms(float freq, uint16_t asic_count, uint16_t small_cores, uint16_t cores, float version_size, float timeout_percent);
 
 #endif /* ASIC_COMMON_H_ */

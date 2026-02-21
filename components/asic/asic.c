@@ -123,27 +123,17 @@ void ASIC_set_frequency(GlobalState * GLOBAL_STATE)
     ESP_LOGE(TAG, "Unknown ASIC id %d — cannot set frequency", GLOBAL_STATE->DEVICE_CONFIG.family.asic.id);
 }
 
-double ASIC_calculate_bm_timeout_ms(GlobalState * GLOBAL_STATE, float max_versions, float timeout_percent)
-{
-    float freq = GLOBAL_STATE->POWER_MANAGEMENT_MODULE.frequency_value;
-    int cores = _largest_power_of_two(GLOBAL_STATE->DEVICE_CONFIG.family.asic.core_count);
-    int small_cores = _largest_power_of_two(GLOBAL_STATE->DEVICE_CONFIG.family.asic.small_core_count);
-    int asic_count = _largest_power_of_two(GLOBAL_STATE->DEVICE_CONFIG.family.asic_count);
-    double nonce_space_divided = NONCE_SPACE/(double)cores/(double)asic_count;
-
-    // for version rolling chips
-    double midstates = small_cores/cores;
-
-    // this applies to bitmain chips only, calulates the timeout in ms
-    return timeout_percent * (max_versions / midstates) * ASIC_SET_NONCE_SPACE_PERCENT * (nonce_space_divided / freq);
-}
-
 double ASIC_get_asic_job_frequency_ms(GlobalState * GLOBAL_STATE)
 {
+    float freq = GLOBAL_STATE->POWER_MANAGEMENT_MODULE.frequency_value;
+    int cores = GLOBAL_STATE->DEVICE_CONFIG.family.asic.core_count;
+    int small_cores = GLOBAL_STATE->DEVICE_CONFIG.family.asic.small_core_count;
+    int asic_count = GLOBAL_STATE->DEVICE_CONFIG.family.asic_count;
+
     switch (GLOBAL_STATE->DEVICE_CONFIG.family.asic.id) {
         case BM1397:
             // no version-rolling so same Nonce Space is splitted between Big Cores
-            return ASIC_calculate_bm_timeout_ms(GLOBAL_STATE, 4.0, 1.0);
+            return calculate_bm_timeout_ms(freq, asic_count, small_cores, cores, 4.0, ASIC_SET_TIMEOUT_PERCENT);
         case BM1366:
             // ASIC_calculate_bm_timeout_ms(GLOBAL_STATE, GLOBAL_STATE->version_mask >> 13, 1.0);
             return 2000 / GLOBAL_STATE->DEVICE_CONFIG.family.asic_count;
