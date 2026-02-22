@@ -36,6 +36,16 @@ typedef enum
     CUSTOM_CRT = 2,
 } tls_mode;
 
+typedef enum
+{
+    CERT_CHECK_OK = 0,
+    CERT_CHECK_EXPIRED = 1,
+    CERT_CHECK_NOT_YET_VALID = 2,
+    CERT_CHECK_NO_CERT = 3,
+    CERT_CHECK_NO_TLS = 4,
+    CERT_CHECK_ERROR = 5,
+} cert_check_result_t;
+
 static const int  STRATUM_ID_CONFIGURE    = 1;
 static const int  STRATUM_ID_SUBSCRIBE    = 2;
 
@@ -105,5 +115,7 @@ int STRATUM_V1_submit_share(esp_transport_handle_t transport, int send_uid, cons
                             const uint32_t version_bits);
 
 float STRATUM_V1_get_response_time_ms(int request_id, int64_t receive_time_us);
+
+cert_check_result_t STRATUM_V1_check_peer_cert_expiration(esp_transport_handle_t transport);
 
 #endif // STRATUM_API_H

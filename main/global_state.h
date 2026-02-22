@@ -82,6 +82,7 @@ typedef struct
     bool overheat_mode;
     uint16_t power_fault;
     uint32_t lastClockSync;
+    bool tls_cert_expired;
     bool is_screen_active;
     bool is_firmware_update;
     char firmware_update_filename[20];

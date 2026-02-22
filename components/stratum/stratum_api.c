@@ -15,10 +15,14 @@
 #include "esp_crt_bundle.h"
 #include "utils.h"
 #include "esp_timer.h"
+#include "esp_tls.h"
+#include "mbedtls/x509_crt.h"
+#include "mbedtls/ssl.h"
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
 #include <stdbool.h>
+#include <sys/time.h>
 
 #define TRANSPORT_TIMEOUT_MS 5000
 #define BUFFER_SIZE 1024
@@ -88,6 +92,91 @@ esp_transport_handle_t STRATUM_V1_transport_init(tls_mode tls, char * cert)
         }
     }
     return transport;
+}
+
+cert_check_result_t STRATUM_V1_check_peer_cert_expiration(esp_transport_handle_t transport)
+{
+    if (transport == NULL) {
+        ESP_LOGW(TAG, "Transport is NULL");
+        return CERT_CHECK_ERROR;
+    }
+
+    // Get the underlying SSL context from the transport
+    esp_tls_t *esp_tls = (esp_tls_t *)esp_transport_get_context_data(transport);
+    if (esp_tls == NULL) {
+        ESP_LOGD(TAG, "No TLS context - connection is not using TLS");
+        return CERT_CHECK_NO_TLS;
+    }
+
+    mbedtls_ssl_context *ssl_ctx = esp_tls_get_ssl_context(esp_tls);
+    if (ssl_ctx == NULL) {
+        ESP_LOGW(TAG, "Failed to get SSL context");
+        return CERT_CHECK_ERROR;
+    }
+
+    // Get the peer certificate
+    const mbedtls_x509_crt *peer_cert = mbedtls_ssl_get_peer_cert(ssl_ctx);
+    if (peer_cert == NULL) {
+        ESP_LOGW(TAG, "No peer certificate available");
+        return CERT_CHECK_NO_CERT;
+    }
+
+    // Get current time
+    struct timeval tv;
+    if (gettimeofday(&tv, NULL) != 0) {
+        ESP_LOGW(TAG, "Failed to get current time");
+        return CERT_CHECK_ERROR;
+    }
+    time_t current_time = tv.tv_sec;
+
+    // Convert certificate validity times to time_t for comparison
+    // mbedtls_x509_time is in format: year, month, day, hour, min, sec
+    struct tm tm_valid_from = {
+        .tm_year = peer_cert->valid_from.year - 1900,
+        .tm_mon = peer_cert->valid_from.mon - 1,
+        .tm_mday = peer_cert->valid_from.day,
+        .tm_hour = peer_cert->valid_from.hour,
+        .tm_min = peer_cert->valid_from.min,
+        .tm_sec = peer_cert->valid_from.sec,
+        .tm_isdst = -1
+    };
+    
+    struct tm tm_valid_to = {
+        .tm_year = peer_cert->valid_to.year - 1900,
+        .tm_mon = peer_cert->valid_to.mon - 1,
+        .tm_mday = peer_cert->valid_to.day,
+        .tm_hour = peer_cert->valid_to.hour,
+        .tm_min = peer_cert->valid_to.min,
+        .tm_sec = peer_cert->valid_to.sec,
+        .tm_isdst = -1
+    };
+
+    time_t valid_from_time = mktime(&tm_valid_from);
+    time_t valid_to_time = mktime(&tm_valid_to);
+
+    if (valid_from_time == (time_t)-1 || valid_to_time == (time_t)-1) {
+        ESP_LOGW(TAG, "Failed to convert certificate validity times");
+        return CERT_CHECK_ERROR;
+    }
+
+    ESP_LOGI(TAG, "Certificate valid from: %s", ctime(&valid_from_time));
+    ESP_LOGI(TAG, "Certificate valid to: %s", ctime(&valid_to_time));
+    ESP_LOGI(TAG, "Current time: %s", ctime(&current_time));
+
+    // Check if certificate is not yet valid
+    if (current_time < valid_from_time) {
+        ESP_LOGW(TAG, "Certificate is not yet valid");
+        return CERT_CHECK_NOT_YET_VALID;
+    }
+
+    // Check if certificate is expired
+    if (current_time > valid_to_time) {
+        ESP_LOGW(TAG, "Certificate has expired");
+        return CERT_CHECK_EXPIRED;
+    }
+
+    ESP_LOGI(TAG, "Certificate is valid");
+    return CERT_CHECK_OK;
 }
 
 void STRATUM_V1_initialize_buffer()

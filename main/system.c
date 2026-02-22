@@ -238,6 +238,21 @@ void SYSTEM_notify_new_ntime(GlobalState * GLOBAL_STATE, uint32_t ntime)
     tv.tv_sec = ntime;
     tv.tv_usec = 0;
     settimeofday(&tv, NULL);
+
+    // Check TLS certificate expiration after time sync
+    if (GLOBAL_STATE->transport != NULL) {
+        cert_check_result_t cert_result = STRATUM_V1_check_peer_cert_expiration(GLOBAL_STATE->transport);
+        if (cert_result == CERT_CHECK_EXPIRED) {
+            module->tls_cert_expired = true;
+            ESP_LOGW(TAG, "TLS certificate has expired!");
+        } else if (cert_result == CERT_CHECK_NOT_YET_VALID) {
+            module->tls_cert_expired = true;
+            ESP_LOGW(TAG, "TLS certificate is not yet valid!");
+        } else if (cert_result == CERT_CHECK_OK) {
+            module->tls_cert_expired = false;
+        }
+        // Other results (NO_TLS, NO_CERT, ERROR) don't change the state
+    }
 }
 
 void SYSTEM_notify_found_nonce(GlobalState * GLOBAL_STATE, double diff, uint8_t job_id)

@@ -333,6 +333,9 @@ components:
         overheat_mode:
           type: number
           description: Overheat protection mode
+        tlsCertExpired:
+          type: boolean
+          description: Whether the TLS certificate has expired (only valid after time sync)
         overclockEnabled:
           type: integer
           description: Set custom voltage/frequency in AxeOS
