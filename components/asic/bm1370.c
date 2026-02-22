@@ -153,8 +153,8 @@ void BM1370_set_hash_counting_number(int hcn) {
 
 void BM1370_set_nonce_space(double nonce_percent, float frequency, uint16_t asic_count, uint16_t big_cores) 
 {   
-    int big_cores_up = _largest_power_of_two(big_cores);
-    int asic_count_up =  _largest_power_of_two(asic_count);
+    int big_cores_up = _next_power_of_two(big_cores);
+    int asic_count_up =  _next_power_of_two(asic_count);
 
     // HCN hash counting number (the size of the nonce space)
     float hcn_space = (float)NONCE_SPACE / big_cores_up / asic_count_up;
