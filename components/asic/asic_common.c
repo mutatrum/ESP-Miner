@@ -175,7 +175,7 @@ void get_difficulty_mask(double difficulty, uint8_t *job_difficulty_mask)
     job_difficulty_mask[5] = _reverse_bits( mask        & 0xFF);
 }
 
-double calculate_bm_timeout_ms(float frequency_mhz, uint16_t asic_count, uint16_t small_cores, uint16_t cores, float version_size, float timeout_percent, double default_time_ms)
+double calculate_bm_timeout_ms(float frequency_mhz, size_t asic_count, size_t small_cores, size_t cores, size_t version_size, float timeout_percent, double default_time_ms)
 {
     if (asic_count <= 0)
         return default_time_ms;
