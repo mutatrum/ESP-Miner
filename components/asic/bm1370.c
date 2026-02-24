@@ -151,13 +151,13 @@ void BM1370_set_hash_counting_number(uint32_t hcn) {
     _send_BM1370((TYPE_CMD | GROUP_ALL | CMD_WRITE), set_10_hash_counting, 6, BM1370_SERIALTX_DEBUG);
 }
 
-void BM1370_set_nonce_space(double nonce_percent, float frequency, uint16_t asic_count, uint16_t big_cores) 
+void BM1370_set_nonce_space(double nonce_percent, float frequency, uint16_t asic_count, uint16_t cores) 
 {   
-    int big_cores_up = _next_power_of_two(big_cores);
+    int cores_up = _next_power_of_two(cores);
     int asic_count_up =  _next_power_of_two(asic_count);
 
     // HCN hash counting number (the size of the nonce space)
-    float hcn_space = (float)NONCE_SPACE / big_cores_up / asic_count_up;
+    float hcn_space = (float)NONCE_SPACE / cores_up / asic_count_up;
     double hcn_max = hcn_space * (double)FREQ_MULT / frequency * 0.5f; 
     double hcn_frac = nonce_percent * hcn_max;
     uint32_t hcn_register_value = (uint32_t)hcn_frac;
