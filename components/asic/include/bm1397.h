@@ -26,8 +26,6 @@ typedef struct __attribute__((__packed__))
 uint8_t BM1397_init(void * GLOBAL_STATE);
 void BM1397_send_work(void * GLOBAL_STATE, bm_job * next_bm_job);
 void BM1397_set_version_mask(uint32_t version_mask);
-void BM1397_set_hash_counting_number(uint32_t hcn);
-void BM1397_set_nonce_space(double nonce_percent, float frequency, uint16_t asic_count, uint16_t big_cores);
 int BM1397_set_max_baud(void);
 int BM1397_set_default_baud(void);
 void BM1397_send_hash_frequency(float frequency);
