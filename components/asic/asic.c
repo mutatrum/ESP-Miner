@@ -129,18 +129,16 @@ double ASIC_get_asic_job_frequency_ms(GlobalState * GLOBAL_STATE)
     int cores = GLOBAL_STATE->DEVICE_CONFIG.family.asic.core_count;
     int small_cores = GLOBAL_STATE->DEVICE_CONFIG.family.asic.small_core_count;
     int asic_count = GLOBAL_STATE->DEVICE_CONFIG.family.asic_count;
+    int asic_default_timeout_divided = GLOBAL_STATE->DEVICE_CONFIG.family.asic.default_asic_timeout / _next_power_of_two(asic_count);
 
     switch (GLOBAL_STATE->DEVICE_CONFIG.family.asic.id) {
         case BM1397:
             // no version-rolling so same Nonce Space is splitted between Big Cores
-            return calculate_bm_timeout_ms(freq, asic_count, small_cores, cores, 4.0, ASIC_SET_TIMEOUT_PERCENT, 20);
+            return calculate_bm_timeout_ms(freq, asic_count, small_cores, cores, 4.0, ASIC_SET_TIMEOUT_PERCENT, asic_default_timeout_divided);
         case BM1366:
-            // ASIC_calculate_bm_timeout_ms(GLOBAL_STATE, GLOBAL_STATE->version_mask >> 13, 1.0);
-            return 2000 / GLOBAL_STATE->DEVICE_CONFIG.family.asic_count;
         case BM1368:
         case BM1370:
-            // ASIC_calculate_bm_timeout_ms(GLOBAL_STATE, GLOBAL_STATE->version_mask >> 13, 1.0);
-            return 500 / GLOBAL_STATE->DEVICE_CONFIG.family.asic_count;
+            return asic_default_timeout_divided;
     }
     ESP_LOGE(TAG, "Unknown ASIC id %d — cannot compute job frequency", GLOBAL_STATE->DEVICE_CONFIG.family.asic.id);
     return 500;
