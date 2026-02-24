@@ -162,11 +162,6 @@ void BM1370_set_nonce_space(double nonce_percent, float frequency, uint16_t asic
     double hcn_frac = nonce_percent * hcn_max;
     uint32_t hcn_register_value = (uint32_t)hcn_frac;
 
-    //register 10 is still a bit of a mystery. discussion: https://github.com/bitaxeorg/ESP-Miner/pull/167
-    // unsigned char set_10_hash_counting[6] = {0x00, 0x10, 0x00, 0x00, 0x11, 0x5A}; //S19k Pro Default
-    // unsigned char set_10_hash_counting[6] = {0x00, 0x10, 0x00, 0x00, 0x14, 0x46}; //S19XP-Luxos Default
-    // unsigned char set_10_hash_counting[6] = {0x00, 0x10, 0x00, 0x00, 0x15, 0x1C}; //S19XP-Stock Default
-    // unsigned char set_10_hash_counting[6] = {0x00, 0x10, 0x00, 0x0F, 0x00, 0x00}; //supposedly the "full" 32bit nonce range
     BM1370_set_hash_counting_number(hcn_register_value);
 }
 
