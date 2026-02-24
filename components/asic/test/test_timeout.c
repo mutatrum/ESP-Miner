@@ -13,7 +13,7 @@ TEST_CASE("Check asic timeout 1x BM1397", "[common]")
     float default_timeout_ms = 20;
 
     double timeout_ms = calculate_bm_timeout_ms(frequency, asic_count, small_cores, cores, version_size, timeout_percent, default_timeout_ms);
-    double expected_ms = timeout_percent * ( 1<<24 ) / (frequency * 1000) / asic_count;
+    double expected_ms = 27.962;
 
     TEST_ASSERT_FLOAT_WITHIN(0.01, expected_ms, timeout_ms);
 }
@@ -29,7 +29,7 @@ TEST_CASE("Check asic timeout 2x BM1370", "[common]")
     float default_timeout_ms = 500;
 
     double timeout_ms = calculate_bm_timeout_ms(frequency, asic_count, small_cores, cores, version_size, timeout_percent, default_timeout_ms);
-    double expected_ms = timeout_percent * (version_size / 16.0) * (1 << 25) / (frequency * 1000) / asic_count;
+    double expected_ms = 76354.974;
 
     TEST_ASSERT_FLOAT_WITHIN(0.01, expected_ms, timeout_ms);
 }
@@ -60,7 +60,7 @@ TEST_CASE("Check asic timeout 3x BM1370", "[common]")
     float default_timeout_ms = 500;
 
     double timeout_ms = calculate_bm_timeout_ms(frequency, asic_count, small_cores, cores, version_size, timeout_percent, default_timeout_ms);
-    double expected_ms = timeout_percent * (version_size / 16.0) * (1 << 25) / (frequency * 1000) / (asic_count+1);
+    double expected_ms = 149.131;
 
     TEST_ASSERT_FLOAT_WITHIN(0.01, expected_ms, timeout_ms);
 }
@@ -76,7 +76,7 @@ TEST_CASE("Check max asic timeout 1x BM1370", "[common]")
     float default_timeout_ms = 500;
 
     double timeout_ms = calculate_bm_timeout_ms(frequency, asic_count, small_cores, cores, version_size, timeout_percent, default_timeout_ms);
-    double expected_ms = timeout_percent * (version_size / 16.0) * (1 << 25) / (frequency * 1000) / (asic_count);
+    double expected_ms = 305419.897;
 
     TEST_ASSERT_FLOAT_WITHIN(0.01, expected_ms, timeout_ms);
 }
