@@ -197,7 +197,7 @@ double calculate_bm_timeout_ms(float frequency_mhz, size_t asic_count, size_t sm
     double serial_nonces = (double)NONCE_SPACE / (double)cores_up / (double)asic_count_up;
     double fullspace_timeout_ms = serial_versions * serial_nonces / ((double)frequency_mhz * 1000.0);
 
-    if (!(fullspace_timeout_s > 0.0))
+    if (!(fullspace_timeout_ms > 0.0))
         return default_time_ms;
 
     return (double)timeout_percent * fullspace_timeout_ms;
