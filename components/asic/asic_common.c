@@ -180,7 +180,7 @@ double calculate_bm_timeout_ms(float frequency_mhz, size_t asic_count, size_t sm
     if (asic_count <= 0)
         return default_time_ms;
 
-    // Round up to the nearest power of 2 some constants
+    // Round up to the nearest power of 2 some asic constants
     int cores_up = _next_power_of_two((int)cores);
     int small_cores_up = _next_power_of_two((int)small_cores);
     int asic_count_up = _next_power_of_two((int)asic_count);
@@ -189,7 +189,7 @@ double calculate_bm_timeout_ms(float frequency_mhz, size_t asic_count, size_t sm
         return default_time_ms;
 
     // Calulate the time to scan the full nonce * version space
-    // effectivly how many iterations we have to do
+    // effectively how many iterations we have to do
     // First we remove the paralell nonces/versions
     // then we end up with `time = space / frequency`
     double midstates = (double)small_cores_up / (double)cores_up;
