@@ -200,6 +200,5 @@ double calculate_bm_timeout_ms(float frequency_mhz, size_t asic_count, size_t sm
     if (!(fullspace_timeout_s > 0.0))
         return default_time_ms;
 
-    float s_to_ms = 1000.0;
-    return (double)timeout_percent * fullspace_timeout_s * s_to_ms;
+    return (double)timeout_percent * fullspace_timeout_ms;
 }
