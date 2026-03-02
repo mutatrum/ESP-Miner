@@ -13,6 +13,7 @@
 #define COINBASE2_SIZE 128
 #define MAX_REQUEST_IDS 1024
 #define MAX_EXTRANONCE_2_LEN 32
+#define MAX_POOL_MESSAGE_LEN 256
 
 typedef enum
 {

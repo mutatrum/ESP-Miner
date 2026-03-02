@@ -408,7 +408,16 @@ void STRATUM_V1_parse(StratumApiV1Message * message, const char * stratum_json)
         if (params && cJSON_IsArray(params) && cJSON_GetArraySize(params) > 0) {
             cJSON * msg_item = cJSON_GetArrayItem(params, 0);
             if (msg_item && cJSON_IsString(msg_item)) {
-                ESP_LOGI(TAG, "Pool message: %s", msg_item->valuestring);
+                // Cap the pool message length to MAX_POOL_MESSAGE_LEN (256)
+                size_t msg_len = strlen(msg_item->valuestring);
+                if (msg_len > MAX_POOL_MESSAGE_LEN) {
+                    char capped_msg[MAX_POOL_MESSAGE_LEN + 1];
+                    strncpy(capped_msg, msg_item->valuestring, MAX_POOL_MESSAGE_LEN);
+                    capped_msg[MAX_POOL_MESSAGE_LEN] = '\0';
+                    ESP_LOGI(TAG, "Pool message: %s...", capped_msg);
+                } else {
+                    ESP_LOGI(TAG, "Pool message: %s", msg_item->valuestring);
+                }
             }
         }
     }
