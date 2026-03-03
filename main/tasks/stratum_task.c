@@ -1,20 +1,19 @@
 #include "esp_log.h"
-#include "connect.h"
 #include "system.h"
 #include "global_state.h"
-#include "lwip/dns.h"
 #include <lwip/tcpip.h>
 #include <lwip/netdb.h>
-#include "nvs_config.h"
 #include "stratum_task.h"
 #include "work_queue.h"
 #include "esp_wifi.h"
 #include <esp_sntp.h>
-#include <time.h>
-#include <sys/time.h>
 #include "esp_timer.h"
+#include <sys/time.h>
 #include <stdbool.h>
+#include <string.h>
 #include "utils.h"
+#include "coinbase_decoder.h"
+#include <esp_heap_caps.h>
 
 #define MAX_RETRY_ATTEMPTS 3
 #define MAX_CRITICAL_RETRY_ATTEMPTS 5
@@ -68,95 +67,124 @@ typedef struct {
 
 static esp_err_t resolve_stratum_address(const char *hostname, uint16_t port, stratum_connection_info_t *conn_info)
 {
+    // Input validation
+    if (hostname == NULL || conn_info == NULL) {
+        return ESP_ERR_INVALID_ARG;
+    }
+    if (port == 0) {
+        ESP_LOGE(TAG, "Invalid port: 0");
+        return ESP_ERR_INVALID_ARG;
+    }
+
+    char port_str[6];
+    snprintf(port_str, sizeof(port_str), "%u", port);
+
+    ESP_LOGD(TAG, "Resolving address for %s:%u", hostname, port);
+
     struct addrinfo hints = {
-        .ai_family = AF_UNSPEC,
+        .ai_family   = AF_UNSPEC,
         .ai_socktype = SOCK_STREAM,
         .ai_protocol = IPPROTO_TCP,
-        .ai_flags = AI_NUMERICSERV  // Port is numeric
+        .ai_flags    = AI_NUMERICSERV
     };
-    struct addrinfo *res;
-    char port_str[6];
-    
-    snprintf(port_str, sizeof(port_str), "%d", port);
-    
-    ESP_LOGD(TAG, "Resolving address for hostname: %s (port %d)", hostname, port);
-    
-    int gai_err = getaddrinfo(hostname, port_str, &hints, &res);
-    if (gai_err != 0) {
-        ESP_LOGE(TAG, "getaddrinfo failed for %s: error code %d", hostname, gai_err);
-        return ESP_FAIL;
+
+    struct addrinfo *res = NULL;
+    int gai_err = esp_getaddrinfo(hostname, port_str, &hints, &res);
+    if (gai_err != 0 || res == NULL) {
+        ESP_LOGE(TAG, "DNS resolution failed for %s:%u (error: %d)", hostname, port, gai_err);
+        return ESP_ERR_NOT_FOUND;
     }
 
-    memset(conn_info, 0, sizeof(stratum_connection_info_t));
+    // Initialize connection info
+    memset(conn_info, 0, sizeof(*conn_info));
     conn_info->addr_family = AF_UNSPEC;
 
-    // Prefer IPv6
-    struct addrinfo *p;
-    for (p = res; p != NULL; p = p->ai_next) {
-        if (p->ai_family == AF_INET6) {
-            memcpy(&conn_info->dest_addr, p->ai_addr, p->ai_addrlen);
-            conn_info->addrlen = p->ai_addrlen;
-            conn_info->addr_family = AF_INET6;
-            conn_info->ip_protocol = IPPROTO_IPV6;
-            
-            // Log scope ID for IPv6 link-local addresses
-            struct sockaddr_in6 *addr6 = (struct sockaddr_in6 *)&conn_info->dest_addr;
-            if (IN6_IS_ADDR_LINKLOCAL(&addr6->sin6_addr)) {
-                ESP_LOGI(TAG, "Link-local IPv6 address detected, scope_id: %lu", (unsigned long)addr6->sin6_scope_id);
-                if (addr6->sin6_scope_id == 0) {
-                    ESP_LOGW(TAG, "Warning: Link-local IPv6 without scope ID - attempting to set from WIFI_STA_DEF");
-                    // Try to get the WiFi STA interface index
-                    esp_netif_t *esp_netif = esp_netif_get_handle_from_ifkey("WIFI_STA_DEF");
-                    if (esp_netif) {
-                        int netif_index = esp_netif_get_netif_impl_index(esp_netif);
-                        if (netif_index >= 0) {
-                            addr6->sin6_scope_id = (u32_t)netif_index;
-                            ESP_LOGI(TAG, "Set scope_id to interface index: %lu", (unsigned long)addr6->sin6_scope_id);
-                        }
-                    }
-                }
-            }
-            break;
-        }
-    }
+    // Preferred order: IPv4 first, then IPv6
+    const int preferred_families[] = { AF_INET, AF_INET6 };
+    const size_t num_families = sizeof(preferred_families) / sizeof(preferred_families[0]);
 
-    // If no IPv6, use IPv4
-    if (conn_info->addr_family == AF_UNSPEC) {
-        for (p = res; p != NULL; p = p->ai_next) {
-            if (p->ai_family == AF_INET) {
-                memcpy(&conn_info->dest_addr, p->ai_addr, p->ai_addrlen);
-                conn_info->addrlen = p->ai_addrlen;
-                conn_info->addr_family = AF_INET;
-                conn_info->ip_protocol = IPPROTO_IP;
+    const struct addrinfo *selected = NULL;
+
+    for (size_t i = 0; i < num_families && selected == NULL; i++) {
+        int family = preferred_families[i];
+
+        for (const struct addrinfo *p = res; p != NULL; p = p->ai_next) {
+            if (p->ai_family == family) {
+                selected = p;
                 break;
             }
         }
     }
 
-    freeaddrinfo(res);
-
-    if (conn_info->addr_family == AF_UNSPEC) {
-        ESP_LOGE(TAG, "No suitable address found for %s", hostname);
-        return ESP_FAIL;
+    if (selected == NULL) {
+        ESP_LOGE(TAG, "No supported address family (IPv4 or IPv6) found for %s", hostname);
+        freeaddrinfo(res);
+        return ESP_ERR_NOT_SUPPORTED;
     }
 
-    // Convert address to string for logging
-    if (conn_info->addr_family == AF_INET6) {
+    // Copy selected address
+    memcpy(&conn_info->dest_addr, selected->ai_addr, selected->ai_addrlen);
+    conn_info->addrlen     = selected->ai_addrlen;
+    conn_info->addr_family = selected->ai_family;
+    conn_info->ip_protocol = (selected->ai_family == AF_INET) ? IPPROTO_IP : IPPROTO_IPV6;
+
+    // Handle IPv6 link-local scope ID if needed
+    if (selected->ai_family == AF_INET6) {
         struct sockaddr_in6 *addr6 = (struct sockaddr_in6 *)&conn_info->dest_addr;
-        inet_ntop(AF_INET6, &addr6->sin6_addr,
-                  conn_info->host_ip, sizeof(conn_info->host_ip));
-        
-        // Append zone identifier for link-local addresses
-        if (IN6_IS_ADDR_LINKLOCAL(&addr6->sin6_addr) && addr6->sin6_scope_id != 0) {
-            char zone_buf[16];
-            snprintf(zone_buf, sizeof(zone_buf), "%%%lu", addr6->sin6_scope_id);
-            strncat(conn_info->host_ip, zone_buf, sizeof(conn_info->host_ip) - strlen(conn_info->host_ip) - 1);
+
+        if (IN6_IS_ADDR_LINKLOCAL(&addr6->sin6_addr)) {
+            if (addr6->sin6_scope_id == 0) {
+                ESP_LOGW(TAG, "Link-local IPv6 address without scope ID - attempting to set from WiFi STA interface");
+
+                esp_netif_t *netif = esp_netif_get_handle_from_ifkey("WIFI_STA_DEF");
+                if (netif) {
+                    int index = esp_netif_get_netif_impl_index(netif);
+                    if (index >= 0) {
+                        addr6->sin6_scope_id = (uint32_t)index;
+                        ESP_LOGI(TAG, "Set IPv6 scope_id to interface index: %lu", (unsigned long)addr6->sin6_scope_id);
+                    } else {
+                        ESP_LOGW(TAG, "Failed to get valid interface index for WIFI_STA_DEF");
+                    }
+                } else {
+                    ESP_LOGW(TAG, "Could not get netif handle for WIFI_STA_DEF");
+                }
+            } else {
+                ESP_LOGI(TAG, "Link-local IPv6 address with existing scope_id: %lu", (unsigned long)addr6->sin6_scope_id);
+            }
         }
-    } else {
-        inet_ntop(AF_INET, &((struct sockaddr_in *)&conn_info->dest_addr)->sin_addr,
-                  conn_info->host_ip, sizeof(conn_info->host_ip));
     }
 
+    // Convert resolved address to string for logging and storage
+    const void *src_addr;
+    int af = conn_info->addr_family;
+
+    if (af == AF_INET) {
+        struct sockaddr_in *addr4 = (struct sockaddr_in *)&conn_info->dest_addr;
+        src_addr = &addr4->sin_addr;
+    } else {
+        struct sockaddr_in6 *addr6 = (struct sockaddr_in6 *)&conn_info->dest_addr;
+        src_addr = &addr6->sin6_addr;
+    }
+
+    if (inet_ntop(af, src_addr, conn_info->host_ip, sizeof(conn_info->host_ip)) == NULL) {
+        ESP_LOGW(TAG, "inet_ntop failed (errno: %d)", errno);
+        snprintf(conn_info->host_ip, sizeof(conn_info->host_ip), "[invalid %s addr]",
+                 (af == AF_INET) ? "IPv4" : "IPv6");
+    } else if (af == AF_INET6) {
+        struct sockaddr_in6 *addr6 = (struct sockaddr_in6 *)&conn_info->dest_addr;
+        if (IN6_IS_ADDR_LINKLOCAL(&addr6->sin6_addr) && addr6->sin6_scope_id != 0) {
+            char zone[16];
+            snprintf(zone, sizeof(zone), "%%%lu", (unsigned long)addr6->sin6_scope_id);
+            strncat(conn_info->host_ip, zone,
+                    sizeof(conn_info->host_ip) - strlen(conn_info->host_ip) - 1);
+            // Ensure null termination
+            conn_info->host_ip[sizeof(conn_info->host_ip) - 1] = '\0';
+        }
+    }
+
+    ESP_LOGI(TAG, "Resolved %s:%u → %s", hostname, port, conn_info->host_ip);
+
+    freeaddrinfo(res);
     return ESP_OK;
 }
 
@@ -207,11 +235,9 @@ bool is_wifi_connected() {
 
 void cleanQueue(GlobalState * GLOBAL_STATE) {
     ESP_LOGI(TAG, "Clean Jobs: clearing queue");
-    GLOBAL_STATE->abandon_work = 1;
     queue_clear(&GLOBAL_STATE->stratum_queue);
 
     pthread_mutex_lock(&GLOBAL_STATE->valid_jobs_lock);
-    ASIC_jobs_queue_clear(&GLOBAL_STATE->ASIC_jobs_queue);
     for (int i = 0; i < 128; i = i + 4) {
         GLOBAL_STATE->valid_jobs[i] = 0;
     }
@@ -309,78 +335,76 @@ void stratum_primary_heartbeat(void * pvParameters)
 
 static void decode_mining_notification(GlobalState * GLOBAL_STATE, const mining_notify *mining_notification)
 {
-    double network_difficulty = networkDifficulty(mining_notification->target);
-    GLOBAL_STATE->network_nonce_diff = (uint64_t) network_difficulty;
-    suffixString(network_difficulty, GLOBAL_STATE->network_diff_string, DIFF_STRING_SIZE, 0);    
+    mining_notification_result_t *result = heap_caps_malloc(sizeof(mining_notification_result_t), MALLOC_CAP_SPIRAM);
+    if (!result) {
+        ESP_LOGE(TAG, "Failed to allocate result in PSRAM");
+        return;
+    }
+    memset(result, 0, sizeof(mining_notification_result_t));
 
-    int coinbase_1_len = strlen(mining_notification->coinbase_1) / 2;
-    int coinbase_2_len = strlen(mining_notification->coinbase_2) / 2;
-    
-    int coinbase_1_offset = 41; // Skip version (4), inputcount (1), prevhash (32), vout (4)
-    if (coinbase_1_len < coinbase_1_offset) return;
+    const char * user = GLOBAL_STATE->SYSTEM_MODULE.is_using_fallback ? GLOBAL_STATE->SYSTEM_MODULE.fallback_pool_user : GLOBAL_STATE->SYSTEM_MODULE.pool_user;
+    bool decode_coinbase = GLOBAL_STATE->SYSTEM_MODULE.is_using_fallback ? GLOBAL_STATE->SYSTEM_MODULE.fallback_pool_decode_coinbase : GLOBAL_STATE->SYSTEM_MODULE.pool_decode_coinbase;
 
-    uint8_t scriptsig_len;
-    hex2bin(mining_notification->coinbase_1 + (coinbase_1_offset * 2), &scriptsig_len, 1);
-    coinbase_1_offset++;
-
-    if (coinbase_1_len < coinbase_1_offset) return;
-    
-    uint8_t block_height_len;
-    hex2bin(mining_notification->coinbase_1 + (coinbase_1_offset * 2), &block_height_len, 1);
-    coinbase_1_offset++;
-
-    if (coinbase_1_len < coinbase_1_offset || block_height_len == 0 || block_height_len > 4) return;
-
-    uint32_t block_height = 0;
-    hex2bin(mining_notification->coinbase_1 + (coinbase_1_offset * 2), (uint8_t *)&block_height, block_height_len);
-    coinbase_1_offset += block_height_len;
-
-    if (block_height != GLOBAL_STATE->block_height) {
-        ESP_LOGI(TAG, "Block height %d", block_height);
-        GLOBAL_STATE->block_height = block_height;
+    if (coinbase_process_notification(mining_notification,
+                                     GLOBAL_STATE->extranonce_str,
+                                     GLOBAL_STATE->extranonce_2_len,
+                                     user,
+                                     decode_coinbase,
+                                     result) != ESP_OK) {
+        ESP_LOGE(TAG, "Failed to process mining notification");
+        free(result);
+        return;
     }
 
-    size_t scriptsig_length = scriptsig_len - 1 - block_height_len;
-    if (coinbase_1_len - coinbase_1_offset < scriptsig_len - 1 - block_height_len) {
-        scriptsig_length -= (strlen(GLOBAL_STATE->extranonce_str) / 2) + GLOBAL_STATE->extranonce_2_len;
+    // Update network difficulty
+    GLOBAL_STATE->network_nonce_diff = (uint64_t) result->network_difficulty;
+    suffixString(result->network_difficulty, GLOBAL_STATE->network_diff_string, DIFF_STRING_SIZE, 0);
+
+    // Update block height
+    if (result->block_height != GLOBAL_STATE->block_height) {
+        ESP_LOGI(TAG, "Block height %d", result->block_height);
+        GLOBAL_STATE->block_height = result->block_height;
     }
-    if (scriptsig_length <= 0) return;
+
+    // Update scriptsig
+    if (result->scriptsig) {
+        if (strcmp(result->scriptsig, GLOBAL_STATE->scriptsig) != 0) {
+            ESP_LOGI(TAG, "Scriptsig: %s", result->scriptsig);
+            strncpy(GLOBAL_STATE->scriptsig, result->scriptsig, sizeof(GLOBAL_STATE->scriptsig) - 1);
+            GLOBAL_STATE->scriptsig[sizeof(GLOBAL_STATE->scriptsig) - 1] = '\0';
+        }
+        free(result->scriptsig);
+    }
+
+    // Update coinbase outputs
+    // Safety guard: ensure output_count doesn't exceed array capacity
+    if (result->output_count > MAX_COINBASE_TX_OUTPUTS) {
+        result->output_count = MAX_COINBASE_TX_OUTPUTS;
+    }
+
+    GLOBAL_STATE->coinbase_value_total_satoshis = result->total_value_satoshis;
+    ESP_LOGI(TAG, "Coinbase outputs: %d, total value: %llu%s", result->output_count, result->total_value_satoshis, result->decoding_enabled ? " sats" : "");
     
-    char * scriptsig = malloc(scriptsig_length + 1);
-    if (!scriptsig) return;
-
-    int coinbase_1_tag_len = coinbase_1_len - coinbase_1_offset;
-    if (coinbase_1_tag_len > scriptsig_length) {
-        coinbase_1_tag_len = scriptsig_length;
-    }
-
-    hex2bin(mining_notification->coinbase_1 + (coinbase_1_offset * 2), (uint8_t *) scriptsig, coinbase_1_tag_len);
-
-    int coinbase_2_tag_len = scriptsig_length - coinbase_1_tag_len;
-
-    if (coinbase_2_len < coinbase_2_tag_len) return;
-    
-    if (coinbase_2_tag_len > 0) {
-        hex2bin(mining_notification->coinbase_2, (uint8_t *) scriptsig + coinbase_1_tag_len, coinbase_2_tag_len);
-    }
-
-    for (int i = 0; i < scriptsig_length; i++) {
-        if (!isprint((unsigned char)scriptsig[i])) {
-            scriptsig[i] = '.';
+    if (result->output_count != GLOBAL_STATE->coinbase_output_count ||
+        memcmp(result->outputs, GLOBAL_STATE->coinbase_outputs, sizeof(coinbase_output_t) * result->output_count) != 0) {
+            
+        GLOBAL_STATE->coinbase_output_count = result->output_count;
+        memcpy(GLOBAL_STATE->coinbase_outputs, result->outputs, sizeof(coinbase_output_t) * result->output_count);
+        GLOBAL_STATE->coinbase_value_user_satoshis = result->user_value_satoshis;
+        for (int i = 0; i < result->output_count; i++) {
+            if (result->outputs[i].value_satoshis > 0) {
+                if (result->outputs[i].is_user_output) {
+                    ESP_LOGI(TAG, "  Output %d: %s (%llu sat) (Your payout address)", i, result->outputs[i].address, result->outputs[i].value_satoshis);
+                } else {
+                    ESP_LOGI(TAG, "  Output %d: %s (%llu sat)", i, result->outputs[i].address, result->outputs[i].value_satoshis);
+                }
+            } else {
+                ESP_LOGI(TAG, "  Output %d: %s", i, result->outputs[i].address);
+            }
         }
     }
 
-    scriptsig[scriptsig_length] = '\0';
-
-    if (GLOBAL_STATE->scriptsig == NULL || strcmp(scriptsig, GLOBAL_STATE->scriptsig) != 0) {
-        ESP_LOGI(TAG, "Scriptsig: %s", scriptsig);
-
-        char * previous_miner_tag = GLOBAL_STATE->scriptsig;
-        GLOBAL_STATE->scriptsig = scriptsig;
-        free(previous_miner_tag);
-    } else {
-        free(scriptsig);
-    }
+    free(result);
 }
 
 void stratum_task(void * pvParameters)
@@ -514,10 +538,6 @@ void stratum_task(void * pvParameters)
 
         //mining.authorize - ID: 3
         STRATUM_V1_authorize(GLOBAL_STATE->transport, authorize_message_id, username, password);
-        STRATUM_V1_stamp_tx(authorize_message_id);
-
-        // Everything is set up, lets make sure we don't abandon work unnecessarily.
-        GLOBAL_STATE->abandon_work = 0;
 
         while (1) {
             char * line = STRATUM_V1_receive_jsonrpc_line(GLOBAL_STATE->transport);
@@ -528,11 +548,7 @@ void stratum_task(void * pvParameters)
                 break;
             }
 
-            double response_time_ms = STRATUM_V1_get_response_time_ms(stratum_api_v1_message.message_id);
-            if (response_time_ms >= 0) {
-                ESP_LOGI(TAG, "Stratum response time: %.2f ms", response_time_ms);
-                GLOBAL_STATE->SYSTEM_MODULE.response_time = response_time_ms;
-            }
+            int64_t receive_time_us = esp_timer_get_time();
 
             STRATUM_V1_parse(&stratum_api_v1_message, line);
             free(line);
@@ -540,8 +556,8 @@ void stratum_task(void * pvParameters)
             if (stratum_api_v1_message.method == MINING_NOTIFY) {
                 GLOBAL_STATE->SYSTEM_MODULE.work_received++;
                 SYSTEM_notify_new_ntime(GLOBAL_STATE, stratum_api_v1_message.mining_notification->ntime);
-                if (stratum_api_v1_message.should_abandon_work &&
-                    (GLOBAL_STATE->stratum_queue.count > 0 || GLOBAL_STATE->ASIC_jobs_queue.count > 0)) {
+                if (stratum_api_v1_message.mining_notification->clean_jobs &&
+                    (GLOBAL_STATE->stratum_queue.count > 0)) {
                     cleanQueue(GLOBAL_STATE);
                 }
                 if (GLOBAL_STATE->stratum_queue.count == QUEUE_SIZE) {
@@ -572,6 +588,8 @@ void stratum_task(void * pvParameters)
                 GLOBAL_STATE->extranonce_str = stratum_api_v1_message.extranonce_str;
                 GLOBAL_STATE->extranonce_2_len = stratum_api_v1_message.extranonce_2_len;
                 free(old_extranonce_str);
+            } else if (stratum_api_v1_message.method == MINING_PING) { 
+                STRATUM_V1_pong(GLOBAL_STATE->transport, stratum_api_v1_message.message_id);
             } else if (stratum_api_v1_message.method == CLIENT_RECONNECT) {
                 ESP_LOGE(TAG, "Pool requested client reconnect...");
                 stratum_close_connection(GLOBAL_STATE);
@@ -599,6 +617,17 @@ void stratum_task(void * pvParameters)
                     ESP_LOGE(TAG, "setup message rejected: %s", stratum_api_v1_message.error_str);
                 }
             }
+
+            float response_time_ms = STRATUM_V1_get_response_time_ms(stratum_api_v1_message.message_id, receive_time_us);
+            if (response_time_ms >= 0) {
+                ESP_LOGI(TAG, "Stratum response time: %.1f ms", response_time_ms);
+                GLOBAL_STATE->SYSTEM_MODULE.response_time = response_time_ms;
+            }
+        }
+
+        if (stratum_api_v1_message.error_str) {
+            free(stratum_api_v1_message.error_str);
+            stratum_api_v1_message.error_str = NULL;
         }
     }
     vTaskDelete(NULL);
