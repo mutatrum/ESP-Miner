@@ -933,7 +933,7 @@ static esp_err_t GET_system_info(httpd_req_t * req)
     cJSON_AddNumberToObject(root, "stratumExtranonceSubscribe", nvs_config_get_bool(NVS_CONFIG_STRATUM_EXTRANONCE_SUBSCRIBE));
     cJSON_AddNumberToObject(root, "stratumTLS", nvs_config_get_u16(NVS_CONFIG_STRATUM_TLS));
     cJSON_AddStringToObject(root, "stratumCert", stratumCert);
-    cJSON_AddNumberToObject(root, "stratumDecodeCoinbase", nvs_config_get_bool(NVS_CONFIG_STRATUM_DECODE_COINBASE));
+    cJSON_AddNumberToObject(root, "stratumDecodeCoinbase", nvs_config_get_bool(NVS_CONFIG_STRATUM_DECODE_COINBASE_TX));
     cJSON_AddStringToObject(root, "fallbackStratumURL", fallbackStratumURL);
     cJSON_AddNumberToObject(root, "fallbackStratumPort", nvs_config_get_u16(NVS_CONFIG_FALLBACK_STRATUM_PORT));
     cJSON_AddStringToObject(root, "fallbackStratumUser", fallbackStratumUser);
@@ -944,6 +944,7 @@ static esp_err_t GET_system_info(httpd_req_t * req)
     cJSON_AddNumberToObject(root, "fallbackStratumProtocol", nvs_config_get_u16(NVS_CONFIG_FALLBACK_STRATUM_PROTOCOL));
     cJSON_AddStringToObject(root, "fallbackStratumV2AuthorityPubkey", fallbackSv2AuthPubkey);
     cJSON_AddNumberToObject(root, "fallbackStratumV2ChannelType", nvs_config_get_u16(NVS_CONFIG_FALLBACK_SV2_CHANNEL_TYPE));
+    cJSON_AddNumberToObject(root, "fallbackStratumDecodeCoinbase", nvs_config_get_bool(NVS_CONFIG_FALLBACK_STRATUM_DECODE_COINBASE_TX));
     cJSON_AddFloatToObject(root, "responseTime", GLOBAL_STATE->SYSTEM_MODULE.response_time);
 
     cJSON_AddStringToObject(root, "version", GLOBAL_STATE->SYSTEM_MODULE.version);
@@ -986,6 +987,12 @@ static esp_err_t GET_system_info(httpd_req_t * req)
     if (GLOBAL_STATE->block_height > 0) {
         cJSON_AddNumberToObject(root, "blockHeight", GLOBAL_STATE->block_height);
         cJSON_AddStringToObject(root, "scriptsig", GLOBAL_STATE->scriptsig);
+
+        cJSON *block_signals_array = cJSON_CreateArray();
+        for (int i = 0; i < GLOBAL_STATE->block_signals_count; i++) {
+            cJSON_AddItemToArray(block_signals_array, cJSON_CreateString(GLOBAL_STATE->block_signals[i]));
+        }
+        cJSON_AddItemToObject(root, "blockSignals", block_signals_array);
 
         cJSON *outputs_array = cJSON_CreateArray();
         for (int i = 0; i < GLOBAL_STATE->coinbase_output_count; i++) {
