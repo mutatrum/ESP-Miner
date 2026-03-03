@@ -62,5 +62,6 @@
         "ssid"
     ],
     "idf.port": "/dev/ttyACM0",
-    "C_Cpp.intelliSenseEngine": "Tag Parser"
+    "C_Cpp.intelliSenseEngine": "Tag Parser",
+    "idf.currentSetup": "/home/mutatrum/esp/v5.5.1/esp-idf"
 }
