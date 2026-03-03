@@ -1,8 +1,8 @@
 import { Component, OnInit, OnDestroy } from '@angular/core';
 import { Observable, Subject, interval, startWith, switchMap, takeUntil } from 'rxjs';
-import { SystemService } from 'src/app/services/system.service';
+import { SystemApiService } from 'src/app/services/system.service';
 import { LoadingService } from 'src/app/services/loading.service';
-import { ISystemInfo } from 'src/models/ISystemInfo';
+import { SystemInfo as ISystemInfo } from 'src/app/generated';
 
 interface DifficultyRow {
   difficulty: number;
@@ -37,7 +37,7 @@ export class SoloChanceComponent implements OnInit, OnDestroy {
   private readonly TIME_MONTH = this.TIME_YEAR / 12;
 
   constructor(
-    private systemService: SystemService,
+    private systemService: SystemApiService,
     private loadingService: LoadingService
   ) {}
 
