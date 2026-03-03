@@ -27,6 +27,7 @@ import { NetworkComponent } from './components/network/network.component';
 import { SettingsComponent } from './components/settings/settings.component';
 import { SwarmComponent } from './components/swarm/swarm.component';
 import { ScoreboardComponent } from './components/scoreboard/scoreboard.component';
+import { SoloChanceComponent } from './components/solo-chance/solo-chance.component';
 import { ThemeConfigComponent } from './components/design/theme-config.component';
 import { DesignComponent } from './components/design/design.component';
 import { AppLayoutModule } from './layout/app.layout.module';
@@ -69,6 +70,7 @@ const components = [
     DateAgoPipe,
     SwarmComponent,
     ScoreboardComponent,
+    SoloChanceComponent,
     SettingsComponent,
     HashSuffixPipe,
     DiffSuffixPipe,
