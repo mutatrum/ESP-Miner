@@ -79,7 +79,6 @@ void create_jobs_task(void *pvParameters)
             current_work_protocol = active_protocol;
         }
 
-        uint64_t start_time = esp_timer_get_time();
         void *new_work = queue_dequeue_timeout(&GLOBAL_STATE->stratum_queue, timeout_ms);
         timeout_ms -= (esp_timer_get_time() - start_time_us) / 1000;
 
