@@ -35,6 +35,7 @@ export class QuicklinkService {
       { regex: /^(eu|au)?solo[46]?.ckpool\.org/, url: `https://$1solostats.ckpool.org/users/${user}` },
       { search: 'atlaspool.io', url: `https://atlaspool.io/dashboard.html?wallet=${user}` },
       { regex: /^(eu\.|tinyminer\.)?m45core\.com$/, url: `https://$1m45core.com/user/${user}` },
+      { regex: /^(.+?)(?:-[a-z]{2})?\.kryptex\.network/, url: `https://pool.kryptex.com/$1/miner/stats/${user.replace(/^solo:/, '')}` },
     ];
 
     const normalizedStratumURL = stratumURL.toLowerCase();
