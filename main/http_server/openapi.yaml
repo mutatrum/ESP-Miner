@@ -17,6 +17,13 @@ servers:
 
 components:
   schemas:
+    GenericResponse:
+      type: object
+      required:
+        - message
+      properties:
+        message:
+          type: string
     SharesRejectedReason:
       type: object
       required:
@@ -122,6 +129,7 @@ components:
         - fallbackStratumUser
         - fallbackStratumTLS
         - fallbackStratumCert
+        - fallbackStratumDecodeCoinbase
         - fanrpm
         - fan2rpm
         - fanspeed
@@ -169,6 +177,7 @@ components:
         - stratumUser
         - stratumTLS
         - stratumCert
+        - stratumDecodeCoinbase
         - temp
         - temp2
         - uptimeSeconds
@@ -184,6 +193,9 @@ components:
         - scriptsig
         - networkDifficulty
         - blockFound
+        - coinbaseOutputs
+        - coinbaseValueTotalSatoshis
+        - coinbaseValueUserSatoshis
         - hashrateMonitor
       properties:
         ASICModel:
@@ -237,6 +249,9 @@ components:
         fallbackStratumCert:
           type: string
           description: Fallback stratum TLS cert
+        fallbackStratumDecodeCoinbase:
+          type: boolean
+          description: Enable fallback pool coinbase transaction decoding
         fanrpm:
           type: number
           description: Current fan speed in RPM
@@ -383,6 +398,9 @@ components:
         stratumCert:
           type: string
           description: Primary stratum TLS cert
+        stratumDecodeCoinbase:
+          type: boolean
+          description: Enable primary pool coinbase transaction decoding
         temp:
           type: number
           description: Average chip temperature
@@ -427,7 +445,32 @@ components:
           description: Current network difficulty
         blockFound:
           type: number
-          description: Whether a block was found (0=no, 1=yes)
+          description: Number of blocks found
+        showNewBlock:
+          type: boolean
+          description: Whether to show the block found notification
+        coinbaseOutputs:
+          type: array
+          description: Coinbase transaction outputs
+          items:
+            type: object
+            title: coinbaseOutput
+            required:
+              - value
+              - address
+            properties:
+              value:
+                type: integer
+                description: Output value in satoshis
+              address:
+                type: string
+                description: Output address
+        coinbaseValueTotalSatoshis:
+          type: integer
+          description: Total value of coinbase transaction in satoshis
+        coinbaseValueUserSatoshis:
+          type: integer
+          description: User's portion of coinbase value in satoshis
         hashrateMonitor:
           type: object
           required:
@@ -748,11 +791,13 @@ paths:
         - in: query
           name: columns
           required: false
+          style: form
+          explode: false
           schema:
             type: array
             items:
               type: string
-            example: hashrate,hashrate_1m,hashrate_10m,hashrate_1h,asicTemp,vrTemp,asicVoltage,voltage,power,current,fanSpeed,fanRpm,fan2Rpm,wifiRssi,freeHeap,responseTime
+            example: [hashrate,hashrate_1m,hashrate_10m,hashrate_1h,asicTemp,vrTemp,asicVoltage,voltage,power,current,fanSpeed,fanRpm,fan2Rpm,wifiRssi,freeHeap,responseTime]
           description: List of labels for which data should be retrieved
       tags:
         - system
@@ -778,6 +823,10 @@ paths:
       responses:
         '200':
           description: System restart initiated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GenericResponse'
         '401':
           description: Unauthorized - Client not in allowed network range
         '500':
@@ -793,6 +842,38 @@ paths:
       responses:
         '200':
           description: Device identify initiated
+          content:
+            application/json:
+              schema:
+                '$ref': '#/components/schemas/GenericResponse'
+        '401':
+          description: Unauthorized - Client not in allowed network range
+        '500':
+          description: Internal server error
+
+  /api/system/blockFound/dismiss:
+    post:
+      summary: Dismiss block found notification
+      description: Dismisses the block found notification while preserving the count
+      operationId: dismissBlockFound
+      tags:
+        - system
+      responses:
+        '200':
+          description: Block found notification dismissed
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  blockFound:
+                    type: number
+                    description: Number of blocks found
+                  showNewBlock:
+                    type: boolean
+                    description: Whether to show the block found notification
+                  message:
+                    type: string
         '401':
           description: Unauthorized - Client not in allowed network range
         '500':
@@ -838,6 +919,10 @@ paths:
       responses:
         '200':
           description: Firmware update successful
+          content:
+            text/plain:
+              schema:
+                type: string
         '400':
           description: Invalid firmware file
         '401':
@@ -862,6 +947,10 @@ paths:
       responses:
         '200':
           description: Web interface update successful
+          content:
+            text/plain:
+              schema:
+                type: string
         '400':
           description: Invalid web interface file
         '401':

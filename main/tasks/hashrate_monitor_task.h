@@ -1,11 +1,11 @@
 #ifndef HASHRATE_MONITOR_TASK_H_
 #define HASHRATE_MONITOR_TASK_H_
 
-#include "common.h"
+#include "asic_common.h"
 
 typedef struct {
     uint32_t value;
-    uint32_t time_ms;
+    uint64_t time_us;
     float hashrate;
 } measurement_t;
 

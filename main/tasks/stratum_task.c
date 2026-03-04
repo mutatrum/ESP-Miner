@@ -1,21 +1,19 @@
 #include "esp_log.h"
-#include "connect.h"
 #include "system.h"
 #include "global_state.h"
-#include "lwip/dns.h"
 #include <lwip/tcpip.h>
 #include <lwip/netdb.h>
-#include <esp_netif.h>
-#include "nvs_config.h"
 #include "stratum_task.h"
 #include "work_queue.h"
 #include "esp_wifi.h"
 #include <esp_sntp.h>
-#include <time.h>
-#include <sys/time.h>
 #include "esp_timer.h"
+#include <sys/time.h>
 #include <stdbool.h>
+#include <string.h>
 #include "utils.h"
+#include "coinbase_decoder.h"
+#include <esp_heap_caps.h>
 
 #define MAX_RETRY_ATTEMPTS 3
 #define MAX_CRITICAL_RETRY_ATTEMPTS 5
@@ -237,11 +235,9 @@ bool is_wifi_connected() {
 
 void cleanQueue(GlobalState * GLOBAL_STATE) {
     ESP_LOGI(TAG, "Clean Jobs: clearing queue");
-    GLOBAL_STATE->abandon_work = 1;
     queue_clear(&GLOBAL_STATE->stratum_queue);
 
     pthread_mutex_lock(&GLOBAL_STATE->valid_jobs_lock);
-    ASIC_jobs_queue_clear(&GLOBAL_STATE->ASIC_jobs_queue);
     for (int i = 0; i < 128; i = i + 4) {
         GLOBAL_STATE->valid_jobs[i] = 0;
     }
@@ -339,78 +335,76 @@ void stratum_primary_heartbeat(void * pvParameters)
 
 static void decode_mining_notification(GlobalState * GLOBAL_STATE, const mining_notify *mining_notification)
 {
-    double network_difficulty = networkDifficulty(mining_notification->target);
-    GLOBAL_STATE->network_nonce_diff = (uint64_t) network_difficulty;
-    suffixString(network_difficulty, GLOBAL_STATE->network_diff_string, DIFF_STRING_SIZE, 0);    
+    mining_notification_result_t *result = heap_caps_malloc(sizeof(mining_notification_result_t), MALLOC_CAP_SPIRAM);
+    if (!result) {
+        ESP_LOGE(TAG, "Failed to allocate result in PSRAM");
+        return;
+    }
+    memset(result, 0, sizeof(mining_notification_result_t));
 
-    int coinbase_1_len = strlen(mining_notification->coinbase_1) / 2;
-    int coinbase_2_len = strlen(mining_notification->coinbase_2) / 2;
-    
-    int coinbase_1_offset = 41; // Skip version (4), inputcount (1), prevhash (32), vout (4)
-    if (coinbase_1_len < coinbase_1_offset) return;
+    const char * user = GLOBAL_STATE->SYSTEM_MODULE.is_using_fallback ? GLOBAL_STATE->SYSTEM_MODULE.fallback_pool_user : GLOBAL_STATE->SYSTEM_MODULE.pool_user;
+    bool decode_coinbase = GLOBAL_STATE->SYSTEM_MODULE.is_using_fallback ? GLOBAL_STATE->SYSTEM_MODULE.fallback_pool_decode_coinbase : GLOBAL_STATE->SYSTEM_MODULE.pool_decode_coinbase;
 
-    uint8_t scriptsig_len;
-    hex2bin(mining_notification->coinbase_1 + (coinbase_1_offset * 2), &scriptsig_len, 1);
-    coinbase_1_offset++;
-
-    if (coinbase_1_len < coinbase_1_offset) return;
-    
-    uint8_t block_height_len;
-    hex2bin(mining_notification->coinbase_1 + (coinbase_1_offset * 2), &block_height_len, 1);
-    coinbase_1_offset++;
-
-    if (coinbase_1_len < coinbase_1_offset || block_height_len == 0 || block_height_len > 4) return;
-
-    uint32_t block_height = 0;
-    hex2bin(mining_notification->coinbase_1 + (coinbase_1_offset * 2), (uint8_t *)&block_height, block_height_len);
-    coinbase_1_offset += block_height_len;
-
-    if (block_height != GLOBAL_STATE->block_height) {
-        ESP_LOGI(TAG, "Block height %d", block_height);
-        GLOBAL_STATE->block_height = block_height;
+    if (coinbase_process_notification(mining_notification,
+                                     GLOBAL_STATE->extranonce_str,
+                                     GLOBAL_STATE->extranonce_2_len,
+                                     user,
+                                     decode_coinbase,
+                                     result) != ESP_OK) {
+        ESP_LOGE(TAG, "Failed to process mining notification");
+        free(result);
+        return;
     }
 
-    size_t scriptsig_length = scriptsig_len - 1 - block_height_len;
-    if (coinbase_1_len - coinbase_1_offset < scriptsig_len - 1 - block_height_len) {
-        scriptsig_length -= (strlen(GLOBAL_STATE->extranonce_str) / 2) + GLOBAL_STATE->extranonce_2_len;
+    // Update network difficulty
+    GLOBAL_STATE->network_nonce_diff = (uint64_t) result->network_difficulty;
+    suffixString(result->network_difficulty, GLOBAL_STATE->network_diff_string, DIFF_STRING_SIZE, 0);
+
+    // Update block height
+    if (result->block_height != GLOBAL_STATE->block_height) {
+        ESP_LOGI(TAG, "Block height %d", result->block_height);
+        GLOBAL_STATE->block_height = result->block_height;
     }
-    if (scriptsig_length <= 0) return;
+
+    // Update scriptsig
+    if (result->scriptsig) {
+        if (strcmp(result->scriptsig, GLOBAL_STATE->scriptsig) != 0) {
+            ESP_LOGI(TAG, "Scriptsig: %s", result->scriptsig);
+            strncpy(GLOBAL_STATE->scriptsig, result->scriptsig, sizeof(GLOBAL_STATE->scriptsig) - 1);
+            GLOBAL_STATE->scriptsig[sizeof(GLOBAL_STATE->scriptsig) - 1] = '\0';
+        }
+        free(result->scriptsig);
+    }
+
+    // Update coinbase outputs
+    // Safety guard: ensure output_count doesn't exceed array capacity
+    if (result->output_count > MAX_COINBASE_TX_OUTPUTS) {
+        result->output_count = MAX_COINBASE_TX_OUTPUTS;
+    }
+
+    GLOBAL_STATE->coinbase_value_total_satoshis = result->total_value_satoshis;
+    ESP_LOGI(TAG, "Coinbase outputs: %d, total value: %llu%s", result->output_count, result->total_value_satoshis, result->decoding_enabled ? " sats" : "");
     
-    char * scriptsig = malloc(scriptsig_length + 1);
-    if (!scriptsig) return;
-
-    int coinbase_1_tag_len = coinbase_1_len - coinbase_1_offset;
-    if (coinbase_1_tag_len > scriptsig_length) {
-        coinbase_1_tag_len = scriptsig_length;
-    }
-
-    hex2bin(mining_notification->coinbase_1 + (coinbase_1_offset * 2), (uint8_t *) scriptsig, coinbase_1_tag_len);
-
-    int coinbase_2_tag_len = scriptsig_length - coinbase_1_tag_len;
-
-    if (coinbase_2_len < coinbase_2_tag_len) return;
-    
-    if (coinbase_2_tag_len > 0) {
-        hex2bin(mining_notification->coinbase_2, (uint8_t *) scriptsig + coinbase_1_tag_len, coinbase_2_tag_len);
-    }
-
-    for (int i = 0; i < scriptsig_length; i++) {
-        if (!isprint((unsigned char)scriptsig[i])) {
-            scriptsig[i] = '.';
+    if (result->output_count != GLOBAL_STATE->coinbase_output_count ||
+        memcmp(result->outputs, GLOBAL_STATE->coinbase_outputs, sizeof(coinbase_output_t) * result->output_count) != 0) {
+            
+        GLOBAL_STATE->coinbase_output_count = result->output_count;
+        memcpy(GLOBAL_STATE->coinbase_outputs, result->outputs, sizeof(coinbase_output_t) * result->output_count);
+        GLOBAL_STATE->coinbase_value_user_satoshis = result->user_value_satoshis;
+        for (int i = 0; i < result->output_count; i++) {
+            if (result->outputs[i].value_satoshis > 0) {
+                if (result->outputs[i].is_user_output) {
+                    ESP_LOGI(TAG, "  Output %d: %s (%llu sat) (Your payout address)", i, result->outputs[i].address, result->outputs[i].value_satoshis);
+                } else {
+                    ESP_LOGI(TAG, "  Output %d: %s (%llu sat)", i, result->outputs[i].address, result->outputs[i].value_satoshis);
+                }
+            } else {
+                ESP_LOGI(TAG, "  Output %d: %s", i, result->outputs[i].address);
+            }
         }
     }
 
-    scriptsig[scriptsig_length] = '\0';
-
-    if (GLOBAL_STATE->scriptsig == NULL || strcmp(scriptsig, GLOBAL_STATE->scriptsig) != 0) {
-        ESP_LOGI(TAG, "Scriptsig: %s", scriptsig);
-
-        char * previous_miner_tag = GLOBAL_STATE->scriptsig;
-        GLOBAL_STATE->scriptsig = scriptsig;
-        free(previous_miner_tag);
-    } else {
-        free(scriptsig);
-    }
+    free(result);
 }
 
 void stratum_task(void * pvParameters)
@@ -544,10 +538,6 @@ void stratum_task(void * pvParameters)
 
         //mining.authorize - ID: 3
         STRATUM_V1_authorize(GLOBAL_STATE->transport, authorize_message_id, username, password);
-        STRATUM_V1_stamp_tx(authorize_message_id);
-
-        // Everything is set up, lets make sure we don't abandon work unnecessarily.
-        GLOBAL_STATE->abandon_work = 0;
 
         while (1) {
             char * line = STRATUM_V1_receive_jsonrpc_line(GLOBAL_STATE->transport);
@@ -558,11 +548,7 @@ void stratum_task(void * pvParameters)
                 break;
             }
 
-            double response_time_ms = STRATUM_V1_get_response_time_ms(stratum_api_v1_message.message_id);
-            if (response_time_ms >= 0) {
-                ESP_LOGI(TAG, "Stratum response time: %.2f ms", response_time_ms);
-                GLOBAL_STATE->SYSTEM_MODULE.response_time = response_time_ms;
-            }
+            int64_t receive_time_us = esp_timer_get_time();
 
             STRATUM_V1_parse(&stratum_api_v1_message, line);
             free(line);
@@ -570,8 +556,8 @@ void stratum_task(void * pvParameters)
             if (stratum_api_v1_message.method == MINING_NOTIFY) {
                 GLOBAL_STATE->SYSTEM_MODULE.work_received++;
                 SYSTEM_notify_new_ntime(GLOBAL_STATE, stratum_api_v1_message.mining_notification->ntime);
-                if (stratum_api_v1_message.should_abandon_work &&
-                    (GLOBAL_STATE->stratum_queue.count > 0 || GLOBAL_STATE->ASIC_jobs_queue.count > 0)) {
+                if (stratum_api_v1_message.mining_notification->clean_jobs &&
+                    (GLOBAL_STATE->stratum_queue.count > 0)) {
                     cleanQueue(GLOBAL_STATE);
                 }
                 if (GLOBAL_STATE->stratum_queue.count == QUEUE_SIZE) {
@@ -631,6 +617,17 @@ void stratum_task(void * pvParameters)
                     ESP_LOGE(TAG, "setup message rejected: %s", stratum_api_v1_message.error_str);
                 }
             }
+
+            float response_time_ms = STRATUM_V1_get_response_time_ms(stratum_api_v1_message.message_id, receive_time_us);
+            if (response_time_ms >= 0) {
+                ESP_LOGI(TAG, "Stratum response time: %.1f ms", response_time_ms);
+                GLOBAL_STATE->SYSTEM_MODULE.response_time = response_time_ms;
+            }
+        }
+
+        if (stratum_api_v1_message.error_str) {
+            free(stratum_api_v1_message.error_str);
+            stratum_api_v1_message.error_str = NULL;
         }
     }
     vTaskDelete(NULL);

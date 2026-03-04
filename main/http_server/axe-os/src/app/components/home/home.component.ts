@@ -10,10 +10,9 @@ import { DiffSuffixPipe } from 'src/app/pipes/diff-suffix.pipe';
 import { QuicklinkService } from 'src/app/services/quicklink.service';
 import { ShareRejectionExplanationService } from 'src/app/services/share-rejection-explanation.service';
 import { LoadingService } from 'src/app/services/loading.service';
-import { SystemService } from 'src/app/services/system.service';
+import { SystemApiService } from 'src/app/services/system.service';
 import { ThemeService } from 'src/app/services/theme.service';
-import { ISystemInfo } from 'src/models/ISystemInfo';
-import { ISystemStatistics } from 'src/models/ISystemStatistics';
+import { SystemInfo as ISystemInfo, SystemStatistics as ISystemStatistics } from 'src/app/generated';
 import { Title } from '@angular/platform-browser';
 import { UIChart } from 'primeng/chart';
 import { SelectItem } from 'primeng/api';
@@ -29,7 +28,9 @@ type MessageType =
   | 'POWER_FAULT'
   | 'FREQUENCY_LOW'
   | 'FALLBACK_STRATUM'
-  | 'VERSION_MISMATCH';
+  | 'VERSION_MISMATCH'
+  | 'NOT_SOLO_MINING'
+  | 'NO_MINING_REWARD';
 
 interface ISystemMessage {
   type: MessageType;
@@ -100,7 +101,7 @@ export class HomeComponent implements OnInit, OnDestroy {
 
   constructor(
     private fb: FormBuilder,
-    private systemService: SystemService,
+    private systemService: SystemApiService,
     private themeService: ThemeService,
     private quickLinkService: QuicklinkService,
     private titleService: Title,
@@ -330,7 +331,7 @@ export class HomeComponent implements OnInit, OnDestroy {
           if (stats.labels[i] === 'timestamp')                         { idxTimestamp = i; }
         }
 
-        stats.statistics.forEach(element => {
+        stats.statistics.forEach((element: number[]) => {
           switch (chartLabelValue(chartY1DataLabel)) {
             case eChartLabel.asicVoltage:
             case eChartLabel.voltage:
@@ -538,10 +539,25 @@ export class HomeComponent implements OnInit, OnDestroy {
       });
   }
 
+  public dismissBlockFound(): void {
+    this.systemService.dismissBlockFound()
+      .pipe(
+        this.loadingService.lockUIUntilComplete()
+      )
+      .subscribe({
+        next: () => {
+          this.toastr.success('Block found notification dismissed');
+        },
+        error: (err: HttpErrorResponse) => {
+          this.toastr.error(`Error dismissing notification: ${err.message}`);
+        }
+      });
+  }
+
   private setTitle(info: ISystemInfo, systemInfoError: ISystemInfoError) {
     const parts = [this.pageDefaultTitle];
 
-    if (info.blockFound) {
+    if (info.showNewBlock) {
       parts.push('Block found 🎉');
     } else if (!!systemInfoError.duration) {
       parts.push('Unable to reach the device');
@@ -605,6 +621,13 @@ export class HomeComponent implements OnInit, OnDestroy {
     return this.calculateAverage(efficiencies);
   }
 
+  getPayoutPercentage(info: ISystemInfo) {
+    if (info.coinbaseValueTotalSatoshis) {
+      return (info.coinbaseValueUserSatoshis ?? 0) / info.coinbaseValueTotalSatoshis * 100;
+    }
+    return -1;
+  }
+
   public handleSystemMessages(info: ISystemInfo, systemInfoError: ISystemInfoError) {
     const updateMessage = (
       condition: boolean,
@@ -635,6 +658,11 @@ export class HomeComponent implements OnInit, OnDestroy {
     updateMessage(!info.frequency || info.frequency < 400, 'FREQUENCY_LOW', 'warn', 'Device frequency is set low - See settings');
     updateMessage(!!info.isUsingFallbackStratum, 'FALLBACK_STRATUM', 'warn', 'Using fallback pool - Share stats reset. Check Pool Settings and / or reboot Device.');
     updateMessage(info.version !== info.axeOSVersion, 'VERSION_MISMATCH', 'warn', `Firmware (${info.version}) and AxeOS (${info.axeOSVersion}) versions do not match. Please make sure to update both www.bin and esp-miner.bin.`);
+    if (info.coinbaseOutputs.length > 0) {
+      let percentage = this.getPayoutPercentage(info);
+      updateMessage(percentage > 0 && percentage < 95, 'NOT_SOLO_MINING', 'warn', `Your share of the mining reward is only ${percentage.toFixed(1)}%`);
+      updateMessage(percentage === 0, 'NO_MINING_REWARD', 'warn', `You don't have a share in the mining reward`);
+    }
   }
 
   private calculateEfficiency(info: ISystemInfo, key: 'hashRate' | 'expectedHashrate'): number {
@@ -807,6 +835,16 @@ export class HomeComponent implements OnInit, OnDestroy {
         const settings = HomeComponent.getSettingsForLabel(datasetLabel);
         return value.toLocaleString(undefined, { useGrouping: false, maximumFractionDigits: args?.tickmark ? undefined : settings.precision }) + settings.suffix;
     }
+  }
+
+  getAddressPart(user: string): string {
+    const dotIndex = user.lastIndexOf('.');
+    return dotIndex !== -1 ? user.substring(0, dotIndex) : user;
+  }
+
+  getSuffixPart(user: string): string {
+    const dotIndex = user.lastIndexOf('.');
+    return dotIndex !== -1 ? '.' + user.substring(dotIndex + 1) : '';
   }
 
   dataSourceLabels(info: ISystemInfo) {
