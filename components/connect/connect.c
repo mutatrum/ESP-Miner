@@ -345,12 +345,6 @@ void connect_init(void *pvParameters)
 {
     GlobalState *GLOBAL_STATE = (GlobalState *)pvParameters;
 
-    // Copy WiFi SSID to global state
-    char *wifi_ssid = nvs_config_get_string(NVS_CONFIG_WIFI_SSID);
-    strncpy(GLOBAL_STATE->SYSTEM_MODULE.ssid, wifi_ssid, sizeof(GLOBAL_STATE->SYSTEM_MODULE.ssid) - 1);
-    GLOBAL_STATE->SYSTEM_MODULE.ssid[sizeof(GLOBAL_STATE->SYSTEM_MODULE.ssid) - 1] = '\0';
-    free(wifi_ssid);
-
     ESP_ERROR_CHECK(esp_netif_init());
     ESP_ERROR_CHECK(esp_event_loop_create_default());
 
