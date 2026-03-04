@@ -190,11 +190,14 @@ static void event_handler(void * arg, esp_event_base_t event_base, int32_t event
             ESP_LOGI(TAG, "Could not connect to '%.*s' [rssi %d]: reason %d", event->ssid_len, event->ssid, event->rssi, event->reason);
             if (clients_connected_to_ap > 0) {
                 ESP_LOGI(TAG, "Client(s) connected to AP, not retrying...");
-                sprintf(GLOBAL_STATE->SYSTEM_MODULE.network_status, "Config AP connected!");
+                snprintf(GLOBAL_STATE->SYSTEM_MODULE.network_status, sizeof(GLOBAL_STATE->SYSTEM_MODULE.network_status), "Config AP connected!");
                 return;
             }
 
-            sprintf(GLOBAL_STATE->SYSTEM_MODULE.network_status, "%s (Error %d, retry #%d)", get_wifi_reason_string(event->reason), event->reason, s_retry_num);
+            GLOBAL_STATE->SYSTEM_MODULE.is_connected = false;
+            wifi_softap_on();
+
+            snprintf(GLOBAL_STATE->SYSTEM_MODULE.network_status, sizeof(GLOBAL_STATE->SYSTEM_MODULE.network_status), "%s (Error %d, retry #%d)", get_wifi_reason_string(event->reason), event->reason, s_retry_num);
             ESP_LOGI(TAG, "Wi-Fi status: %s", GLOBAL_STATE->SYSTEM_MODULE.network_status);
 
             // Wait a little
@@ -306,26 +309,37 @@ esp_netif_t * wifi_init_softap(GlobalState * GLOBAL_STATE)
     return esp_netif_ap;
 }
 
+static bool is_wifi_operation_allowed(esp_err_t err)
+{
+    if (err == ESP_ERR_WIFI_NOT_INIT || err == ESP_ERR_WIFI_STOP_STATE) {
+        ESP_LOGI(TAG, "WiFi not initialized or stopped, skipping operation");
+        return false;
+    }
+    return true;
+}
+
 void toggle_wifi_softap(void)
 {
     wifi_mode_t mode = WIFI_MODE_NULL;
     ESP_ERROR_CHECK(esp_wifi_get_mode(&mode));
 
-    switch (mode) {
-        case WIFI_MODE_NULL:
-            ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_AP));
-            break;
-        case WIFI_MODE_STA:
-            ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_APSTA));
-            break;
-        case WIFI_MODE_AP:
-            ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_NULL));
-            break;
-        case WIFI_MODE_APSTA:
-            ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_STA));
-            break;
-        default:
-            break;
+    if (is_wifi_operation_allowed(err)) {
+        switch (mode) {
+            case WIFI_MODE_NULL:
+                ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_AP));
+                break;
+            case WIFI_MODE_STA:
+                ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_APSTA));
+                break;
+            case WIFI_MODE_AP:
+                ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_NULL));
+                break;
+            case WIFI_MODE_APSTA:
+                ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_STA));
+                break;
+            default:
+                break;
+        }
     }
 }
 
@@ -352,10 +366,10 @@ void connect_init(void *pvParameters)
     ESP_ERROR_CHECK(esp_wifi_init(&cfg));
 
     // Configure and start SoftAP
-    ESP_ERROR_CHECK(esp_wifi_set_mode(
-        GLOBAL_STATE->SYSTEM_MODULE.network_mode == NETWORK_MODE_WIFI
-            ? WIFI_MODE_APSTA
-            : WIFI_MODE_AP));
+    esp_err_t err = esp_wifi_set_mode(GLOBAL_STATE->SYSTEM_MODULE.network_mode == NETWORK_MODE_WIFI ? WIFI_MODE_APSTA : WIFI_MODE_AP);
+    if (is_wifi_operation_allowed(err)) {
+        ESP_ERROR_CHECK(err);
+    }
 
     // Initialize SoftAP
     wifi_init_softap(GLOBAL_STATE);

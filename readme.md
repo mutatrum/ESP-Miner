@@ -132,6 +132,37 @@ In order to unlock the Input fields for ASIC Frequency and ASIC Core Voltage you
 
 The Bitaxe supports Ethernet-over-USB (NCM) as an alternative to WiFi connectivity. See [Ethernet-over-USB](ethernet-over-usb.md) for more details.
 
+## Development using esp-miner/devcontainer
+
+This configuration allows you to edit locally and compile the source code using a docker container so you don't have to install the ESP-IDF toolchain and other supporting software on your computer to compile the firmware.
+
+### Prerequisites
+
+- Docker server
+
+### Local PC Setup
+
+These instructions will assume an installation to your home directory.
+```
+cd ~
+git clone https://github.com/bitaxeorg/ESP-MINER.git
+cd ESP-MINER
+git checkout <the branch you want>
+# The next step builds the docker container that will compile the source code
+# This will take several minutes to finish
+docker build -t espminer-build .devcontainer
+```
+### Building
+
+```
+cd ~/ESP-MINER
+docker run --rm -it -v $PWD:/workspace espminer-build /bin/bash
+git config --global --add safe.directory /workspace    # set git permissions or build will fail; only done once
+cd /workspace
+idf.py build
+```	
+Once the build is done exit out of the docker session and flash the new firmware.
+
 ## Development
 
 ### Prerequisites
