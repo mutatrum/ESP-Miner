@@ -335,7 +335,7 @@ void BAP_send_subscription_update(GlobalState *state) {
                             if (!wifi_pass) {
                                 wifi_pass = strdup("");
                             }
-                            BAP_send_if_changed("network_status", network_status_str, last_values.network_status sizeof(last_values.network_status), &last_values_valid.network_status);
+                            BAP_send_if_changed("network_status", network_status_str, last_values.network_status, sizeof(last_values.network_status), &last_values_valid.network_status);
                             BAP_send_if_changed("wifi_ssid", state->SYSTEM_MODULE.ssid, last_values.wifi_ssid, sizeof(last_values.wifi_ssid), &last_values_valid.wifi_ssid);
                             BAP_send_if_changed("wifi_password", wifi_pass, last_values.wifi_password, sizeof(last_values.wifi_password), &last_values_valid.wifi_password);
                             BAP_send_if_changed("wifi_rssi", rssi_str, last_values.wifi_rssi, sizeof(last_values.wifi_rssi), &last_values_valid.wifi_rssi);

@@ -194,9 +194,6 @@ static void event_handler(void * arg, esp_event_base_t event_base, int32_t event
                 return;
             }
 
-            GLOBAL_STATE->SYSTEM_MODULE.is_connected = false;
-            wifi_softap_on();
-
             snprintf(GLOBAL_STATE->SYSTEM_MODULE.network_status, sizeof(GLOBAL_STATE->SYSTEM_MODULE.network_status), "%s (Error %d, retry #%d)", get_wifi_reason_string(event->reason), event->reason, s_retry_num);
             ESP_LOGI(TAG, "Wi-Fi status: %s", GLOBAL_STATE->SYSTEM_MODULE.network_status);
 
@@ -321,7 +318,8 @@ static bool is_wifi_operation_allowed(esp_err_t err)
 void toggle_wifi_softap(void)
 {
     wifi_mode_t mode = WIFI_MODE_NULL;
-    ESP_ERROR_CHECK(esp_wifi_get_mode(&mode));
+
+    esp_err_t err = esp_wifi_get_mode(&mode);
 
     if (is_wifi_operation_allowed(err)) {
         switch (mode) {
