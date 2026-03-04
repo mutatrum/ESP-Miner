@@ -3,12 +3,14 @@
 
 #include <stdbool.h>
 #include <stdint.h>
-#include "asic_task.h"
-#include "common.h"
+#include "asic_common.h"
+#include "freertos/FreeRTOS.h"
+#include "freertos/semphr.h"
 #include "power_management_task.h"
 #include "hashrate_monitor_task.h"
 #include "serial.h"
 #include "stratum_api.h"
+#include "coinbase_decoder.h"
 #include "work_queue.h"
 #include "device_config.h"
 #include "display.h"
@@ -44,7 +46,8 @@ typedef struct
     char best_diff_string[DIFF_STRING_SIZE];
     uint64_t best_session_nonce_diff;
     char best_session_diff_string[DIFF_STRING_SIZE];
-    bool block_found;
+    int block_found;
+    bool show_new_block;
     char * ssid;
     char wifi_status[256];
     char ip_addr_str[16]; // IP4ADDR_STRLEN_MAX
@@ -65,7 +68,9 @@ typedef struct
     uint16_t fallback_pool_difficulty;
     bool pool_extranonce_subscribe;
     bool fallback_pool_extranonce_subscribe;
-    double response_time;
+    bool pool_decode_coinbase;
+    bool fallback_pool_decode_coinbase;
+    float response_time;
     bool use_fallback_stratum;
     uint16_t pool_is_tls;
     uint16_t fallback_pool_is_tls;
@@ -99,8 +104,19 @@ typedef struct
 
 typedef struct
 {
+    // ASIC may not return the nonce in the same order as the jobs were sent
+    // it also may return a previous nonce under some circumstances
+    // so we keep a list of jobs indexed by the job id
+    bm_job **active_jobs;
+    // Current job to be processed (replaces ASIC_jobs_queue)
+    bm_job *current_job;
+    //semaphone
+    SemaphoreHandle_t semaphore;
+} AsicTaskModule;
+
+typedef struct
+{
     work_queue stratum_queue;
-    work_queue ASIC_jobs_queue;
 
     SystemModule SYSTEM_MODULE;
     DeviceConfig DEVICE_CONFIG;
@@ -112,7 +128,6 @@ typedef struct
 
     char * extranonce_str;
     int extranonce_2_len;
-    int abandon_work;
 
     uint8_t * valid_jobs;
     pthread_mutex_t valid_jobs_lock;
@@ -132,7 +147,11 @@ typedef struct
     bool psram_is_available;
 
     int block_height;
-    char * scriptsig;
+    char scriptsig[128];
+    coinbase_output_t coinbase_outputs[MAX_COINBASE_TX_OUTPUTS];
+    int coinbase_output_count;
+    uint64_t coinbase_value_total_satoshis;
+    uint64_t coinbase_value_user_satoshis;
     uint64_t network_nonce_diff;
     char network_diff_string[DIFF_STRING_SIZE];
 } GlobalState;

@@ -85,6 +85,7 @@ export class SystemApiService {
         stratumExtranonceSubscribe: !!0,
         stratumTLS: !!0,
         stratumCert: "",
+        stratumDecodeCoinbase: true,
         fallbackStratumURL: "test.public-pool.io",
         fallbackStratumPort: 21497,
         fallbackStratumUser: "bc1q99n3pu025yyu0jlywpmwzalyhm36tg5u37w20d.bitaxe-U1",
@@ -92,6 +93,7 @@ export class SystemApiService {
         fallbackStratumExtranonceSubscribe: !!0,
         fallbackStratumTLS: !!0,
         fallbackStratumCert: "",
+        fallbackStratumDecodeCoinbase: true,
         poolDifficulty: 1000,
         responseTime: 10,
         isUsingFallbackStratum: 0,
@@ -133,7 +135,11 @@ export class SystemApiService {
           }],
           hashrate: 441.2579,
         },
-        blockFound: 0,
+        blockFound: 1,
+        showNewBlock: true,
+        coinbaseOutputs: [{value: 50, address: "payoutaddress"}],
+        coinbaseValueTotalSatoshis: 50,
+        coinbaseValueUserSatoshis: 50,
       }
     ).pipe(delay(1000));
   }
@@ -247,6 +253,18 @@ export class SystemApiService {
     }
 
     return of('Device restarted (mock)');
+  }
+
+  public dismissBlockFound(uri: string = '') {
+    if (environment.production && this.generatedSystemService && !uri) {
+      return this.generatedSystemService.dismissBlockFound();
+    }
+
+    if (environment.production && uri) {
+      return this.httpClient.post(`${uri}/api/system/blockFound/dismiss`, {});
+    }
+
+    return of('Block found notification dismissed (mock)');
   }
 
   public identify(uri: string = '') {
