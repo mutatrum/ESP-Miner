@@ -7,7 +7,6 @@ import { SystemInfo as ISystemInfo } from 'src/app/generated';
 interface DifficultyRow {
   difficulty: number;
   label?: string;
-  type?: 'fixed' | 'pool' | 'session' | 'best' | 'network' | 'uptime';
   tooltip?: string;
   timeToFind: number;
   tenMin: string;
@@ -65,11 +64,11 @@ export class SoloChanceComponent implements OnInit, OnDestroy {
   private generateRows(info: ISystemInfo): void {
     const hashRate = info.expectedHashrate; // in GH/s
     
-    const difficulties: Array<{ value: number; label?: string; type: DifficultyRow['type']; tooltip?: string;  }> = [];
+    const difficulties: Array<{ value: number; label?: string; tooltip?: string;  }> = [];
     
     let diff = 1;
     while (diff < (info.networkDifficulty ?? 1e14)) {
-      difficulties.push({value: diff, type: 'fixed'});
+      difficulties.push({value: diff});
       diff *= 1e3;
     }
     
@@ -78,44 +77,39 @@ export class SoloChanceComponent implements OnInit, OnDestroy {
       difficulties.push({
         value: expectedReachedDifficulty,
         label: '⌚ Uptime',
-        type: 'uptime',
         tooltip: 'Expected difficulty reached with current hashrate and uptime',
       });
     }
 
     // Add dynamic difficulties
     if (info.poolDifficulty > 0) {
-      difficulties.push({ 
-        value: info.poolDifficulty, 
-        label: '🎯 Pool', 
-        type: 'pool',
+      difficulties.push({
+        value: info.poolDifficulty,
+        label: '🎯 Pool',
         tooltip: 'Your current pool difficulty setting',
       });
     }
     
     if (info.bestSessionDiff > 0) {
-      difficulties.push({ 
-        value: info.bestSessionDiff, 
-        label: '🏆 Session Best', 
-        type: 'session',
+      difficulties.push({
+        value: info.bestSessionDiff,
+        label: '🏆 Session Best',
         tooltip: 'Best difficulty found since system boot',
       });
     }
     
     if (info.bestDiff > 0) {
-      difficulties.push({ 
-        value: info.bestDiff, 
-        label: '🥇 All-time Best', 
-        type: 'best',
+      difficulties.push({
+        value: info.bestDiff,
+        label: '🥇 All-time Best',
         tooltip: 'Best difficulty ever found by this device',
       });
     }
     
     if (info.networkDifficulty && info.networkDifficulty > 0) {
-      difficulties.push({ 
-        value: info.networkDifficulty, 
-        label: '🎰 Network', 
-        type: 'network',
+      difficulties.push({
+        value: info.networkDifficulty,
+        label: '🎰 Network',
         tooltip: 'Current Bitcoin network difficulty (finding this = solo block!)',
       });
     }
@@ -124,8 +118,8 @@ export class SoloChanceComponent implements OnInit, OnDestroy {
     difficulties.sort((a, b) => a.value - b.value);
     
     // Remove duplicates - if a labeled row has the same difficulty as a fixed row, keep only the labeled one
-    const uniqueDifficulties: Array<{ value: number; label?: string; tooltip?: string; type: DifficultyRow['type'] }> = [];
-    const seenDifficulties = new Map<number, { value: number; label?: string; tooltip?: string; type: DifficultyRow['type'] }>();
+    const uniqueDifficulties: Array<{ value: number; label?: string; tooltip?: string }> = [];
+    const seenDifficulties = new Map<number, { value: number; label?: string; tooltip?: string }>();
     
     difficulties.forEach(item => {
       const existing = seenDifficulties.get(item.value);
@@ -147,7 +141,6 @@ export class SoloChanceComponent implements OnInit, OnDestroy {
         difficulty: diff.value,
         label: diff.label,
         tooltip: diff.tooltip,
-        type: diff.type,
         timeToFind: this.calculateTimeToFind(diff.value, hashRate),
         tenMin: this.formatProbability(diff.value, hashRate, this.TIME_10MIN),
         hour: this.formatProbability(diff.value, hashRate, this.TIME_HOUR),
