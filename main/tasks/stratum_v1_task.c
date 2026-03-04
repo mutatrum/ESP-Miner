@@ -223,11 +223,6 @@ static void set_socket_options(esp_transport_handle_t transport)
     }
 }
 
-static bool is_wifi_connected(void)
-{
-    wifi_ap_record_t ap_info;
-    return (esp_wifi_sta_get_ap_info(&ap_info) == ESP_OK);
-}
 
 static void cleanQueue(GlobalState *GLOBAL_STATE)
 {
@@ -262,7 +257,7 @@ void stratum_v1_close_connection(GlobalState *GLOBAL_STATE)
     vTaskDelay(1000 / portTICK_PERIOD_MS);
 }
 
-static void decode_mining_notification(GlobalState *GLOBAL_STATE, const mining_notify *mining_notification)
+static void decode_mining_notification(GlobalState * GLOBAL_STATE, const mining_notify *mining_notification)
 {
     mining_notification_result_t *result = heap_caps_malloc(sizeof(mining_notification_result_t), MALLOC_CAP_SPIRAM);
     if (!result) {
@@ -378,7 +373,7 @@ void stratum_v1_task(void *pvParameters)
             vTaskDelete(NULL);
         }
 
-        if (!is_wifi_connected()) {
+        if (!GLOBAL_STATE->SYSTEM_MODULE.is_connected) {
             ESP_LOGI(TAG, "WiFi disconnected, attempting to reconnect...");
             vTaskDelay(10000 / portTICK_PERIOD_MS);
             continue;

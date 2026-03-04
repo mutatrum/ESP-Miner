@@ -1,5 +1,6 @@
 #include "esp_event.h"
 #include "esp_log.h"
+#include "esp_netif.h"
 #include "esp_psram.h"
 
 #include "asic_result_task.h"
@@ -19,6 +20,7 @@
 #include "bap/bap.h"
 #include "device_config.h"
 #include "connect.h"
+#include "usb_net.h"
 #include "asic_reset.h"
 #include "asic_init.h"
 
@@ -81,8 +83,8 @@ void app_main(void)
         ESP_LOGE(TAG, "Failed to init scoreboard");
     }
 
-    // init AP and connect to wifi
-    wifi_init(&GLOBAL_STATE);
+    // init AP and connect to network
+    connect_init(&GLOBAL_STATE);
 
     SYSTEM_init_peripherals(&GLOBAL_STATE);
 
@@ -106,9 +108,7 @@ void app_main(void)
         // Continue anyway, as BAP is not critical for core functionality
     }
 
-    while (!GLOBAL_STATE.SYSTEM_MODULE.is_connected) {
-        vTaskDelay(100 / portTICK_PERIOD_MS);
-    }
+    connect_await_connection(&GLOBAL_STATE);
 
     queue_init(&GLOBAL_STATE.stratum_queue);
 
