@@ -12,7 +12,7 @@ import { ShareRejectionExplanationService } from 'src/app/services/share-rejecti
 import { LoadingService } from 'src/app/services/loading.service';
 import { SystemApiService } from 'src/app/services/system.service';
 import { ThemeService } from 'src/app/services/theme.service';
-import { SystemInfo as ISystemInfo, SystemStatistics as ISystemStatistics } from 'src/app/generated';
+import { SystemInfo as ISystemInfo, SystemStatistics as ISystemStatistics } from 'src/app/generated/models';
 import { Title } from '@angular/platform-browser';
 import { UIChart } from 'primeng/chart';
 import { SelectItem } from 'primeng/api';
@@ -176,7 +176,7 @@ export class HomeComponent implements OnInit, OnDestroy {
 
     this.storageService.setItem(HOME_CHART_DATA_SOURCES, JSON.stringify(form));
 
-    this.systemService.updateSystem(this.uri, form)
+    (this.systemService.updateSystem(this.uri, form as any) as Observable<any>)
       .pipe(this.loadingService.lockUIUntilComplete())
       .subscribe({
         next: () => {
@@ -520,13 +520,13 @@ export class HomeComponent implements OnInit, OnDestroy {
   onPoolChange(event: { originalEvent: Event; value: PoolLabel }) {
     const useFallbackStratum = Number(event.value === 'Fallback');
 
-    this.systemService.updateSystem('', { useFallbackStratum })
+    (this.systemService.updateSystem('', { useFallbackStratum } as any) as Observable<any>)
       .pipe(
         this.loadingService.lockUIUntilComplete(),
         switchMap(() =>
           this.systemService.restart().pipe(
             this.loadingService.lockUIUntilComplete()
-          )
+          ) as Observable<any>
         )
       )
       .subscribe({
