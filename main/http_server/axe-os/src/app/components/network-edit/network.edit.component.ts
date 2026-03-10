@@ -69,7 +69,7 @@ export class NetworkEditComponent implements OnInit {
       form.ssid = form.ssid.trim();
     }
 
-    this.systemService.updateSystem(this.uri, form)
+    (this.systemService.updateSystem(this.uri, form as any) as Observable<any>)
       .pipe(this.loadingService.lockUIUntilComplete())
       .subscribe({
         next: () => {

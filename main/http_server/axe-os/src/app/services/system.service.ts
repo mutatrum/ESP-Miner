@@ -7,12 +7,13 @@ import { chartLabelValue } from 'src/models/enum/eChartLabel';
 import {
   SystemInfo as ISystemInfo,
   SystemStatistics as ISystemStatistics,
-  SystemASIC as ISystemASIC,
-  SystemASICASICModelEnum,
-  SystemService as GeneratedSystemService,
+  SystemAsic as ISystemASIC,
   Settings,
   GenericResponse
-} from 'src/app/generated';
+} from '../generated/models';
+import { Api } from '../generated/api';
+import * as functions from '../generated/functions';
+import { from } from 'rxjs';
 
 import { environment } from '../../environments/environment';
 
@@ -25,12 +26,12 @@ export class SystemApiService {
 
   constructor(
     private httpClient: HttpClient,
-    @Optional() private generatedSystemService: GeneratedSystemService
+    @Optional() private api: Api
   ) { }
 
   public getInfo(uri: string = ''): Observable<ISystemInfo> {
-    if (environment.production && this.generatedSystemService && !uri) {
-      return this.generatedSystemService.getSystemInfo().pipe(timeout(API_TIMEOUT));
+    if (environment.production && this.api && !uri) {
+      return from(this.api.invoke(functions.getSystemInfo, {})).pipe(timeout(API_TIMEOUT));
     }
 
     if (environment.production && uri) {
@@ -77,7 +78,7 @@ export class SystemApiService {
         ],
         uptimeSeconds: 38,
         smallCoreCount: 672,
-        ASICModel: "BM1370" as SystemASICASICModelEnum,
+        ASICModel: "BM1370" as any,
         stratumURL: "public-pool.io",
         stratumPort: 21496,
         stratumUser: "bc1q99n3pu025yyu0jlywpmwzalyhm36tg5u37w20d.bitaxe-U1",
@@ -88,7 +89,7 @@ export class SystemApiService {
         stratumDecodeCoinbase: true,
         fallbackStratumURL: "test.public-pool.io",
         fallbackStratumPort: 21497,
-        fallbackStratumUser: "bc1q99n3pu025yyu0jlywpmwzalyhm36tg5u37w20d.bitaxe-U1",
+        fallbackStratumUser: "bc1q99n3pu025yyu0jlywpmzalyhm36tg5u37w20d.bitaxe-U1",
         fallbackStratumSuggestedDifficulty: 1000,
         fallbackStratumExtranonceSubscribe: !!0,
         fallbackStratumTLS: !!0,
@@ -156,8 +157,8 @@ export class SystemApiService {
       columnList.push(y2);
     }
 
-    if (environment.production && this.generatedSystemService) {
-      return this.generatedSystemService.getSystemStatistics(columnList).pipe(timeout(API_TIMEOUT));
+    if (environment.production && this.api) {
+      return from(this.api.invoke(functions.getSystemStatistics, { columns: columnList })).pipe(timeout(API_TIMEOUT));
     }
 
     const hashrateData = [0,413.4903744405481,410.7764830376959,440.100549473198,430.5816012914026,452.5464981767163,414.9564271189586,498.7294609150379,411.1671601439723,491.327834852684];
@@ -217,8 +218,8 @@ export class SystemApiService {
   }
 
   public restart(uri: string = '') {
-    if (environment.production && this.generatedSystemService && !uri) {
-      return this.generatedSystemService.restartSystem();
+    if (environment.production && this.api && !uri) {
+      return from(this.api.invoke(functions.restartSystem, {}));
     }
 
     if (environment.production && uri) {
@@ -229,8 +230,8 @@ export class SystemApiService {
   }
 
   public dismissBlockFound(uri: string = '') {
-    if (environment.production && this.generatedSystemService && !uri) {
-      return this.generatedSystemService.dismissBlockFound();
+    if (environment.production && this.api && !uri) {
+      return from(this.api.invoke(functions.dismissBlockFound, {}));
     }
 
     if (environment.production && uri) {
@@ -265,8 +266,8 @@ export class SystemApiService {
   }
 
   public identify(uri: string = '') {
-    if (environment.production && this.generatedSystemService && !uri) {
-      return this.generatedSystemService.identifySystem();
+    if (environment.production && this.api && !uri) {
+      return from(this.api.invoke(functions.identifySystem, {}));
     }
 
     if (environment.production && uri) {
@@ -277,8 +278,8 @@ export class SystemApiService {
   }
 
   public updateSystem(uri: string = '', update: any) {
-    if (environment.production && this.generatedSystemService && !uri) {
-      return this.generatedSystemService.updateSystemSettings(update as Settings);
+    if (environment.production && this.api && !uri) {
+      return from(this.api.invoke(functions.updateSystemSettings, { body: update as Settings }));
     }
 
     if (environment.production && uri) {
@@ -319,22 +320,22 @@ export class SystemApiService {
   }
 
   public performOTAUpdate(file: File | Blob): Observable<HttpEvent<string>> {
-    if (environment.production && this.generatedSystemService) {
-      return this.generatedSystemService.updateFirmware(file, 'events', true);
+    if (environment.production && this.api) {
+      return from(this.api.invoke$Response(functions.updateFirmware, { body: file }));
     }
     return this.otaUpdate(file, '/api/system/OTA');
   }
 
   public performWWWOTAUpdate(file: File | Blob): Observable<HttpEvent<string>> {
-    if (environment.production && this.generatedSystemService) {
-      return this.generatedSystemService.updateWebInterface(file, 'events', true);
+    if (environment.production && this.api) {
+      return from(this.api.invoke$Response(functions.updateWebInterface, { body: file }));
     }
     return this.otaUpdate(file, '/api/system/OTAWWW');
   }
 
   public getAsicSettings(uri: string = ''): Observable<ISystemASIC> {
-    if (environment.production && this.generatedSystemService && !uri) {
-      return this.generatedSystemService.getAsicSettings().pipe(timeout(API_TIMEOUT));
+    if (environment.production && this.api && !uri) {
+      return from(this.api.invoke(functions.getAsicSettings, {})).pipe(timeout(API_TIMEOUT));
     }
 
     if (environment.production && uri) {
@@ -342,7 +343,7 @@ export class SystemApiService {
     }
 
     return of({
-      ASICModel: "BM1370" as SystemASICASICModelEnum,
+      ASICModel: "BM1370" as any,
       deviceModel: "Gamma",
       swarmColor: "purple",
       asicCount: 1,
