@@ -1,6 +1,6 @@
 import { HttpClient, HttpEvent } from '@angular/common/http';
 import { Injectable, Optional } from '@angular/core';
-import { delay, Observable, of, timeout } from 'rxjs';
+import { delay, Observable, of, timeout, from } from 'rxjs';
 import { eChartLabel } from 'src/models/enum/eChartLabel';
 import { chartLabelKey } from 'src/models/enum/eChartLabel';
 import { chartLabelValue } from 'src/models/enum/eChartLabel';
@@ -12,7 +12,6 @@ import {
 } from '../generated/models';
 import { Api } from '../generated/api';
 import * as functions from '../generated/functions';
-import { from } from 'rxjs';
 
 import { environment } from '../../environments/environment';
 
