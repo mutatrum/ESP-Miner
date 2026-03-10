@@ -101,12 +101,12 @@ export class EditComponent implements OnInit, OnDestroy, OnChanges {
 
   private saveOverclockSetting(enabled: number) {
     const deviceUri = this.uri || '';
-    (this.systemService.updateSystem(deviceUri, { overclockEnabled: enabled } as any) as Observable<any>)
+    this.systemService.updateSystem(deviceUri, { overclockEnabled: enabled })
       .subscribe({
         next: () => {
           console.log(`Overclock setting saved: ${enabled === 1 ? 'enabled' : 'disabled'}`);
         },
-        error: (err: any) => {
+        error: (err) => {
           console.error(`Failed to save overclock setting: ${err.message}`);
         }
       });
@@ -226,7 +226,7 @@ export class EditComponent implements OnInit, OnDestroy, OnChanges {
     }
 
     const deviceUri = this.uri || '';
-    (this.systemService.updateSystem(deviceUri, form as any) as Observable<any>)
+    this.systemService.updateSystem(deviceUri, form)
       .pipe(this.loadingService.lockUIUntilComplete())
       .subscribe({
         next: () => {

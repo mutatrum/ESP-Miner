@@ -120,7 +120,7 @@ export class PoolComponent implements OnInit {
       delete form.fallbackStratumPassword;
     }
 
-    (this.systemService.updateSystem(this.uri, form as any) as Observable<any>)
+    this.systemService.updateSystem(this.uri, form)
       .pipe(this.loadingService.lockUIUntilComplete())
       .subscribe({
         next: () => {
