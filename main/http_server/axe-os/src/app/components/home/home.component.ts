@@ -176,7 +176,7 @@ export class HomeComponent implements OnInit, OnDestroy {
 
     this.storageService.setItem(HOME_CHART_DATA_SOURCES, JSON.stringify(form));
 
-    (this.systemService.updateSystem(this.uri, form as any) as Observable<any>)
+    this.systemService.updateSystem(this.uri, form)
       .pipe(this.loadingService.lockUIUntilComplete())
       .subscribe({
         next: () => {
@@ -520,13 +520,13 @@ export class HomeComponent implements OnInit, OnDestroy {
   onPoolChange(event: { originalEvent: Event; value: PoolLabel }) {
     const useFallbackStratum = Number(event.value === 'Fallback');
 
-    (this.systemService.updateSystem('', { useFallbackStratum } as any) as Observable<any>)
+    this.systemService.updateSystem('', { useFallbackStratum })
       .pipe(
         this.loadingService.lockUIUntilComplete(),
         switchMap(() =>
           this.systemService.restart().pipe(
             this.loadingService.lockUIUntilComplete()
-          ) as Observable<any>
+          )
         )
       )
       .subscribe({

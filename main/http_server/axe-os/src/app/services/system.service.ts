@@ -215,7 +215,7 @@ export class SystemApiService {
     });
   }
 
-  public restart(uri: string = '') {
+  public restart(uri: string = ''): Observable<any> {
     if (environment.production && this.api && !uri) {
       return from(this.api.invoke(functions.restartSystem, {}));
     }
@@ -227,7 +227,7 @@ export class SystemApiService {
     return of('Device restarted (mock)');
   }
 
-  public dismissBlockFound(uri: string = '') {
+  public dismissBlockFound(uri: string = ''): Observable<any> {
     if (environment.production && this.api && !uri) {
       return from(this.api.invoke(functions.dismissBlockFound, {}));
     }
@@ -239,7 +239,7 @@ export class SystemApiService {
     return of('Block found notification dismissed (mock)');
   }
 
-  public identify(uri: string = '') {
+  public identify(uri: string = ''): Observable<any> {
     if (environment.production && this.api && !uri) {
       return from(this.api.invoke(functions.identifySystem, {}));
     }
@@ -251,9 +251,9 @@ export class SystemApiService {
     return of('Device identified (mock)');
   }
 
-  public updateSystem(uri: string = '', update: any) {
+  public updateSystem(uri: string = '', update: any): Observable<any> {
     if (environment.production && this.api && !uri) {
-      return from(this.api.invoke(functions.updateSystemSettings, { body: update as Settings }));
+      return from(this.api.invoke(functions.updateSystemSettings, { body: update as Settings }) as Promise<any>);
     }
 
     if (environment.production && uri) {
