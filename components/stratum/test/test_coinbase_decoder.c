@@ -121,7 +121,6 @@ TEST_CASE("Decode P2TR address", "[coinbase_decoder]")
 }
 
 // Testnet address tests
-
 TEST_CASE("Decode testnet P2PKH address", "[coinbase_decoder]")
 {
     // Same hash as mainnet P2PKH test, but with testnet version byte (0x6F)
