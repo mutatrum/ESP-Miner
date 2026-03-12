@@ -193,6 +193,7 @@ components:
         - blockHeight
         - scriptsig
         - networkDifficulty
+        - blockSignals
         - blockFound
         - coinbaseOutputs
         - coinbaseValueTotalSatoshis
@@ -447,6 +448,11 @@ components:
         networkDifficulty:
           type: number
           description: Current network difficulty
+        blockSignals:
+          type: array
+          description: Active block signaling (e.g., BIP-110)
+          items:
+            type: string
         blockFound:
           type: number
           description: Number of blocks found
