@@ -251,10 +251,14 @@ esp_err_t coinbase_process_notification(const mining_notify *notification,
     
     int offset = coinbase_2_offset;
     
-    // Skip sequence (4 bytes)
+    // Read sequence (4 bytes) for BIP-54 detection
     if (offset + 4 > coinbase_2_len) {
         free(coinbase_2_bin);
         return ESP_ERR_INVALID_ARG; // No room for outputs, but valid notification processed so far
+    }
+    uint32_t nSequence = 0;
+    for (int j = 0; j < 4; j++) {
+        nSequence |= ((uint32_t)coinbase_2_bin[offset + j]) << (j * 8);
     }
     offset += 4;
     
@@ -313,6 +317,17 @@ esp_err_t coinbase_process_notification(const mining_notify *notification,
 
         offset += script_len;
     }
+    
+    // Read nLockTime (4 bytes at the end of the transaction) for BIP-54 detection
+    uint32_t nLockTime = 0;
+    if (offset + 4 <= coinbase_2_len) {
+        for (int j = 0; j < 4; j++) {
+            nLockTime |= ((uint32_t)coinbase_2_bin[offset + j]) << (j * 8);
+        }
+    }
+    
+    // Detect BIP-54 signaling: nLockTime = block_height - 1 AND nSequence != 0xffffffff
+    result->bip54_signaling = decode_coinbase_tx && (nLockTime == result->block_height - 1) && (nSequence != 0xffffffff);
     
     free(coinbase_2_bin);
     return ESP_OK;
