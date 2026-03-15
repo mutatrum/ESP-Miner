@@ -101,12 +101,12 @@ export class SystemComponent implements OnInit, OnDestroy {
       { label: 'IPv4 Address', value: data.info.ipv4 },
       { label: 'IPv6 Address', value: data.info.ipv6, class: 'pb-3', isSensitiveData: true },
       { label: 'MAC Address', value: data.info.macAddr, class: 'pb-3', isSensitiveData: true },
-      { label: 'Free Heap Memory', value: ByteSuffixPipe.transform(data.info.freeHeap) },
-      { label: '• Internal', value: ByteSuffixPipe.transform(data.info.freeHeapInternal) },
+      { label: 'Free Heap Memory', value: ByteSuffixPipe.transform(data.info.freeHeap)},
+      { label: '• Internal', value: ByteSuffixPipe.transform(data.info.freeHeapInternal)},
       { label: '• Spiram', value: ByteSuffixPipe.transform(data.info.freeHeapSpiram), class: 'pb-3' },
       { label: 'Firmware Version', value: data.info.version },
       { label: 'AxeOS Version', value: data.info.axeOSVersion },
-      { label: 'ESP-IDF Version', value: data.info.idfVersion }
+      { label: 'ESP-IDF Version', value: data.info.idfVersion },
     ];
   }
 

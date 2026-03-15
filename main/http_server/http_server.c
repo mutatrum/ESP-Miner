@@ -848,11 +848,6 @@ static esp_err_t GET_system_info(httpd_req_t * req)
     char formattedMac[18];
     snprintf(formattedMac, sizeof(formattedMac), "%02X:%02X:%02X:%02X:%02X:%02X", mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
 
-    int8_t wifi_rssi = -90;
-    if (GLOBAL_STATE->SYSTEM_MODULE.network_mode == NETWORK_MODE_WIFI) {
-        get_wifi_current_rssi(&wifi_rssi);
-    }
-
     cJSON * root = cJSON_CreateObject();
     cJSON_AddFloatToObject(root, "power", GLOBAL_STATE->POWER_MANAGEMENT_MODULE.power);
     cJSON_AddFloatToObject(root, "voltage", GLOBAL_STATE->POWER_MANAGEMENT_MODULE.voltage);
@@ -892,7 +887,9 @@ static esp_err_t GET_system_info(httpd_req_t * req)
     cJSON_AddStringToObject(root, "ipv4", ipv4);
     cJSON_AddStringToObject(root, "ipv6", ipv6);
     cJSON_AddStringToObject(root, "networkStatus", GLOBAL_STATE->SYSTEM_MODULE.network_status);
-    if (strcmp(network_mode, "wifi") == 0) {
+    if (GLOBAL_STATE->SYSTEM_MODULE.network_mode == NETWORK_MODE_WIFI) {
+        int8_t wifi_rssi = -90;
+        get_wifi_current_rssi(&wifi_rssi);
         cJSON_AddNumberToObject(root, "wifiRSSI", wifi_rssi);
     }
     cJSON_AddNumberToObject(root, "apEnabled", GLOBAL_STATE->SYSTEM_MODULE.ap_enabled);
