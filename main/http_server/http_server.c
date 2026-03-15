@@ -887,14 +887,14 @@ static esp_err_t GET_system_info(httpd_req_t * req)
     cJSON_AddFloatToObject(root, "frequency", frequency);
     cJSON_AddStringToObject(root, "networkMode", network_mode);
     cJSON_AddStringToObject(root, "ssid", ssid);
-    if (strcmp(network_mode, "wifi") == 0) {
-        cJSON_AddNumberToObject(root, "wifiRSSI", wifi_rssi);
-    }
     cJSON_AddStringToObject(root, "macAddr", formattedMac);
     cJSON_AddStringToObject(root, "hostname", hostname);
     cJSON_AddStringToObject(root, "ipv4", ipv4);
     cJSON_AddStringToObject(root, "ipv6", ipv6);
     cJSON_AddStringToObject(root, "networkStatus", GLOBAL_STATE->SYSTEM_MODULE.network_status);
+    if (strcmp(network_mode, "wifi") == 0) {
+        cJSON_AddNumberToObject(root, "wifiRSSI", wifi_rssi);
+    }
     cJSON_AddNumberToObject(root, "apEnabled", GLOBAL_STATE->SYSTEM_MODULE.ap_enabled);
     cJSON_AddNumberToObject(root, "sharesAccepted", GLOBAL_STATE->SYSTEM_MODULE.shares_accepted);
     cJSON_AddNumberToObject(root, "sharesRejected", GLOBAL_STATE->SYSTEM_MODULE.shares_rejected);

@@ -340,9 +340,10 @@ void toggle_wifi_softap(void)
     }
 }
 
+/* Initialize wifi station */
 static esp_netif_t *wifi_init_sta(const char *wifi_ssid, const char *wifi_pass)
 {
-    esp_netif_t *esp_netif_sta = esp_netif_create_default_wifi_sta();
+    esp_netif_t * esp_netif_sta = esp_netif_create_default_wifi_sta();
 
     /* Authmode threshold resets to WPA2 as default if password matches WPA2 standards (pasword len => 8).
     * If you want to connect the device to deprecated WEP/WPA networks, Please set the threshold value
@@ -390,7 +391,7 @@ static esp_netif_t *wifi_init_sta(const char *wifi_ssid, const char *wifi_pass)
     ESP_ERROR_CHECK(esp_wifi_set_config(WIFI_IF_STA, &wifi_sta_config));
 
     // IPv6 link-local address will be created after WiFi connection
-
+    
     // Start DHCP client for IPv4
     esp_netif_dhcpc_start(esp_netif_sta);
 
@@ -399,19 +400,21 @@ static esp_netif_t *wifi_init_sta(const char *wifi_ssid, const char *wifi_pass)
     return esp_netif_sta;
 }
 
-void connect_init(void *pvParameters)
+void connect_init(void * pvParameters)
 {
-    GlobalState *GLOBAL_STATE = (GlobalState *)pvParameters;
+    GlobalState * GLOBAL_STATE = (GlobalState *) pvParameters;
 
     ESP_ERROR_CHECK(esp_netif_init());
     ESP_ERROR_CHECK(esp_event_loop_create_default());
 
-    esp_event_handler_instance_t instance_any_id, instance_got_ip, instance_got_ip6;
+    esp_event_handler_instance_t instance_any_id;
+    esp_event_handler_instance_t instance_got_ip;
+    esp_event_handler_instance_t instance_got_ip6;
     ESP_ERROR_CHECK(esp_event_handler_instance_register(WIFI_EVENT, ESP_EVENT_ANY_ID, &event_handler, GLOBAL_STATE, &instance_any_id));
     ESP_ERROR_CHECK(esp_event_handler_instance_register(IP_EVENT, IP_EVENT_STA_GOT_IP, &event_handler, GLOBAL_STATE, &instance_got_ip));
     ESP_ERROR_CHECK(esp_event_handler_instance_register(IP_EVENT, IP_EVENT_GOT_IP6, &event_handler, GLOBAL_STATE, &instance_got_ip6));
 
-    // Initialize Wi-Fi
+    /* Initialize Wi-Fi */
     wifi_init_config_t cfg = WIFI_INIT_CONFIG_DEFAULT();
     ESP_ERROR_CHECK(esp_wifi_init(&cfg));
 
@@ -421,14 +424,14 @@ void connect_init(void *pvParameters)
         ESP_ERROR_CHECK(err);
     }
 
-    // Initialize SoftAP
+    /* Initialize SoftAP */
     wifi_init_softap(GLOBAL_STATE);
 
-    // Configure STA BEFORE starting WiFi to avoid race condition
+    /* Configure STA BEFORE starting WiFi to avoid race condition */
     if (GLOBAL_STATE->SYSTEM_MODULE.network_mode == NETWORK_MODE_WIFI) {
         ESP_LOGI(TAG, "Network mode: WiFi");
 
-        // Skip connection if SSID is null
+        /* Skip connection if SSID is null */
         if (strlen(GLOBAL_STATE->SYSTEM_MODULE.ssid) == 0) {
             ESP_LOGI(TAG, "No WiFi SSID provided, running in AP-only mode");
         } else {
@@ -455,9 +458,9 @@ void connect_init(void *pvParameters)
         }
     }
 
-    // Start Wi-Fi
+    /* Start Wi-Fi */
     ESP_ERROR_CHECK(esp_wifi_start());
-    // Disable power savings for best performance
+    /* Disable power savings for best performance */
     ESP_ERROR_CHECK(esp_wifi_set_ps(WIFI_PS_NONE));
 
     if (GLOBAL_STATE->SYSTEM_MODULE.network_mode == NETWORK_MODE_USB) {
