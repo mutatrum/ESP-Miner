@@ -257,8 +257,8 @@ esp_err_t coinbase_process_notification(const mining_notify *notification,
         return ESP_ERR_INVALID_ARG; // No room for outputs, but valid notification processed so far
     }
     uint32_t nSequence = 0;
-    for (int j = 0; j < 4; j++) {
-        nSequence |= ((uint32_t)coinbase_2_bin[offset + j]) << (j * 8);
+    for (int i = 0; i < 4; i++) {
+        nSequence |= ((uint32_t)coinbase_2_bin[offset + i]) << (i * 8);
     }
     offset += 4;
     
@@ -277,8 +277,8 @@ esp_err_t coinbase_process_notification(const mining_notify *notification,
         if (offset + 8 > coinbase_2_len) break;
 
         uint64_t value_satoshis = 0;
-        for (int j = 0; j < 8; j++) {
-            value_satoshis |= ((uint64_t)coinbase_2_bin[offset + j]) << (j * 8);
+        for (int i = 0; i < 8; i++) {
+            value_satoshis |= ((uint64_t)coinbase_2_bin[offset + i]) << (i * 8);
         }
         offset += 8;
 
@@ -321,8 +321,8 @@ esp_err_t coinbase_process_notification(const mining_notify *notification,
     // Read nLockTime (4 bytes at the end of the transaction) for BIP-54 detection
     uint32_t nLockTime = 0;
     if (offset + 4 <= coinbase_2_len) {
-        for (int j = 0; j < 4; j++) {
-            nLockTime |= ((uint32_t)coinbase_2_bin[offset + j]) << (j * 8);
+        for (int i = 0; i < 4; i++) {
+            nLockTime |= ((uint32_t)coinbase_2_bin[offset + i]) << (i * 8);
         }
     }
     

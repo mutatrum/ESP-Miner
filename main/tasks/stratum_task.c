@@ -368,17 +368,17 @@ static void decode_mining_notification(GlobalState * GLOBAL_STATE, const mining_
 
     // Update block signals (BIP-110, BIP-54, etc.)
     GLOBAL_STATE->block_signals_count = 0;
-    if (result->bip110_signaling) {
-        strncpy(GLOBAL_STATE->block_signals[0], "BIP-110", MAX_BLOCK_SIGNAL_LEN - 1);
-        GLOBAL_STATE->block_signals[0][MAX_BLOCK_SIGNAL_LEN - 1] = '\0';
-        GLOBAL_STATE->block_signals_count = 1;
-        ESP_LOGI(TAG, "BIP-110 signaling detected");
-    }
     if (result->bip54_signaling) {
         strncpy(GLOBAL_STATE->block_signals[GLOBAL_STATE->block_signals_count], "BIP-54", MAX_BLOCK_SIGNAL_LEN - 1);
         GLOBAL_STATE->block_signals[GLOBAL_STATE->block_signals_count][MAX_BLOCK_SIGNAL_LEN - 1] = '\0';
         GLOBAL_STATE->block_signals_count++;
         ESP_LOGI(TAG, "BIP-54 signaling detected");
+    }
+    if (result->bip110_signaling) {
+        strncpy(GLOBAL_STATE->block_signals[0], "BIP-110", MAX_BLOCK_SIGNAL_LEN - 1);
+        GLOBAL_STATE->block_signals[0][MAX_BLOCK_SIGNAL_LEN - 1] = '\0';
+        GLOBAL_STATE->block_signals_count = 1;
+        ESP_LOGI(TAG, "BIP-110 signaling detected");
     }
 
     // Update scriptsig
