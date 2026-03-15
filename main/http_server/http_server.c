@@ -886,8 +886,8 @@ static esp_err_t GET_system_info(httpd_req_t * req)
     cJSON_AddNumberToObject(root, "coreVoltageActual", GLOBAL_STATE->POWER_MANAGEMENT_MODULE.core_voltage);
     cJSON_AddFloatToObject(root, "frequency", frequency);
     cJSON_AddStringToObject(root, "networkMode", network_mode);
+    cJSON_AddStringToObject(root, "ssid", ssid);
     if (strcmp(network_mode, "wifi") == 0) {
-        cJSON_AddStringToObject(root, "ssid", ssid);
         cJSON_AddNumberToObject(root, "wifiRSSI", wifi_rssi);
     }
     cJSON_AddStringToObject(root, "macAddr", formattedMac);
