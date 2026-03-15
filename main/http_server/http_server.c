@@ -886,7 +886,8 @@ static esp_err_t GET_system_info(httpd_req_t * req)
     cJSON_AddStringToObject(root, "hostname", hostname);
     cJSON_AddStringToObject(root, "ipv4", ipv4);
     cJSON_AddStringToObject(root, "ipv6", ipv6);
-    cJSON_AddStringToObject(root, "networkStatus", GLOBAL_STATE->SYSTEM_MODULE.network_status);
+    cJSON_AddStringToObject(root, "wifiStatus", GLOBAL_STATE->SYSTEM_MODULE.wifi_status); // backwards compatibility
+    cJSON_AddStringToObject(root, "networkStatus", GLOBAL_STATE->SYSTEM_MODULE.wifi_status);
     if (GLOBAL_STATE->SYSTEM_MODULE.network_mode == NETWORK_MODE_WIFI) {
         int8_t wifi_rssi = -90;
         get_wifi_current_rssi(&wifi_rssi);

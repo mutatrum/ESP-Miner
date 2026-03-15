@@ -137,7 +137,7 @@ static void ip_timeout_callback(TimerHandle_t xTimer)
     GlobalState *GLOBAL_STATE = (GlobalState *)pvTimerGetTimerID(xTimer);
     if (!GLOBAL_STATE->SYSTEM_MODULE.is_connected) {
         ESP_LOGI(TAG, "Timeout waiting for IP address. Disconnecting...");
-        strcpy(GLOBAL_STATE->SYSTEM_MODULE.network_status, "IP Acquire Timeout");
+        strcpy(GLOBAL_STATE->SYSTEM_MODULE.wifi_status, "IP Acquire Timeout");
         esp_wifi_disconnect();
     }
 }
@@ -163,13 +163,13 @@ static void event_handler(void * arg, esp_event_base_t event_base, int32_t event
 
         if (event_id == WIFI_EVENT_STA_START) {
             ESP_LOGI(TAG, "Connecting...");
-            strcpy(GLOBAL_STATE->SYSTEM_MODULE.network_status, "Connecting...");
+            strcpy(GLOBAL_STATE->SYSTEM_MODULE.wifi_status, "Connecting...");
             esp_wifi_connect();
         }
 
         if (event_id == WIFI_EVENT_STA_CONNECTED) {
             ESP_LOGI(TAG, "Acquiring IP...");
-            strcpy(GLOBAL_STATE->SYSTEM_MODULE.network_status, "Acquiring IP...");
+            strcpy(GLOBAL_STATE->SYSTEM_MODULE.wifi_status, "Acquiring IP...");
 
             if (ip_acquire_timer == NULL) {
                 ip_acquire_timer = xTimerCreate("ip_acquire_timer", pdMS_TO_TICKS(30000), pdFALSE, (void *)GLOBAL_STATE, ip_timeout_callback);
@@ -189,12 +189,12 @@ static void event_handler(void * arg, esp_event_base_t event_base, int32_t event
             ESP_LOGI(TAG, "Could not connect to '%.*s' [rssi %d]: reason %d", event->ssid_len, event->ssid, event->rssi, event->reason);
             if (clients_connected_to_ap > 0) {
                 ESP_LOGI(TAG, "Client(s) connected to AP, not retrying...");
-                snprintf(GLOBAL_STATE->SYSTEM_MODULE.network_status, sizeof(GLOBAL_STATE->SYSTEM_MODULE.network_status), "Config AP connected!");
+                snprintf(GLOBAL_STATE->SYSTEM_MODULE.wifi_status, sizeof(GLOBAL_STATE->SYSTEM_MODULE.wifi_status), "Config AP connected!");
                 return;
             }
 
-            snprintf(GLOBAL_STATE->SYSTEM_MODULE.network_status, sizeof(GLOBAL_STATE->SYSTEM_MODULE.network_status), "%s (Error %d, retry #%d)", get_wifi_reason_string(event->reason), event->reason, s_retry_num);
-            ESP_LOGI(TAG, "Network status: %s", GLOBAL_STATE->SYSTEM_MODULE.network_status);
+            snprintf(GLOBAL_STATE->SYSTEM_MODULE.wifi_status, sizeof(GLOBAL_STATE->SYSTEM_MODULE.wifi_status), "%s (Error %d, retry #%d)", get_wifi_reason_string(event->reason), event->reason, s_retry_num);
+            ESP_LOGI(TAG, "Network status: %s", GLOBAL_STATE->SYSTEM_MODULE.wifi_status);
 
             // Wait a little
             vTaskDelay(5000 / portTICK_PERIOD_MS);
@@ -241,7 +241,7 @@ static void event_handler(void * arg, esp_event_base_t event_base, int32_t event
         GLOBAL_STATE->SYSTEM_MODULE.is_connected = true;
 
         ESP_LOGI(TAG, "Connected to SSID: %s", GLOBAL_STATE->SYSTEM_MODULE.ssid);
-        strcpy(GLOBAL_STATE->SYSTEM_MODULE.network_status, "Connected!");
+        strcpy(GLOBAL_STATE->SYSTEM_MODULE.wifi_status, "Connected!");
         
         // Create IPv6 link-local address after WiFi connection
         esp_netif_t *netif = event->esp_netif;

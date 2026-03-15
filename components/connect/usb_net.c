@@ -92,7 +92,7 @@ static void usb_ip_event_handler(void* arg, esp_event_base_t event_base,
         // Update global state with IP address
         snprintf(GLOBAL_STATE->SYSTEM_MODULE.ip_addr_str, IP4ADDR_STRLEN_MAX,
                  IPSTR, IP2STR(&event->ip_info.ip));
-        strcpy(GLOBAL_STATE->SYSTEM_MODULE.network_status, "Connected!");
+        strcpy(GLOBAL_STATE->SYSTEM_MODULE.wifi_status, "Connected!");
         GLOBAL_STATE->SYSTEM_MODULE.is_connected = true;
 
         // Create IPv6 link-local address after USB connection
@@ -121,7 +121,7 @@ static void usb_ip_event_handler(void* arg, esp_event_base_t event_base,
 
     if (event_base == IP_EVENT && event_id == IP_EVENT_ETH_LOST_IP) {
         ESP_LOGI(TAG, "Lost IP");
-        strcpy(GLOBAL_STATE->SYSTEM_MODULE.network_status, "Lost IP");
+        strcpy(GLOBAL_STATE->SYSTEM_MODULE.wifi_status, "Lost IP");
         GLOBAL_STATE->SYSTEM_MODULE.is_connected = false;
         GLOBAL_STATE->SYSTEM_MODULE.ip_addr_str[0] = '\0';
         GLOBAL_STATE->SYSTEM_MODULE.ipv6_addr_str[0] = '\0';
@@ -247,5 +247,5 @@ void usb_net_init(void * pvParameters)
 
     ESP_LOGI(TAG, "Ethernet-over-USB initialized successfully - waiting for IP from DHCP");
 
-    strcpy(GLOBAL_STATE->SYSTEM_MODULE.network_status, "Acquiring IP...");
+    strcpy(GLOBAL_STATE->SYSTEM_MODULE.wifi_status, "Acquiring IP...");
 }

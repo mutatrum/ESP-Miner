@@ -513,9 +513,9 @@ static void screen_update_cb(lv_timer_t * timer)
         return;
     }
 
-    bool is_network_status_changed = strcmp(module->network_status, lv_label_get_text(connection_network_status_label)) != 0;
+    bool is_network_status_changed = strcmp(module->wifi_status, lv_label_get_text(connection_network_status_label)) != 0;
     if (is_network_status_changed) {
-        lv_label_set_text(connection_network_status_label, module->network_status);
+        lv_label_set_text(connection_network_status_label, module->wifi_status);
         screen_show(SCR_CONNECTION);
         return;
     }
