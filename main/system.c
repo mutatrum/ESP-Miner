@@ -30,6 +30,8 @@
 #include "vcore.h"
 #include "thermal.h"
 #include "utils.h"
+#include "self_test.h"
+#include "filesystem.h"
 
 static const char * TAG = "system";
 
@@ -161,26 +163,54 @@ void SYSTEM_init_versions(GlobalState * GLOBAL_STATE) {
 }
 
 esp_err_t SYSTEM_init_peripherals(GlobalState * GLOBAL_STATE) {
-    
-    ESP_RETURN_ON_ERROR(gpio_install_isr_service(0), TAG, "Error installing ISR service");
+    esp_err_t ret;
+    char * err_msg;
+
+    err_msg = "ISR:FAIL";
+    ESP_GOTO_ON_ERROR(gpio_install_isr_service(0), error, TAG, "Error installing ISR service");
 
     // Initialize the core voltage regulator
-    ESP_RETURN_ON_ERROR(VCORE_init(GLOBAL_STATE), TAG, "VCORE init failed!");
+    err_msg = "VCORE:FAIL";
+    ESP_GOTO_ON_ERROR(VCORE_init(GLOBAL_STATE), error, TAG, "VCORE init failed!");
 
-    ESP_RETURN_ON_ERROR(Thermal_init(&GLOBAL_STATE->DEVICE_CONFIG), TAG, "Thermal init failed!");
+    // For self-test, we set a stable known voltage before ASIC initialization
+    if (GLOBAL_STATE->SELF_TEST_MODULE.is_active) {
+        ESP_GOTO_ON_ERROR(VCORE_set_voltage(GLOBAL_STATE, 1.150), error, TAG, "VCORE:FAIL");
+    }
+
+    err_msg = "THERMAL:FAIL";
+    ESP_GOTO_ON_ERROR(Thermal_init(&GLOBAL_STATE->DEVICE_CONFIG), error, TAG, "Thermal init failed!");
 
     vTaskDelay(500 / portTICK_PERIOD_MS);
 
     // Ensure overheat_mode config exists
-    ESP_RETURN_ON_ERROR(ensure_overheat_mode_config(), TAG, "Failed to ensure overheat_mode config");
+    err_msg = "CONFIG:FAIL";
+    ESP_GOTO_ON_ERROR(ensure_overheat_mode_config(), error, TAG, "Failed to ensure overheat_mode config");
 
-    ESP_RETURN_ON_ERROR(display_init(GLOBAL_STATE), TAG, "Display init failed!");
+    err_msg = "DISPLAY:FAIL";
+    ESP_GOTO_ON_ERROR(display_init(GLOBAL_STATE), error, TAG, "Display init failed!");
 
-    ESP_RETURN_ON_ERROR(input_init(screen_button_press, toggle_wifi_softap), TAG, "Input init failed!");
+    err_msg = "INPUT:FAIL";
+    if (!GLOBAL_STATE->SELF_TEST_MODULE.is_active) {
+        ESP_GOTO_ON_ERROR(input_init(screen_button_press, toggle_wifi_softap), error, TAG, "Input init failed!");
+    } else {
+        ESP_GOTO_ON_ERROR(input_init(NULL, self_test_reset), error, TAG, "Input init failed!");
+    }
 
-    ESP_RETURN_ON_ERROR(screen_start(GLOBAL_STATE), TAG, "Screen start failed!");
+    err_msg = "SCREEN:FAIL";
+    ESP_GOTO_ON_ERROR(screen_start(GLOBAL_STATE), error, TAG, "Screen start failed!");
+
+    err_msg = "FILESYS:FAIL";
+    ESP_GOTO_ON_ERROR(filesystem_init(GLOBAL_STATE), error, TAG, "Filesystem init failed!");
 
     return ESP_OK;
+
+error: 
+    if (GLOBAL_STATE->SELF_TEST_MODULE.is_active) {
+        GLOBAL_STATE->SELF_TEST_MODULE.message = (char *)err_msg;
+        vTaskDelay(10 / portTICK_PERIOD_MS);
+    }
+    return ret;
 }
 
 void SYSTEM_notify_accepted_share(GlobalState * GLOBAL_STATE)

@@ -24,7 +24,6 @@
 #define MAX_TEMP 90.0
 #define THROTTLE_TEMP 75.0
 #define SAFE_TEMP 45.0
-#define THROTTLE_TEMP_RANGE (MAX_TEMP - THROTTLE_TEMP)
 
 #define VOLTAGE_START_THROTTLE 4900
 #define VOLTAGE_MIN_THROTTLE 3500
@@ -76,6 +75,12 @@ void POWER_MANAGEMENT_task(void * pvParameters)
     float last_known_asic_frequency = 0.0;
 
     while (1) {
+        if (GLOBAL_STATE->SELF_TEST_MODULE.is_finished) {
+            ESP_LOGI(TAG, "Stopped");
+            vTaskDelete(NULL);
+            return;
+        }
+
         power_management->voltage = Power_get_input_voltage(GLOBAL_STATE);
         power_management->power = Power_get_power(GLOBAL_STATE);
         power_management->current = Power_get_current(GLOBAL_STATE);
