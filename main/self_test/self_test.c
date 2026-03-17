@@ -228,8 +228,7 @@ void self_test_task(void * pvParameters)
         return;
     }
 
-    // Run PSRAM test (check what was already checked in main.c)
-    if (!esp_psram_is_initialized()) {
+    if (!GLOBAL_STATE->psram_is_available) {
         ESP_LOGE(TAG, "NO PSRAM on device!");
         self_test_show_message(GLOBAL_STATE, "PSRAM:FAIL");
         tests_done(GLOBAL_STATE, false);

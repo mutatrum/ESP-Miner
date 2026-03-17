@@ -170,41 +170,6 @@ esp_err_t SYSTEM_init_peripherals(GlobalState * GLOBAL_STATE) {
         return ret;
     }
 
-    // Initialize the core voltage regulator
-    ret = VCORE_init(GLOBAL_STATE);
-    if (ret != ESP_OK) {
-        self_test_show_message(GLOBAL_STATE, "VCORE:FAIL");
-        ESP_LOGE(TAG, "VCORE init failed");
-        return ret;
-    }
-
-    // For self-test, we set a stable known voltage before ASIC initialization
-    if (GLOBAL_STATE->SELF_TEST_MODULE.is_active) {
-        ret = VCORE_set_voltage(GLOBAL_STATE, 1.150);
-        if (ret != ESP_OK) {
-            self_test_show_message(GLOBAL_STATE, "VCORE:FAIL");
-            ESP_LOGE(TAG, "VCORE set failed");
-            return ret;
-        }
-    }
-
-    ret = Thermal_init(&GLOBAL_STATE->DEVICE_CONFIG);
-    if (ret != ESP_OK) {
-        self_test_show_message(GLOBAL_STATE, "THERMAL:FAIL");
-        ESP_LOGE(TAG, "Thermal init failed");
-        return ret;
-    }
-
-    vTaskDelay(500 / portTICK_PERIOD_MS);
-
-    // Ensure overheat_mode config exists
-    ret = ensure_overheat_mode_config();
-    if (ret != ESP_OK) {
-        self_test_show_message(GLOBAL_STATE, "CONFIG:FAIL");
-        ESP_LOGE(TAG, "Failed to ensure overheat_mode config");
-        return ret;
-    }
-
     ret = display_init(GLOBAL_STATE);
     if (ret != ESP_OK) {
         self_test_show_message(GLOBAL_STATE, "DISPLAY:FAIL");
@@ -230,10 +195,44 @@ esp_err_t SYSTEM_init_peripherals(GlobalState * GLOBAL_STATE) {
         return ret;
     }
 
+    ret = ensure_overheat_mode_config();
+    if (ret != ESP_OK) {
+        self_test_show_message(GLOBAL_STATE, "CONFIG:FAIL");
+        ESP_LOGE(TAG, "Failed to ensure overheat_mode config");
+        return ret;
+    }
+
     ret = filesystem_init(GLOBAL_STATE);
     if (ret != ESP_OK) {
         self_test_show_message(GLOBAL_STATE, "FILESYS:FAIL");
         ESP_LOGE(TAG, "Filesystem init failed");
+        return ret;
+    }
+
+    // Initialize the core voltage regulator
+    ret = VCORE_init(GLOBAL_STATE);
+    if (ret != ESP_OK) {
+        self_test_show_message(GLOBAL_STATE, "VCORE:FAIL");
+        ESP_LOGE(TAG, "VCORE init failed");
+        return ret;
+    }
+
+    // For self-test, we set a stable known voltage before ASIC initialization
+    if (GLOBAL_STATE->SELF_TEST_MODULE.is_active) {
+        vTaskDelay(500 / portTICK_PERIOD_MS);
+
+        ret = VCORE_set_voltage(GLOBAL_STATE, 1.150);
+        if (ret != ESP_OK) {
+            self_test_show_message(GLOBAL_STATE, "VCORE:FAIL");
+            ESP_LOGE(TAG, "VCORE set failed");
+            return ret;
+        }
+    }
+
+    ret = Thermal_init(&GLOBAL_STATE->DEVICE_CONFIG);
+    if (ret != ESP_OK) {
+        self_test_show_message(GLOBAL_STATE, "THERMAL:FAIL");
+        ESP_LOGE(TAG, "Thermal init failed");
         return ret;
     }
 
