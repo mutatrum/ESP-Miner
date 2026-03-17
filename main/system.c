@@ -322,7 +322,7 @@ void SYSTEM_notify_found_nonce(GlobalState * GLOBAL_STATE, double diff, uint8_t 
     // make the best_nonce_diff into a string
     suffixString((uint64_t) diff, module->best_diff_string, DIFF_STRING_SIZE, 0);
 
-    ESP_LOGI(TAG, "Network diff: %f", network_diff);
+    ESP_LOGI(TAG, "New best difficulty: %s", module->best_diff_string);
 }
 
 static esp_err_t ensure_overheat_mode_config() {

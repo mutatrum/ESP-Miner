@@ -307,10 +307,11 @@ void self_test_task(void * pvParameters)
     Thermal_set_fan_percent(&GLOBAL_STATE->DEVICE_CONFIG, 1);
 
     float asic_temp = Thermal_get_chip_temp(GLOBAL_STATE);
-    ESP_LOGI(TAG, "ASIC Temp %f", asic_temp);
+    ESP_LOGI(TAG, "ASIC Temp %.1f°C", asic_temp);
 
     // detect open circuit / no result
     if (asic_temp == -1.0 || asic_temp == 127.0) {
+        ESP_LOGE(TAG, "Open circuit or no result on temperature sensor: %.1f°C", asic_temp);
         snprintf(logString, sizeof(logString), "TEMP:FAIL: %.1f°C", asic_temp);
         self_test_show_message(GLOBAL_STATE, logString);
         tests_done(GLOBAL_STATE, false);
@@ -319,12 +320,11 @@ void self_test_task(void * pvParameters)
     Thermal_set_fan_percent(&GLOBAL_STATE->DEVICE_CONFIG, 0.1f);
     while (asic_temp < 40.0f)
     {
-        snprintf(logString, sizeof(logString),
-                 "ASIC temp > 40°C: %.1f°C\r\n",
-                 asic_temp);
-        self_test_show_message(GLOBAL_STATE, logString);
         vTaskDelay(500 / portTICK_PERIOD_MS);
         asic_temp = Thermal_get_chip_temp(GLOBAL_STATE);
+        ESP_LOGI(TAG, "Warming up: %.1f°C", asic_temp);
+        snprintf(logString, sizeof(logString), "ASIC Temp: %.1f°C", asic_temp);
+        self_test_show_message(GLOBAL_STATE, logString);
     }
     Thermal_set_fan_percent(&GLOBAL_STATE->DEVICE_CONFIG, 1.0f);
 
@@ -338,6 +338,7 @@ void self_test_task(void * pvParameters)
         asic_temp = Thermal_get_chip_temp(GLOBAL_STATE);
         
         if (asic_temp > 62) {
+            ESP_LOGE(TAG, "Overheat: %.1f°C", asic_temp);
             snprintf(logString, sizeof(logString), "TEMP:FAIL: %.1f°C", asic_temp);
             self_test_show_message(GLOBAL_STATE, logString);
             tests_done(GLOBAL_STATE, false);
@@ -345,9 +346,9 @@ void self_test_task(void * pvParameters)
 
         uint32_t remaining = (hashtest_ms - ((esp_timer_get_time() / 1000) - start_ms)) / 1000;
         snprintf(logString, sizeof(logString), "%.0f Gh/s %.1f°C %lds", hashrate, asic_temp, remaining);
-        self_test_show_message(GLOBAL_STATE, logString);
-
         ESP_LOGI(TAG, "%s", logString);
+
+        self_test_show_message(GLOBAL_STATE, logString);
 
         vTaskDelay(1000 / portTICK_PERIOD_MS);
     }
@@ -360,6 +361,7 @@ void self_test_task(void * pvParameters)
     ESP_LOGI(TAG, "Hashrate: %.2f Gh/s, Expected: %.2f Gh/s", hashrate, expected_hashrate_mhs);
 
     if (hashrate < expected_hashrate_mhs) {
+        ESP_LOGE(TAG, "Total hashrate too low");
         self_test_show_message(GLOBAL_STATE, "HASHRATE:FAIL");
         tests_done(GLOBAL_STATE, false);
     }

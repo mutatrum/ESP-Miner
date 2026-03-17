@@ -130,7 +130,7 @@ void POWER_MANAGEMENT_task(void * pvParameters)
                 if (asic_temp_valid) {
                     power_management->chip_temp_avg = Thermal_get_chip_temp(GLOBAL_STATE);
                     power_management->chip_temp2_avg = Thermal_get_chip_temp2(GLOBAL_STATE);
-                    ESP_LOGW(TAG, "Safe mode active (cycle %d) - VR: %.1fC ASIC1: %.1fC ASIC2: %.1fC",
+                    ESP_LOGW(TAG, "Safe mode active (cycle %d) - VR: %.1f°C ASIC1: %.1f°C ASIC2: %.1f°C",
                              cooling_cycles, power_management->vr_temp, power_management->chip_temp_avg, power_management->chip_temp2_avg);
                     
                     // Continue if ASIC temps still too high
@@ -139,7 +139,7 @@ void POWER_MANAGEMENT_task(void * pvParameters)
                     }
                 } else {
                     // For boards using ASIC thermal diode (600 series), rely on VR temp and time
-                    ESP_LOGW(TAG, "Safe mode active (cycle %d/%d) - VR: %.1fC (ASIC temps unavailable while powered down)",
+                    ESP_LOGW(TAG, "Safe mode active (cycle %d/%d) - VR: %.1f°C (ASIC temps unavailable while powered down)",
                              cooling_cycles, MIN_COOLING_CYCLES, power_management->vr_temp);
                 }
             }
