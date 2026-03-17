@@ -83,7 +83,7 @@ void app_main(void)
         wifi_init(&GLOBAL_STATE);
     }
 
-    SYSTEM_init_peripherals(&GLOBAL_STATE);
+    esp_err_t system_init_ret = SYSTEM_init_peripherals(&GLOBAL_STATE);
 
     if (xTaskCreate(POWER_MANAGEMENT_task, "power management", 8192, (void *) &GLOBAL_STATE, 10, NULL) != pdPASS) {
         ESP_LOGE(TAG, "Error creating power management task");

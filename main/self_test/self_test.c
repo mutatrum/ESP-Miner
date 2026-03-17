@@ -91,10 +91,14 @@ void self_test_reset()
     xSemaphoreGive(longPressSemaphore);
 }
 
-static void display_msg(char * msg, GlobalState * GLOBAL_STATE)
+void self_test_show_message(void * pvParameters, char * msg)
 {
-    GLOBAL_STATE->SELF_TEST_MODULE.message = msg;
-    vTaskDelay(10 / portTICK_PERIOD_MS);
+    GlobalState * GLOBAL_STATE = (GlobalState *) pvParameters;
+
+    if (GLOBAL_STATE->SELF_TEST_MODULE.is_active) {
+        GLOBAL_STATE->SELF_TEST_MODULE.message = msg;
+        vTaskDelay(10 / portTICK_PERIOD_MS);
+    }
 }
 
 static esp_err_t test_fan_sense(GlobalState * GLOBAL_STATE)
@@ -121,7 +125,7 @@ static esp_err_t test_fan_sense(GlobalState * GLOBAL_STATE)
 
     // fan test failed
     ESP_LOGE(TAG, "FAN test failed!");
-    display_msg("FAN:WARN", GLOBAL_STATE);
+    self_test_show_message(GLOBAL_STATE, "FAN:WARN");
     return ESP_FAIL;
 }
 
@@ -138,7 +142,7 @@ static esp_err_t test_power_consumption(GlobalState * GLOBAL_STATE)
     }
 
     ESP_LOGE(TAG, "POWER test failed! measured %.2f W, target %.2f W +/- %.2f W", power, target_power, margin);
-    display_msg("POWER:FAIL", GLOBAL_STATE);
+    self_test_show_message(GLOBAL_STATE, "POWER:FAIL");
     return ESP_FAIL;
 }
 
@@ -152,7 +156,7 @@ static esp_err_t test_core_voltage(GlobalState * GLOBAL_STATE)
     }
     // tests failed
     ESP_LOGE(TAG, "Core Voltage TEST FAIL, INCORRECT CORE VOLTAGE");
-    display_msg("VCORE:FAIL", GLOBAL_STATE);
+    self_test_show_message(GLOBAL_STATE, "VCORE:FAIL");
     return ESP_FAIL;
 }
 
@@ -173,7 +177,7 @@ static esp_err_t test_input_voltage(GlobalState * GLOBAL_STATE)
     }
 
     ESP_LOGE(TAG, "Input voltage test failed! %.0f mV, expected %.0f +/- %.0f mV", input_voltage_mv, nominal_mv, margin_mv);
-    display_msg("VIN:FAIL", GLOBAL_STATE);
+    self_test_show_message(GLOBAL_STATE, "VIN:FAIL");
     return ESP_FAIL;
 }
 
@@ -227,7 +231,7 @@ void self_test_task(void * pvParameters)
     // Run PSRAM test (check what was already checked in main.c)
     if (!esp_psram_is_initialized()) {
         ESP_LOGE(TAG, "NO PSRAM on device!");
-        display_msg("PSRAM:FAIL", GLOBAL_STATE);
+        self_test_show_message(GLOBAL_STATE, "PSRAM:FAIL");
         tests_done(GLOBAL_STATE, false);
         return;
     }
@@ -235,21 +239,21 @@ void self_test_task(void * pvParameters)
     // Capture extra validation for DS4432U if present
     if (GLOBAL_STATE->DEVICE_CONFIG.DS4432U && DS4432U_test() != ESP_OK) {
         ESP_LOGE(TAG, "DS4432 test failed!");
-        display_msg("DS4432U:FAIL", GLOBAL_STATE);
+        self_test_show_message(GLOBAL_STATE, "DS4432U:FAIL");
         tests_done(GLOBAL_STATE, false);
     }
 
     // Input voltage check (INA260 devices only)
     if (test_input_voltage(GLOBAL_STATE) != ESP_OK) {
         ESP_LOGE(TAG, "Input voltage test failed!");
-        display_msg("VOLTAGE:FAIL", GLOBAL_STATE);
+        self_test_show_message(GLOBAL_STATE, "VOLTAGE:FAIL");
         tests_done(GLOBAL_STATE, false);
     }
 
     // test for voltage regulator faults
     if (test_vreg_faults(GLOBAL_STATE) != ESP_OK) {
         ESP_LOGE(TAG, "VCORE check fault failed!");
-        display_msg("VCORE:PWR FAULT", GLOBAL_STATE);
+        self_test_show_message(GLOBAL_STATE, "VCORE:PWR FAULT");
         tests_done(GLOBAL_STATE, false);
     }
 
@@ -308,8 +312,8 @@ void self_test_task(void * pvParameters)
 
     // detect open circuit / no result
     if (asic_temp == -1.0 || asic_temp == 127.0) {
-        snprintf(logString, sizeof(logString), "TEMP:FAIL :%.0f", asic_temp);
-        display_msg(logString, GLOBAL_STATE);
+        snprintf(logString, sizeof(logString), "TEMP:FAIL: %.1f°C", asic_temp);
+        self_test_show_message(GLOBAL_STATE, logString);
         tests_done(GLOBAL_STATE, false);
     }
 
@@ -317,9 +321,9 @@ void self_test_task(void * pvParameters)
     while (asic_temp < 40.0f)
     {
         snprintf(logString, sizeof(logString),
-                 "ASIC temp > 40°C: %.2f°C\r\n",
+                 "ASIC temp > 40°C: %.1f°C\r\n",
                  asic_temp);
-        display_msg(logString, GLOBAL_STATE);
+        self_test_show_message(GLOBAL_STATE, logString);
         vTaskDelay(500 / portTICK_PERIOD_MS);
         asic_temp = Thermal_get_chip_temp(GLOBAL_STATE);
     }
@@ -335,15 +339,17 @@ void self_test_task(void * pvParameters)
         asic_temp = Thermal_get_chip_temp(GLOBAL_STATE);
         
         if (asic_temp > 62) {
-            snprintf(logString, sizeof(logString), "TEMP:FAIL :%.0f", asic_temp);
-            display_msg(logString, GLOBAL_STATE);
+            snprintf(logString, sizeof(logString), "TEMP:FAIL: %.1f°C", asic_temp);
+            self_test_show_message(GLOBAL_STATE, logString);
             tests_done(GLOBAL_STATE, false);
         }
 
         uint32_t remaining = (hashtest_ms - ((esp_timer_get_time() / 1000) - start_ms)) / 1000;
-        snprintf(logString, sizeof(logString), "%.0fGH/s %.0fC %lds", hashrate, asic_temp, remaining);
-        display_msg(logString, GLOBAL_STATE);
-        
+        snprintf(logString, sizeof(logString), "%.0f Gh/s %.1f°C %lds", hashrate, asic_temp, remaining);
+        self_test_show_message(GLOBAL_STATE, logString);
+
+        ESP_LOGI(TAG, "%s", logString);
+
         vTaskDelay(1000 / portTICK_PERIOD_MS);
     }
 
@@ -355,7 +361,7 @@ void self_test_task(void * pvParameters)
     ESP_LOGI(TAG, "Hashrate: %.2f Gh/s, Expected: %.2f Gh/s", hashrate, expected_hashrate_mhs);
 
     if (hashrate < expected_hashrate_mhs) {
-        display_msg("HASHRATE:FAIL", GLOBAL_STATE);
+        self_test_show_message(GLOBAL_STATE, "HASHRATE:FAIL");
         tests_done(GLOBAL_STATE, false);
     }
 
@@ -372,7 +378,7 @@ void self_test_task(void * pvParameters)
                 ESP_LOGE(TAG, "ASIC %d Domain %d:FAIL - hashrate %.2f Gh/s, expected ~%.2f Gh/s", asic_nr, domain_nr, domain_hashrate, expected_domain_hashrate);
                 char error_buf[30];
                 snprintf(error_buf, 30, "ASIC %d DOMAIN %d:FAIL", asic_nr, domain_nr);
-                display_msg(error_buf, GLOBAL_STATE);
+                self_test_show_message(GLOBAL_STATE, error_buf);
                 tests_done(GLOBAL_STATE, false);
             }
         }
@@ -384,7 +390,7 @@ void self_test_task(void * pvParameters)
 
     if (test_power_consumption(GLOBAL_STATE) != ESP_OK) {
         ESP_LOGE(TAG, "Power Draw Failed, target %.2f W", (float) GLOBAL_STATE->DEVICE_CONFIG.power_consumption_target);
-        display_msg("POWER:FAIL", GLOBAL_STATE);
+        self_test_show_message(GLOBAL_STATE, "POWER:FAIL");
         tests_done(GLOBAL_STATE, false);
     }
 

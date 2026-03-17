@@ -163,54 +163,81 @@ void SYSTEM_init_versions(GlobalState * GLOBAL_STATE) {
 }
 
 esp_err_t SYSTEM_init_peripherals(GlobalState * GLOBAL_STATE) {
-    esp_err_t ret;
-    char * err_msg;
-
-    err_msg = "ISR:FAIL";
-    ESP_GOTO_ON_ERROR(gpio_install_isr_service(0), error, TAG, "Error installing ISR service");
+    esp_err_t ret = gpio_install_isr_service(0);
+    if (ret != ESP_OK) {
+        self_test_show_message(GLOBAL_STATE, "ISR:FAIL");
+        ESP_LOGE(TAG, "Error installing ISR service");
+        return ret;
+    }
 
     // Initialize the core voltage regulator
-    err_msg = "VCORE:FAIL";
-    ESP_GOTO_ON_ERROR(VCORE_init(GLOBAL_STATE), error, TAG, "VCORE init failed!");
+    ret = VCORE_init(GLOBAL_STATE);
+    if (ret != ESP_OK) {
+        self_test_show_message(GLOBAL_STATE, "VCORE:FAIL");
+        ESP_LOGE(TAG, "VCORE init failed");
+        return ret;
+    }
 
     // For self-test, we set a stable known voltage before ASIC initialization
     if (GLOBAL_STATE->SELF_TEST_MODULE.is_active) {
-        ESP_GOTO_ON_ERROR(VCORE_set_voltage(GLOBAL_STATE, 1.150), error, TAG, "VCORE:FAIL");
+        ret = VCORE_set_voltage(GLOBAL_STATE, 1.150);
+        if (ret != ESP_OK) {
+            self_test_show_message(GLOBAL_STATE, "VCORE:FAIL");
+            ESP_LOGE(TAG, "VCORE set failed");
+            return ret;
+        }
     }
 
-    err_msg = "THERMAL:FAIL";
-    ESP_GOTO_ON_ERROR(Thermal_init(&GLOBAL_STATE->DEVICE_CONFIG), error, TAG, "Thermal init failed!");
+    ret = Thermal_init(&GLOBAL_STATE->DEVICE_CONFIG);
+    if (ret != ESP_OK) {
+        self_test_show_message(GLOBAL_STATE, "THERMAL:FAIL");
+        ESP_LOGE(TAG, "Thermal init failed");
+        return ret;
+    }
 
     vTaskDelay(500 / portTICK_PERIOD_MS);
 
     // Ensure overheat_mode config exists
-    err_msg = "CONFIG:FAIL";
-    ESP_GOTO_ON_ERROR(ensure_overheat_mode_config(), error, TAG, "Failed to ensure overheat_mode config");
-
-    err_msg = "DISPLAY:FAIL";
-    ESP_GOTO_ON_ERROR(display_init(GLOBAL_STATE), error, TAG, "Display init failed!");
-
-    err_msg = "INPUT:FAIL";
-    if (!GLOBAL_STATE->SELF_TEST_MODULE.is_active) {
-        ESP_GOTO_ON_ERROR(input_init(screen_button_press, toggle_wifi_softap), error, TAG, "Input init failed!");
-    } else {
-        ESP_GOTO_ON_ERROR(input_init(NULL, self_test_reset), error, TAG, "Input init failed!");
+    ret = ensure_overheat_mode_config();
+    if (ret != ESP_OK) {
+        self_test_show_message(GLOBAL_STATE, "CONFIG:FAIL");
+        ESP_LOGE(TAG, "Failed to ensure overheat_mode config");
+        return ret;
     }
 
-    err_msg = "SCREEN:FAIL";
-    ESP_GOTO_ON_ERROR(screen_start(GLOBAL_STATE), error, TAG, "Screen start failed!");
+    ret = display_init(GLOBAL_STATE);
+    if (ret != ESP_OK) {
+        self_test_show_message(GLOBAL_STATE, "DISPLAY:FAIL");
+        ESP_LOGE(TAG, "Display init failed");
+        return ret;
+    }
 
-    err_msg = "FILESYS:FAIL";
-    ESP_GOTO_ON_ERROR(filesystem_init(GLOBAL_STATE), error, TAG, "Filesystem init failed!");
+    if (!GLOBAL_STATE->SELF_TEST_MODULE.is_active) {
+        ret = input_init(screen_button_press, toggle_wifi_softap);
+    } else {
+        ret = input_init(NULL, self_test_reset);
+    }
+    if (ret != ESP_OK) {
+        self_test_show_message(GLOBAL_STATE, "INPUT:FAIL");
+        ESP_LOGE(TAG, "Input init failed");
+        return ret;
+    }
+
+    ret = screen_start(GLOBAL_STATE);
+    if (ret != ESP_OK) {
+        self_test_show_message(GLOBAL_STATE, "SCREEN:FAIL");
+        ESP_LOGE(TAG, "Screen start failed");
+        return ret;
+    }
+
+    ret = filesystem_init(GLOBAL_STATE);
+    if (ret != ESP_OK) {
+        self_test_show_message(GLOBAL_STATE, "FILESYS:FAIL");
+        ESP_LOGE(TAG, "Filesystem init failed");
+        return ret;
+    }
 
     return ESP_OK;
-
-error: 
-    if (GLOBAL_STATE->SELF_TEST_MODULE.is_active) {
-        GLOBAL_STATE->SELF_TEST_MODULE.message = (char *)err_msg;
-        vTaskDelay(10 / portTICK_PERIOD_MS);
-    }
-    return ret;
 }
 
 void SYSTEM_notify_accepted_share(GlobalState * GLOBAL_STATE)
