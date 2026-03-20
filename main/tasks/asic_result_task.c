@@ -56,6 +56,7 @@ void ASIC_result_task(void *pvParameters)
         if (nonce_diff >= active_job->pool_diff)
         {
             char * user = GLOBAL_STATE->SYSTEM_MODULE.is_using_fallback ? GLOBAL_STATE->SYSTEM_MODULE.fallback_pool_user : GLOBAL_STATE->SYSTEM_MODULE.pool_user;
+            uint64_t sent_time_us = 0;
             int ret = STRATUM_V1_submit_share(
                 GLOBAL_STATE->transport,
                 GLOBAL_STATE->send_uid++,
@@ -64,7 +65,10 @@ void ASIC_result_task(void *pvParameters)
                 active_job->extranonce2,
                 active_job->ntime,
                 asic_result->nonce,
-                asic_result->rolled_version ^ active_job->version);
+                asic_result->rolled_version ^ active_job->version,
+                asic_result->timestamp_us,
+                &sent_time_us);
+            GLOBAL_STATE->SYSTEM_MODULE.process_time = (sent_time_us - asic_result->timestamp_us) / 1000.0f;
 
             if (ret < 0) {
                 ESP_LOGI(TAG, "Unable to write share to socket. Closing connection. Ret: %d (errno %d: %s)", ret, errno, strerror(errno));

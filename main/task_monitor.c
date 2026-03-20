@@ -2,8 +2,8 @@
 #include "freertos/task.h"
 #include "esp_log.h"
 
-#define MAX_TASKS 40          // Adjust based on your max number of tasks
-#define INTERVAL_MS 5000      // 5 seconds
+#define MAX_TASKS 40
+#define INTERVAL_MS 60000
 
 static const char* TAG = "task_monitor";
 

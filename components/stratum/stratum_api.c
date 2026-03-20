@@ -420,12 +420,12 @@ void STRATUM_V1_free_mining_notify(mining_notify * params)
     free(params);
 }
 
-static void stamp_tx(int request_id)
+static void stamp_tx(int request_id, uint64_t timestamp_us)
 {
     if (request_id >= 1) {
         RequestTiming *timing = get_request_timing(request_id);
         if (timing) {
-            timing->timestamp_us = esp_timer_get_time();
+            timing->timestamp_us = timestamp_us;
             timing->tracking = true;
         }
     }
@@ -509,7 +509,7 @@ int STRATUM_V1_pong(esp_transport_handle_t transport, int message_id)
 /// @param version_bits The hex-encoded version bits set by miner (BIP310).
 int STRATUM_V1_submit_share(esp_transport_handle_t transport, int send_uid, const char * username, const char * job_id,
                             const char * extranonce_2, const uint32_t ntime,
-                            const uint32_t nonce, const uint32_t version_bits)
+                            const uint32_t nonce, const uint32_t version_bits, uint64_t arrival_time_us, uint64_t *out_sent_time_us)
 {
     char submit_msg[BUFFER_SIZE];
     snprintf(submit_msg, sizeof(submit_msg),
@@ -519,7 +519,15 @@ int STRATUM_V1_submit_share(esp_transport_handle_t transport, int send_uid, cons
 
     int ret = esp_transport_write(transport, submit_msg, strlen(submit_msg), TRANSPORT_TIMEOUT_MS);
 
-    stamp_tx(send_uid);
+    uint64_t now = esp_timer_get_time();
+    if (out_sent_time_us) {
+        *out_sent_time_us = now;
+    }
+    if (arrival_time_us > 0) {
+        ESP_LOGI(TAG, "Internal latency: %0.1f ms", (now - arrival_time_us) / 1000.0f);
+    }
+    
+    stamp_tx(send_uid, now);
 
     return ret;
 }
