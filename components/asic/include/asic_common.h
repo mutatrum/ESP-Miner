@@ -28,6 +28,8 @@ typedef struct
     register_type_t register_type;
     uint8_t asic_nr;
     uint32_t value;
+    uint8_t core_id;
+    uint8_t small_core_id;
     // ---- timestamp
     uint64_t timestamp_us;
 } task_result;

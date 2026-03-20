@@ -515,7 +515,6 @@ int STRATUM_V1_submit_share(esp_transport_handle_t transport, int send_uid, cons
     snprintf(submit_msg, sizeof(submit_msg),
         "{\"id\":%d,\"method\":\"mining.submit\",\"params\":[\"%s\",\"%s\",\"%s\",\"%08lx\",\"%08lx\",\"%08lx\"]}\n",
         send_uid, username, job_id, extranonce_2, ntime, nonce, version_bits);
-    debug_stratum_tx(submit_msg);
 
     int ret = esp_transport_write(transport, submit_msg, strlen(submit_msg), TRANSPORT_TIMEOUT_MS);
 
@@ -523,9 +522,8 @@ int STRATUM_V1_submit_share(esp_transport_handle_t transport, int send_uid, cons
     if (out_sent_time_us) {
         *out_sent_time_us = now;
     }
-    if (arrival_time_us > 0) {
-        ESP_LOGI(TAG, "Internal latency: %0.1f ms", (now - arrival_time_us) / 1000.0f);
-    }
+
+    debug_stratum_tx(submit_msg);
     
     stamp_tx(send_uid, now);
 
