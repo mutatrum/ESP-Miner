@@ -1,6 +1,8 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "esp_log.h"
+#include "string.h"
+#include "global_state.h"
 
 #define MAX_TASKS 40
 #define INTERVAL_MS 60000
@@ -53,13 +55,11 @@ void task_monitor_task(void *pvParameters) {
         // Process each task in array2 (current tasks)
         for (uint32_t j = 0; j < num_tasks2; j++) {
             uint32_t task_delta = task_array2[j].ulRunTimeCounter;
-            bool found = false;
 
             // Look for match in array1
             for (uint32_t i = 0; i < num_tasks1; i++) {
                 if (task_array1[i].xHandle == task_array2[j].xHandle) {
                     task_delta -= task_array1[i].ulRunTimeCounter;
-                    found = true;
                     break;
                 }
             }
@@ -68,7 +68,7 @@ void task_monitor_task(void *pvParameters) {
             double delta_percentage = (task_delta * 100.0) / total_delta;
             uint32_t lifetime_runtime = task_array2[j].ulRunTimeCounter;
             double lifetime_percentage = (lifetime_runtime * 100.0) / total_runtime2;
-            printf("%-20s\t%lu\t\t\t%.2f%%\t\t%lu\t\t\t%.2f%%\n", task_array2[j].pcTaskName, task_delta, delta_percentage, lifetime_runtime, lifetime_percentage);
+            printf("%-20s\t%u\t\t\t%.2f%%\t\t%u\t\t\t%.2f%%\n", task_array2[j].pcTaskName, (unsigned int)task_delta, delta_percentage, (unsigned int)lifetime_runtime, lifetime_percentage);
         }
         printf("\n");
 
@@ -82,4 +82,25 @@ void task_monitor_task(void *pvParameters) {
     free(task_array1);
     free(task_array2);
     vTaskDelete(NULL);
+}
+
+void cpu_monitor_task(void *pvParameters) {
+    GlobalState *GLOBAL_STATE = (GlobalState *)pvParameters;
+    float avg_usage = -1.0f;
+    const float alpha = 0.5f;
+
+    while (1) {
+        float idle_percent = (ulTaskGetIdleRunTimePercentForCore(0) + ulTaskGetIdleRunTimePercentForCore(1)) / 2.0f;
+        float current_usage = 100.0f - idle_percent;
+        
+        if (avg_usage < 0) {
+            avg_usage = current_usage; // First sample
+        } else {
+            avg_usage = (alpha * current_usage) + ((1.0f - alpha) * avg_usage);
+        }
+
+        GLOBAL_STATE->SYSTEM_MODULE.cpu_usage = avg_usage;
+        
+        vTaskDelay(pdMS_TO_TICKS(1000));
+    }
 }

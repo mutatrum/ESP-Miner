@@ -31,7 +31,8 @@ void app_main(void)
 {
     ESP_LOGI(TAG, "Welcome to the bitaxe - FOSS || GTFO!");
 
-    xTaskCreate(task_monitor_task, "task_monitor", 8192, NULL, 1, NULL);  
+    // xTaskCreate(task_monitor_task, "task_monitor", 8192, NULL, 1, NULL);
+    xTaskCreate(cpu_monitor_task, "cpu_monitor", 4096, (void *)&GLOBAL_STATE, 1, NULL);
   
     if (!esp_psram_is_initialized()) {
         ESP_LOGE(TAG, "No PSRAM available on ESP32 device!");
