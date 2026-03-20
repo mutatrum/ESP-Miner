@@ -42,6 +42,8 @@ SRCS
     "./power/vcore.c"
     "./power/asic_reset.c"
     "./power/asic_init.c"
+    "display_capture.c"
+    "screen_stream.c"
 
 INCLUDE_DIRS
     "."
@@ -54,6 +56,7 @@ INCLUDE_DIRS
     "../components/connect/include"
     "../components/dns_server/include"
     "../components/stratum/include"
+    "../components/stb"
     "thermal"
     "power"
 
