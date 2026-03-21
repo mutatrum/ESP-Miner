@@ -1501,13 +1501,17 @@ esp_err_t start_rest_server(void * pvParameters)
     httpd_register_err_handler(server, HTTPD_404_NOT_FOUND, http_404_error_handler);
 
     // Start websocket log handler thread
-    xTaskCreateWithCaps(websocket_task, "websocket_task", 8192, server, 2, NULL, MALLOC_CAP_SPIRAM);
+    if (xTaskCreateWithCaps(websocket_task, "websocket_task", 8192, server, 2, NULL, MALLOC_CAP_SPIRAM) != pdPASS) {
+        ESP_LOGE(TAG, "Error creating websicket task");
+    }
 
     // Start websocket API live data handler thread
     static void *ws_api_params[2];
     ws_api_params[0] = server;
     ws_api_params[1] = GLOBAL_STATE;
-    xTaskCreateWithCaps(websocket_api_task, "ws_api_task", 8192, ws_api_params, 2, NULL, MALLOC_CAP_SPIRAM);
+    if (xTaskCreateWithCaps(websocket_api_task, "ws_api_task", 8192, ws_api_params, 2, NULL, MALLOC_CAP_SPIRAM) != pdPASS) {
+        ESP_LOGE(TAG, "Error creating ws api task");
+    }
 
     // Start the DNS server that will redirect all queries to the softAP IP
     dns_server_config_t dns_config = DNS_SERVER_CONFIG_SINGLE("*" /* all A queries */, "WIFI_AP_DEF" /* softAP netif ID */);
