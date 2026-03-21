@@ -14,6 +14,8 @@
 #include "global_state.h"
 #include "connect.h"
 
+#define WEBSOCKET_API_RATE_LIMIT_MS 500
+
 static const char *TAG = "websocket_api";
 
 static int clients[MAX_LIVE_CLIENTS];
@@ -257,12 +259,7 @@ static cJSON* build_diff(ws_api_snapshot_t *old, ws_api_snapshot_t *new, uint32_
     if (old->free_heap != new->free_heap) { cJSON_AddNumberToObject(root, "freeHeap", new->free_heap); changed = true; }
     if (old->wifi_rssi != new->wifi_rssi) { cJSON_AddNumberToObject(root, "wifiRSSI", new->wifi_rssi); changed = true; }
     if (strcmp(old->wifi_status, new->wifi_status) != 0) { cJSON_AddStringToObject(root, "wifiStatus", new->wifi_status); changed = true; }
-
-    // Always check uptime if any group changed or if 60 seconds passed
-    if (changed || (new->uptimeSeconds - old->uptimeSeconds >= 60)) {
-        cJSON_AddNumberToObject(root, "uptimeSeconds", new->uptimeSeconds);
-        changed = true;
-    }
+    if (old->uptimeSeconds != new->uptimeSeconds) { cJSON_AddNumberToObject(root, "uptimeSeconds", new->uptimeSeconds); changed = true; }
 
     if (!changed && cJSON_GetArraySize(root) == 0) {
         cJSON_Delete(root);
@@ -472,6 +469,6 @@ void websocket_api_task(void *pvParameters)
         last_snapshot = new_snapshot;
 
         // Rate limit: prevent spamming the client if producer tasks update too frequently
-        vTaskDelay(pdMS_TO_TICKS(500));
+        vTaskDelay(pdMS_TO_TICKS(WEBSOCKET_API_RATE_LIMIT_MS));
     }
 }

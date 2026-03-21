@@ -105,6 +105,7 @@ export class HomeComponent implements OnInit, OnDestroy {
   private lastChartUpdate: number = 0;
   private destroy$ = new Subject<void>();
   private infoSubscription?: Subscription;
+  private lastBucket: number = -1;
   public form!: FormGroup;
 
   private staleCheckInterval: any;
@@ -397,7 +398,8 @@ export class HomeComponent implements OnInit, OnDestroy {
             this.chartY2Data.push(0.0);
           }
 
-          this.limitDataPoints();
+          const statsFrequency = (stats as any).statsFrequency || 0;
+          this.limitDataPoints(statsFrequency);
         }),
         this.startGetLiveData();
       });
@@ -435,18 +437,21 @@ export class HomeComponent implements OnInit, OnDestroy {
         this.maxRpm = Math.max(7000, info.fanrpm, info.fan2rpm);
         this.maxFrequency = Math.max(800, info.actualFrequency || info.frequency);
 
-        // Only collect and update chart data if there's no power fault 
-        // and at most once every 5 seconds
+        // Only collect and update chart data if there's no power fault
+        // and at most once every second
         const now = new Date().getTime();
-        if (!info.power_fault && (now - this.lastChartUpdate >= 5000)) {
+        if (!info.power_fault && (now - this.lastChartUpdate >= 1000)) {
           this.lastChartUpdate = now;
+          const statsFrequency = info.statsFrequency || 0;
+          const currentBucket = statsFrequency > 0 ? Math.floor(info.uptimeSeconds / statsFrequency) : info.uptimeSeconds;
+
           this.dataLabel.push(now);
           this.hashrateData.push(info.hashRate || 0);
           this.powerData.push(info.power || 0);
           this.chartY1Data.push(HomeComponent.getDataForLabel(chartY1DataLabel, info));
           this.chartY2Data.push(HomeComponent.getDataForLabel(chartY2DataLabel, info));
 
-          this.limitDataPoints();
+          this.limitDataPoints(info.statsFrequency);
 
           this.chartData.datasets[0].label = chartY1DataLabel;
           this.chartData.datasets[1].label = chartY2DataLabel;
@@ -454,15 +459,20 @@ export class HomeComponent implements OnInit, OnDestroy {
           this.chartData.datasets[0].hidden = (chartY1DataLabel === eChartLabel.none);
           this.chartData.datasets[1].hidden = (chartY2DataLabel === eChartLabel.none);
 
-          // Align both axis if they're hashrates
-          if (this.isHashrateAxis(chartY1DataLabel) && this.isHashrateAxis(chartY2DataLabel)) {
-            this.chartOptions.scales.y.suggestedMin = this.chartOptions.scales.y2.suggestedMin = Math.min(...this.chartY1Data, ...this.chartY2Data);
-            this.chartOptions.scales.y.suggestedMax = this.chartOptions.scales.y2.suggestedMax = Math.max(...this.chartY1Data, ...this.chartY2Data);
-          } else {
-            this.chartOptions.scales.y.suggestedMin = undefined;
-            this.chartOptions.scales.y2.suggestedMin = undefined;
-            this.chartOptions.scales.y.suggestedMax = this.getSuggestedMaxForLabel(chartY1DataLabel, info);
-            this.chartOptions.scales.y2.suggestedMax = this.getSuggestedMaxForLabel(chartY2DataLabel, info);
+          // Update scales only when the historical bucket changes or on initialization
+          // This keeps the UI stable while live data is being added
+          if (currentBucket !== this.lastBucket) {
+            // Align both axis if they're hashrates.
+            if (this.isHashrateAxis(chartY1DataLabel) && this.isHashrateAxis(chartY2DataLabel)) {
+              this.chartOptions.scales.y.suggestedMin = this.chartOptions.scales.y2.suggestedMin = Math.min(...this.chartY1Data, ...this.chartY2Data);
+              this.chartOptions.scales.y.suggestedMax = this.chartOptions.scales.y2.suggestedMax = Math.max(...this.chartY1Data, ...this.chartY2Data);
+            } else {
+              this.chartOptions.scales.y.suggestedMin = undefined;
+              this.chartOptions.scales.y2.suggestedMin = undefined;
+              this.chartOptions.scales.y.suggestedMax = this.getSuggestedMaxForLabel(chartY1DataLabel, info);
+              this.chartOptions.scales.y2.suggestedMax = this.getSuggestedMaxForLabel(chartY2DataLabel, info);
+            }
+            this.lastBucket = currentBucket;
           }
 
           this.chartOptions.scales.y.display = (chartY1DataLabel != eChartLabel.none);
@@ -539,13 +549,6 @@ export class HomeComponent implements OnInit, OnDestroy {
         }
         return result;
       }));
-
-    this.infoSubscription = combineLatest([this.info$, this.systemInfoError$])
-      .pipe(takeUntil(this.destroy$))
-      .subscribe(([info, systemInfoError]) => {
-        this.handleSystemMessages(info, systemInfoError);
-        this.setTitle(info, systemInfoError);
-      });
   }
 
   onPoolChange(event: { originalEvent: Event; value: PoolLabel }) {
@@ -789,13 +792,56 @@ export class HomeComponent implements OnInit, OnDestroy {
     this.chartY2Data.length = 0;
   }
 
-  public limitDataPoints() {
-    if (this.dataLabel.length >= 720) {
-      this.dataLabel.shift();
-      this.hashrateData.shift();
-      this.powerData.shift();
-      this.chartY1Data.shift();
-      this.chartY2Data.shift();
+  public limitDataPoints(statsFrequency: number = 0) {
+    const limit = 1000;
+    const statsFrequencyMs = (statsFrequency || 0) * 1000;
+
+    while (this.dataLabel.length > limit) {
+      let minScore = Infinity;
+      let indexToRemove = 1;
+      let foundCandidate = false;
+
+      // Only consider points that are "denser" than the historical resolution
+      // as candidates for thinning.
+      for (let i = 1; i < this.dataLabel.length - 1; i++) {
+        const gapLeft = this.dataLabel[i] - this.dataLabel[i - 1];
+        const gapRight = this.dataLabel[i + 1] - this.dataLabel[i];
+
+        // If either neighbor is closer than the historical frequency, this point is a thinning candidate
+        if (statsFrequencyMs === 0 || gapLeft < statsFrequencyMs || gapRight < statsFrequencyMs) {
+          foundCandidate = true;
+
+          // Calculate "Significance Score" (Triangle Area) to decide which point to remove.
+          // We prioritize preserving hashrate spikes.
+          // Area approx = | x1(y2 - y3) + x2(y3 - y1) + x3(y1 - y2) |
+          const t1 = this.dataLabel[i - 1];
+          const t2 = this.dataLabel[i];
+          const t3 = this.dataLabel[i + 1];
+          const v1 = this.hashrateData[i - 1];
+          const v2 = this.hashrateData[i];
+          const v3 = this.hashrateData[i + 1];
+
+          // Area of triangle formed by the hashrate values
+          const score = Math.abs(t1 * (v2 - v3) + t2 * (v3 - v1) + t3 * (v1 - v2));
+
+          if (score < minScore) {
+            minScore = score;
+            indexToRemove = i;
+          }
+        }
+      }
+
+      // If no dense candidates found (all points are already at historical resolution), 
+      // just remove the oldest point to keep the rolling window moving.
+      if (!foundCandidate) {
+        indexToRemove = 1;
+      }
+
+      this.dataLabel.splice(indexToRemove, 1);
+      this.hashrateData.splice(indexToRemove, 1);
+      this.powerData.splice(indexToRemove, 1);
+      this.chartY1Data.splice(indexToRemove, 1);
+      this.chartY2Data.splice(indexToRemove, 1);
     }
   }
 
