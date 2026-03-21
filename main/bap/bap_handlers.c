@@ -311,6 +311,7 @@ void BAP_handle_settings(const char *parameter, const char *value) {
                 }
                 
                 //ESP_LOGI(TAG, "Setting ASIC frequency to %.2f MHz", target_frequency);
+                bap_global_state->POWER_MANAGEMENT_MODULE.frequency_value = target_frequency;
                 
                 bap_global_state->POWER_MANAGEMENT_MODULE.frequency_value = target_frequency;
 

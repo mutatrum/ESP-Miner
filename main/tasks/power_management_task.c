@@ -107,7 +107,6 @@ void POWER_MANAGEMENT_init_frequency(void * pvParameters)
 
     GLOBAL_STATE->POWER_MANAGEMENT_MODULE.actual_frequency = 50.0;
     GLOBAL_STATE->POWER_MANAGEMENT_MODULE.frequency_value = frequency;
-    GLOBAL_STATE->POWER_MANAGEMENT_MODULE.actual_frequency = 50.0;    
     GLOBAL_STATE->POWER_MANAGEMENT_MODULE.expected_hashrate = expected_hashrate(GLOBAL_STATE);
     
     char expected_hashrate_str[16] = {0};

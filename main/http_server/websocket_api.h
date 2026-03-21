@@ -7,6 +7,7 @@
 #define MAX_LIVE_CLIENTS (4)
 
 esp_err_t websocket_api_handler(httpd_req_t *req);
+void websocket_api_init(void *global_state);
 void websocket_api_task(void *pvParameters);
 void websocket_api_close_fn(httpd_handle_t hd, int sockfd);
 

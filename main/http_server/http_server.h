@@ -9,5 +9,6 @@ esp_err_t is_network_allowed(httpd_req_t * req);
 esp_err_t start_rest_server(void *pvParameters);
 esp_err_t HTTP_send_json(httpd_req_t * req, const cJSON * item, int * prebuffer_len);
 cJSON* cJSON_AddFloatToObject(cJSON * const object, const char * const name, const float number);
+cJSON* cJSON_CreateFloat(float number);
 
 #endif /* HTTP_SERVER_H_ */

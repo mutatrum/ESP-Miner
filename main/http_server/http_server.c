@@ -1317,6 +1317,9 @@ esp_err_t start_rest_server(void * pvParameters)
 {
     GLOBAL_STATE = (GlobalState *) pvParameters;
     
+    // Initialize the WebSocket API mutex and clients array early to avoid startup crashes
+    websocket_api_init(GLOBAL_STATE);
+
     // Initialize the ASIC API with the global state
     asic_api_init(GLOBAL_STATE);
     const char * base_path = "";
@@ -1506,10 +1509,7 @@ esp_err_t start_rest_server(void * pvParameters)
     }
 
     // Start websocket API live data handler thread
-    static void *ws_api_params[2];
-    ws_api_params[0] = server;
-    ws_api_params[1] = GLOBAL_STATE;
-    if (xTaskCreateWithCaps(websocket_api_task, "ws_api_task", 8192, ws_api_params, 2, NULL, MALLOC_CAP_SPIRAM) != pdPASS) {
+    if (xTaskCreateWithCaps(websocket_api_task, "ws_api_task", 8192, server, 2, NULL, MALLOC_CAP_SPIRAM) != pdPASS) {
         ESP_LOGE(TAG, "Error creating ws api task");
     }
 

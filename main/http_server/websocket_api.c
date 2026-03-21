@@ -148,7 +148,7 @@ static void add_hashrate_monitor(cJSON *root, GlobalState *g) {
         int hash_domains = g->DEVICE_CONFIG.family.asic.hash_domains;
         cJSON* hash_domain_array = cJSON_CreateArray();
         for (int domain_nr = 0; domain_nr < hash_domains; domain_nr++) {
-            cJSON_AddItemToArray(hash_domain_array, cJSON_CreateNumber(g->HASHRATE_MONITOR_MODULE.domain_measurements[asic_nr][domain_nr].hashrate));
+            cJSON_AddItemToArray(hash_domain_array, cJSON_CreateFloat(g->HASHRATE_MONITOR_MODULE.domain_measurements[asic_nr][domain_nr].hashrate));
         }
         cJSON_AddItemToObject(asic, "domains", hash_domain_array);
         cJSON_AddNumberToObject(asic, "errorCount", g->HASHRATE_MONITOR_MODULE.error_measurement[asic_nr].value);
@@ -271,6 +271,11 @@ static cJSON* build_diff(ws_api_snapshot_t *old, ws_api_snapshot_t *new, uint32_
 
 static esp_err_t add_live_client(int fd)
 {
+    if (clients_mutex == NULL) {
+        ESP_LOGE(TAG, "Clients mutex NOT initialized!");
+        return ESP_FAIL;
+    }
+
     if (xSemaphoreTake(clients_mutex, pdMS_TO_TICKS(100)) != pdTRUE) {
         ESP_LOGE(TAG, "Failed to acquire mutex for adding client");
         return ESP_FAIL;
@@ -296,6 +301,11 @@ static esp_err_t add_live_client(int fd)
 
 static void remove_live_client(int fd)
 {
+    if (clients_mutex == NULL) {
+        ESP_LOGE(TAG, "Clients mutex NOT initialized!");
+        return;
+    }
+
     if (xSemaphoreTake(clients_mutex, pdMS_TO_TICKS(100)) != pdTRUE) {
         ESP_LOGE(TAG, "Failed to acquire mutex for removing client");
         return;
@@ -408,28 +418,28 @@ static void broadcast_json(cJSON *root)
     free(json_str);
 }
 
+void websocket_api_init(void *global_state)
+{
+    GLOBAL_STATE = (GlobalState *)global_state;
+    memset(clients, -1, sizeof(clients));
+    
+    if (clients_mutex == NULL) {
+        clients_mutex = xSemaphoreCreateMutex();
+        if (clients_mutex == NULL) {
+            ESP_LOGE(TAG, "Failed to create clients mutex");
+        }
+    }
+}
+
 void websocket_api_task(void *pvParameters)
 {
     ESP_LOGI(TAG, "websocket_api_task starting");
 
-    // pvParameters carries both httpd_handle and GlobalState via a struct
-    // We pack them into a void*[2] array in http_server.c
-    void **params = (void **)pvParameters;
-    server_handle = (httpd_handle_t)params[0];
-    GLOBAL_STATE = (GlobalState *)params[1];
+    server_handle = (httpd_handle_t)pvParameters;
 
     // Wait until network is connected before proceeding
     while (!GLOBAL_STATE->SYSTEM_MODULE.is_connected) {
         vTaskDelay(pdMS_TO_TICKS(100));
-    }
-
-    memset(clients, -1, sizeof(clients));
-
-    clients_mutex = xSemaphoreCreateMutex();
-    if (clients_mutex == NULL) {
-        ESP_LOGE(TAG, "Failed to create clients mutex");
-        vTaskDelete(NULL);
-        return;
     }
 
     ws_api_snapshot_t last_snapshot;
