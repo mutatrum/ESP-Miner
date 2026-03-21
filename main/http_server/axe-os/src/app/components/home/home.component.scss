@@ -1,7 +1,3 @@
-.card {
-    min-height: 100%;
-}
-
 .col-fixed-width {
     min-width: 80px;
 }
@@ -21,5 +17,39 @@
 
     &[style*="background"] {
         transition: background 250ms;
+    }
+}
+
+// Gridstack layout
+.grid-stack {
+    .grid-stack-item-content {
+        overflow: hidden;
+
+        > .card,
+        > ng-container > .card {
+            height: 100%;
+            margin: 0;
+            overflow: auto;
+        }
+    }
+
+    // Hide resize handles by default
+    .ui-resizable-handle,
+    .gs-resizable-handle {
+        display: none !important;
+    }
+
+    // Edit mode
+    &.gs-edit-mode {
+        .grid-stack-item > .grid-stack-item-content {
+            outline: 2px dashed var(--primary-color, #6366f1);
+            outline-offset: -2px;
+            border-radius: 8px;
+        }
+
+        .ui-resizable-handle,
+        .gs-resizable-handle {
+            display: block !important;
+        }
     }
 }
