@@ -737,28 +737,6 @@ export class HomeComponent implements OnInit, OnDestroy {
     return index;
   }
 
-  public calculateAverage(data: number[]): number {
-    if (data.length === 0) return 0;
-    const sum = data.reduce((sum, value) => sum + value, 0);
-    return sum / data.length;
-  }
-
-  public calculateEfficiencyAverage(hashrateData: number[], powerData: number[]): number {
-    if (hashrateData.length === 0 || powerData.length === 0) return 0;
-
-    // Calculate efficiency for each data point and average them
-    const efficiencies = hashrateData.map((hashrate, index) => {
-      const power = powerData[index] || 0;
-      if (hashrate > 0) {
-        return power / (hashrate / 1_000); // Convert to J/Th
-      } else {
-        return power; // in this case better than infinity or NaN
-      }
-    });
-
-    return this.calculateAverage(efficiencies);
-  }
-
   getPayoutPercentage(info: ISystemInfo) {
     if (info.coinbaseValueTotalSatoshis) {
       return (info.coinbaseValueUserSatoshis ?? 0) / info.coinbaseValueTotalSatoshis * 100;
@@ -805,7 +783,7 @@ export class HomeComponent implements OnInit, OnDestroy {
     }
   }
 
-  private calculateEfficiency(info: ISystemInfo, key: 'hashRate' | 'expectedHashrate'): number {
+  private calculateEfficiency(info: ISystemInfo, key: 'hashRate' | 'hashRate_1m' | 'expectedHashrate'): number {
     const hashrate = info[key];
     if (info.power_fault || hashrate <= 0) {
       return 0;
@@ -813,16 +791,12 @@ export class HomeComponent implements OnInit, OnDestroy {
     return info.power / (hashrate / 1_000);
   }
 
-  public getHashrateAverage(): number {
-    return this.calculateAverage(this.hashrateData);
-  }
-
   public getEfficiency(info: ISystemInfo): number {
     return this.calculateEfficiency(info, 'hashRate');
   }
 
-  public getEfficiencyAverage(): number {
-    return this.calculateEfficiencyAverage(this.hashrateData, this.powerData);
+  public getEfficiencyAverage(info: ISystemInfo): number {
+    return this.calculateEfficiency(info, 'hashRate_1m');
   }
 
   public getExpectedEfficiency(info: ISystemInfo): number {
