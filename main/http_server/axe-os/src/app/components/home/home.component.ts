@@ -103,7 +103,7 @@ export class HomeComponent implements OnInit, OnDestroy {
 
   private pageDefaultTitle: string = '';
   private lastChartUpdate: number = 0;
-  private currentIntervalMs: number = 15000;
+  private currentInterval: any = HomeComponent.ADAPTIVE_TICK_INTERVALS[0];
 
   private static readonly ADAPTIVE_TICK_INTERVALS = [
     { unit: 'second', step: 1, ms: 1000 },
@@ -326,18 +326,42 @@ export class HomeComponent implements OnInit, OnDestroy {
           },
           ticks: {
             color: textColorSecondary,
-            maxTicksLimit: 12,
-            autoSkip: true
+            autoSkip: false
           },
           afterBuildTicks: (axis: any) => {
-            const interval = this.currentIntervalMs;
-            if (!interval) return;
+            if (!this.currentInterval) return;
 
             const ticks = [];
-            let curr = Math.ceil(axis.min / interval) * interval;
+            const start = new Date(axis.min);
+            
+            // Align start to the unit boundary (human readable)
+            start.setMilliseconds(0);
+            if (this.currentInterval.unit === 'second') {
+              const s = start.getSeconds();
+              start.setSeconds(s - (s % this.currentInterval.step));
+            } else {
+              start.setSeconds(0);
+              if (this.currentInterval.unit === 'minute') {
+                const m = start.getMinutes();
+                start.setMinutes(m - (m % this.currentInterval.step));
+              } else {
+                start.setMinutes(0);
+                if (this.currentInterval.unit === 'hour') {
+                  const h = start.getHours();
+                  start.setHours(h - (h % this.currentInterval.step));
+                } else {
+                  start.setHours(0);
+                }
+              }
+            }
+
+            let curr = start.getTime();
+            // Start the first tick inside or exactly at the min boundary
+            while (curr < axis.min) curr += this.currentInterval.ms;
+
             while (curr <= axis.max) {
               ticks.push({ value: curr });
-              curr += interval;
+              curr += this.currentInterval.ms;
             }
             axis.ticks = ticks;
           },
@@ -895,16 +919,14 @@ export class HomeComponent implements OnInit, OnDestroy {
 
     const totalSpanMs = this.dataLabel[this.dataLabel.length - 1] - this.dataLabel[0];
 
-    // Find the smallest "clean" interval that keeps us under 16 ticks
-    const chosen = HomeComponent.ADAPTIVE_TICK_INTERVALS.find(i => totalSpanMs / i.ms <= 16) || 
-                   HomeComponent.ADAPTIVE_TICK_INTERVALS[HomeComponent.ADAPTIVE_TICK_INTERVALS.length - 1];
+    // Find the smallest interval that gets 16 ticks
+    this.currentInterval = HomeComponent.ADAPTIVE_TICK_INTERVALS.find(i => totalSpanMs / i.ms < 17) || 
+                           HomeComponent.ADAPTIVE_TICK_INTERVALS[HomeComponent.ADAPTIVE_TICK_INTERVALS.length - 1];
     
-    this.currentIntervalMs = chosen.ms;
-
     const xAxis = (this.chartOptions.scales as any).x;
-    if (xAxis.time.unit !== chosen.unit || xAxis.time.stepSize !== chosen.step) {
-      xAxis.time.unit = chosen.unit;
-      xAxis.time.stepSize = chosen.step;
+    if (xAxis.time.unit !== this.currentInterval.unit || xAxis.time.stepSize !== this.currentInterval.step) {
+      xAxis.time.unit = this.currentInterval.unit;
+      xAxis.time.stepSize = this.currentInterval.step;
     }
   }
 
