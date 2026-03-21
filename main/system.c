@@ -119,8 +119,8 @@ void SYSTEM_init_system(GlobalState * GLOBAL_STATE)
     pthread_mutex_init(&GLOBAL_STATE->valid_jobs_lock, NULL);
 
     // Create event group for WebSocket API notifications
-    GLOBAL_STATE.ws_event_group = xEventGroupCreate();
-    if (GLOBAL_STATE.ws_event_group == NULL) {
+    GLOBAL_STATE->ws_event_group = xEventGroupCreate();
+    if (GLOBAL_STATE->ws_event_group == NULL) {
         ESP_LOGE(TAG, "Failed to create WebSocket event group");
     }
 }

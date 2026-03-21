@@ -134,6 +134,7 @@ export class HomeComponent implements OnInit, OnDestroy {
 
   private staleCheckInterval: any;
   private lastMessageTime: number = 0;
+  private isStatsLoaded: boolean = false;
 
   @Input() uri = '';
 
@@ -177,6 +178,7 @@ export class HomeComponent implements OnInit, OnDestroy {
     this.staleCheckInterval = setInterval(() => this.checkStaleData(), 1000);
 
     this.loadPreviousData();
+    this.startGetLiveData();
   }
 
   ngOnDestroy() {
@@ -441,11 +443,10 @@ export class HomeComponent implements OnInit, OnDestroy {
             this.chartY2Data.push(0.0);
           }
 
-          const statsFrequency = (stats as any).statsFrequency || 0;
-          this.limitDataPoints(statsFrequency);
           this.updateAdaptiveTicks();
-        }),
-        this.startGetLiveData();
+        });
+
+        this.isStatsLoaded = true;
       });
   }
 
@@ -482,9 +483,9 @@ export class HomeComponent implements OnInit, OnDestroy {
         this.maxFrequency = Math.max(800, info.actualFrequency || info.frequency);
 
         // Only collect and update chart data if there's no power fault
-        // and at most once every second
+        // and at most once every second, AND after stats are loaded to maintain order
         const now = new Date().getTime();
-        if (!info.power_fault && (now - this.lastChartUpdate >= 1000)) {
+        if (!info.power_fault && this.isStatsLoaded && (now - this.lastChartUpdate >= 1000)) {
           this.lastChartUpdate = now;
           const statsFrequency = info.statsFrequency || 0;
           const currentBucket = statsFrequency > 0 ? Math.floor(info.uptimeSeconds / statsFrequency) : info.uptimeSeconds;
