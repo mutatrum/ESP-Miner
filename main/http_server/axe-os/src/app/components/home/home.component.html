@@ -30,7 +30,7 @@
                 <div class="flex flex-column justify-content-between">
                     <span class="block text-lg font-medium mb-3">Hashrate</span>
 
-                    <ng-container *ngIf="!info.power_fault; else powerFault">
+                    <ng-container>
                         <div class="flex align-items-center justify-content-between gap-2 mb-3">
                             <span class="text-900 font-medium text-2xl white-space-nowrap">
                                 {{info.hashRate | hashSuffix}}
@@ -87,7 +87,7 @@
                 <div class="flex flex-column justify-content-between">
                     <span class="block text-lg font-medium mb-3">Efficiency</span>
 
-                    <ng-container *ngIf="!info.power_fault; else powerFault">
+                    <ng-container>
                         <div class="flex align-items-center justify-content-between gap-2 mb-3">
                             <span class="text-900 font-medium text-2xl white-space-nowrap">
                                 {{getEfficiency(info) | number: '1.2-2'}} J/Th
@@ -186,7 +186,7 @@
             </div>
         </div>
 
-        <div class="col-12" *ngIf="!info.power_fault">
+        <div class="col-12">
             <div class="card">
                 <form [formGroup]="form">
                     <div class="flex flex-nowrap justify-content-between mb-3">

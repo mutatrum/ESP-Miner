@@ -1,5 +1,29 @@
 import { Component, OnInit, ViewChild, Input, OnDestroy } from '@angular/core';
-import { interval, map, Observable, shareReplay, startWith, Subscription, switchMap, tap, first, Subject, takeUntil, BehaviorSubject, filter, catchError, of, combineLatest, merge, scan, timer } from 'rxjs';
+import {
+  BehaviorSubject,
+  combineLatest,
+  distinctUntilChanged,
+  EMPTY,
+  first,
+  fromEvent,
+  map,
+  Observable,
+  shareReplay,
+  Subject,
+  takeUntil,
+  tap,
+  throttleTime,
+  asyncScheduler,
+  Subscription,
+  switchMap,
+  catchError,
+  of,
+  merge,
+  scan,
+  timer,
+  interval,
+  startWith
+} from 'rxjs';
 import { HttpErrorResponse } from '@angular/common/http';
 import { FormBuilder, FormGroup } from '@angular/forms';
 import { ToastrService } from 'ngx-toastr';
@@ -256,12 +280,12 @@ export class HomeComponent implements OnInit, OnDestroy {
     const primaryColor = documentStyle.getPropertyValue('--primary-color');
 
     this.chartData = {
-      labels: [this.dataLabel],
+      labels: this.dataLabel,
       datasets: [
         {
           type: 'line',
           label: eChartLabel.hashrate,
-          data: [this.chartY1Data],
+          data: this.chartY1Data,
           fill: true,
           backgroundColor: primaryColor + '30',
           borderColor: primaryColor,
@@ -275,7 +299,7 @@ export class HomeComponent implements OnInit, OnDestroy {
         {
           type: 'line',
           label: eChartLabel.asicTemp,
-          data: [this.chartY2Data],
+          data: this.chartY2Data,
           fill: false,
           backgroundColor: textColorSecondary,
           borderColor: textColorSecondary,
@@ -377,7 +401,10 @@ export class HomeComponent implements OnInit, OnDestroy {
           position: 'left',
           ticks: {
             color: primaryColor,
-            callback: (value: number) => HomeComponent.cbFormatValue(value, this.chartData.datasets[0].label, {tickmark: true})
+            callback: (value: number) => {
+              const label = this.chartData?.datasets?.[0]?.label;
+              return label ? HomeComponent.cbFormatValue(value, label, {tickmark: true}) : value.toString();
+            }
           },
           grid: {
             color: surfaceBorder,
@@ -391,7 +418,10 @@ export class HomeComponent implements OnInit, OnDestroy {
           position: 'right',
           ticks: {
             color: textColorSecondary,
-            callback: (value: number) => HomeComponent.cbFormatValue(value, this.chartData.datasets[1].label, {tickmark: true})
+            callback: (value: number) => {
+              const label = this.chartData?.datasets?.[1]?.label;
+              return label ? HomeComponent.cbFormatValue(value, label, {tickmark: true}) : value.toString();
+            }
           },
           grid: {
             drawOnChartArea: false,
@@ -466,11 +496,11 @@ export class HomeComponent implements OnInit, OnDestroy {
           } else {
             this.chartY2Data.push(0.0);
           }
-
-          this.updateAdaptiveTicks();
         });
 
+        this.updateAdaptiveTicks();
         this.isStatsLoaded = true;
+        this.chart?.refresh();
       });
   }
 
@@ -500,11 +530,11 @@ export class HomeComponent implements OnInit, OnDestroy {
         const chartY1DataLabel = chartLabelValue(this.form.get('chartY1Data')?.value);
         const chartY2DataLabel = chartLabelValue(this.form.get('chartY2Data')?.value);
 
-        this.maxPower = Math.max(info.maxPower, info.power);
-        this.nominalVoltage = info.nominalVoltage;
-        this.maxTemp = Math.max(75, info.temp);
-        this.maxRpm = Math.max(7000, info.fanrpm, info.fan2rpm);
-        this.maxFrequency = Math.max(800, info.actualFrequency || info.frequency);
+        this.maxPower = Math.max(info.maxPower || 0, info.power || 0);
+        this.nominalVoltage = info.nominalVoltage || 5;
+        this.maxTemp = Math.max(75, info.temp || 0);
+        this.maxRpm = Math.max(7000, info.fanrpm || 0, info.fan2rpm || 0);
+        this.maxFrequency = Math.max(800, info.actualFrequency || info.frequency || 0);
 
         // Only collect and update chart data if there's no power fault
         // and at most once every second, AND after stats are loaded to maintain order
