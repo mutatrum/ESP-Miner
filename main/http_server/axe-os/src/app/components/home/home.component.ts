@@ -103,6 +103,30 @@ export class HomeComponent implements OnInit, OnDestroy {
 
   private pageDefaultTitle: string = '';
   private lastChartUpdate: number = 0;
+  private currentIntervalMs: number = 15000;
+
+  private static readonly ADAPTIVE_TICK_INTERVALS = [
+    { unit: 'second', step: 1, ms: 1000 },
+    { unit: 'second', step: 2, ms: 2000 },
+    { unit: 'second', step: 5, ms: 5000 },
+    { unit: 'second', step: 10, ms: 10000 },
+    { unit: 'second', step: 15, ms: 15000 },
+    { unit: 'second', step: 30, ms: 30000 },
+    { unit: 'minute', step: 1, ms: 60000 },
+    { unit: 'minute', step: 2, ms: 120000 },
+    { unit: 'minute', step: 5, ms: 300000 },
+    { unit: 'minute', step: 10, ms: 600000 },
+    { unit: 'minute', step: 15, ms: 900000 },
+    { unit: 'minute', step: 30, ms: 1800000 },
+    { unit: 'hour', step: 1, ms: 3600000 },
+    { unit: 'hour', step: 2, ms: 7200000 },
+    { unit: 'hour', step: 4, ms: 14400000 },
+    { unit: 'hour', step: 6, ms: 21600000 },
+    { unit: 'hour', step: 12, ms: 43200000 },
+    { unit: 'day', step: 1, ms: 86400000 },
+    { unit: 'day', step: 2, ms: 172800000 } // Max data retention is 1 month
+  ];
+
   private destroy$ = new Subject<void>();
   private infoSubscription?: Subscription;
   private lastBucket: number = -1;
@@ -291,10 +315,29 @@ export class HomeComponent implements OnInit, OnDestroy {
         x: {
           type: 'time',
           time: {
-            unit: 'hour', // Set the unit to 'minute'
+            displayFormats: {
+              millisecond: 'HH:mm:ss',
+              second: 'HH:mm:ss',
+              minute: 'HH:mm',
+              hour: 'HH:mm',
+            }
           },
           ticks: {
-            color: textColorSecondary
+            color: textColorSecondary,
+            maxTicksLimit: 12,
+            autoSkip: true
+          },
+          afterBuildTicks: (axis: any) => {
+            const interval = this.currentIntervalMs;
+            if (!interval) return;
+
+            const ticks = [];
+            let curr = Math.ceil(axis.min / interval) * interval;
+            while (curr <= axis.max) {
+              ticks.push({ value: curr });
+              curr += interval;
+            }
+            axis.ticks = ticks;
           },
           grid: {
             color: surfaceBorder,
@@ -400,6 +443,7 @@ export class HomeComponent implements OnInit, OnDestroy {
 
           const statsFrequency = (stats as any).statsFrequency || 0;
           this.limitDataPoints(statsFrequency);
+          this.updateAdaptiveTicks();
         }),
         this.startGetLiveData();
       });
@@ -452,6 +496,7 @@ export class HomeComponent implements OnInit, OnDestroy {
           this.chartY2Data.push(HomeComponent.getDataForLabel(chartY2DataLabel, info));
 
           this.limitDataPoints(info.statsFrequency);
+          this.updateAdaptiveTicks();
 
           this.chartData.datasets[0].label = chartY1DataLabel;
           this.chartData.datasets[1].label = chartY2DataLabel;
@@ -842,6 +887,24 @@ export class HomeComponent implements OnInit, OnDestroy {
       this.powerData.splice(indexToRemove, 1);
       this.chartY1Data.splice(indexToRemove, 1);
       this.chartY2Data.splice(indexToRemove, 1);
+    }
+  }
+
+  public updateAdaptiveTicks() {
+    if (this.dataLabel.length < 2) return;
+
+    const totalSpanMs = this.dataLabel[this.dataLabel.length - 1] - this.dataLabel[0];
+
+    // Find the smallest "clean" interval that keeps us under 16 ticks
+    const chosen = HomeComponent.ADAPTIVE_TICK_INTERVALS.find(i => totalSpanMs / i.ms <= 16) || 
+                   HomeComponent.ADAPTIVE_TICK_INTERVALS[HomeComponent.ADAPTIVE_TICK_INTERVALS.length - 1];
+    
+    this.currentIntervalMs = chosen.ms;
+
+    const xAxis = (this.chartOptions.scales as any).x;
+    if (xAxis.time.unit !== chosen.unit || xAxis.time.stepSize !== chosen.step) {
+      xAxis.time.unit = chosen.unit;
+      xAxis.time.stepSize = chosen.step;
     }
   }
 
