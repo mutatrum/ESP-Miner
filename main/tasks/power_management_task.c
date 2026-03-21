@@ -265,6 +265,11 @@ void POWER_MANAGEMENT_task(void * pvParameters)
 
         VCORE_check_fault(GLOBAL_STATE);
 
+        // Notify WebSocket API that power data has been updated
+        if (GLOBAL_STATE->ws_event_group != NULL) {
+            xEventGroupSetBits(GLOBAL_STATE->ws_event_group, WS_EVENT_POWER_UPDATED);
+        }
+
         // looper:
         vTaskDelay(POLL_RATE / portTICK_PERIOD_MS);
     }

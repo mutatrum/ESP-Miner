@@ -1,5 +1,5 @@
 import { Component, OnInit, ViewChild, Input, OnDestroy } from '@angular/core';
-import { interval, map, Observable, shareReplay, startWith, Subscription, switchMap, tap, first, Subject, takeUntil, BehaviorSubject, filter, catchError, of, combineLatest } from 'rxjs';
+import { interval, map, Observable, shareReplay, startWith, Subscription, switchMap, tap, first, Subject, takeUntil, BehaviorSubject, filter, catchError, of, combineLatest, merge, scan, timer } from 'rxjs';
 import { HttpErrorResponse } from '@angular/common/http';
 import { FormBuilder, FormGroup } from '@angular/forms';
 import { ToastrService } from 'ngx-toastr';
@@ -11,6 +11,7 @@ import { QuicklinkService } from 'src/app/services/quicklink.service';
 import { ShareRejectionExplanationService } from 'src/app/services/share-rejection-explanation.service';
 import { LoadingService } from 'src/app/services/loading.service';
 import { SystemApiService } from 'src/app/services/system.service';
+import { LiveDataService } from 'src/app/services/live-data.service';
 import { ThemeService } from 'src/app/services/theme.service';
 import { SystemInfo as ISystemInfo, SystemStatistics as ISystemStatistics } from 'src/app/generated';
 import { Title } from '@angular/platform-browser';
@@ -79,6 +80,13 @@ export class HomeComponent implements OnInit, OnDestroy {
   public activePoolLabel!: PoolLabel;
   public responseTime!: number;
 
+  public flashShare: boolean = false;
+  public flashJob: boolean = false;
+  private shareTimeout: any;
+  private jobTimeout: any;
+  private lastSharesCount: number = -1;
+  private lastScriptsig: string = '';
+
   public systemInfoError$ = new BehaviorSubject<ISystemInfoError>({
     duration: 0,
     startTime: null
@@ -94,9 +102,13 @@ export class HomeComponent implements OnInit, OnDestroy {
   private chart?: UIChart
 
   private pageDefaultTitle: string = '';
+  private lastChartUpdate: number = 0;
   private destroy$ = new Subject<void>();
   private infoSubscription?: Subscription;
   public form!: FormGroup;
+
+  private staleCheckInterval: any;
+  private lastMessageTime: number = 0;
 
   @Input() uri = '';
 
@@ -108,6 +120,7 @@ export class HomeComponent implements OnInit, OnDestroy {
     private titleService: Title,
     private loadingService: LoadingService,
     private toastr: ToastrService,
+    private liveDataService: LiveDataService,
     private shareRejectReasonsService: ShareRejectionExplanationService,
     private storageService: LocalStorageService
   ) {
@@ -136,12 +149,30 @@ export class HomeComponent implements OnInit, OnDestroy {
       this.updateSystem();
     })
 
+    this.staleCheckInterval = setInterval(() => this.checkStaleData(), 1000);
+
     this.loadPreviousData();
   }
 
   ngOnDestroy() {
+    clearInterval(this.staleCheckInterval);
     this.destroy$.next();
     this.destroy$.complete();
+  }
+
+  private checkStaleData() {
+    if (this.lastMessageTime > 0) {
+      const now = new Date().getTime();
+      const elapsedMs = now - this.lastMessageTime;
+      // 5 seconds without a message means connection is stale
+      if (elapsedMs > 5000) {
+        const durationSeconds = Math.floor(elapsedMs / 1000);
+        const current = this.systemInfoError$.value;
+        if (current.duration !== durationSeconds) {
+          this.systemInfoError$.next({ duration: durationSeconds, startTime: this.lastMessageTime });
+        }
+      }
+    }
   }
 
   private updateChartColors() {
@@ -377,47 +408,24 @@ export class HomeComponent implements OnInit, OnDestroy {
   }
 
   private startGetLiveData() {
-    this.info$ = interval(5000).pipe(
-      startWith(0),
-      switchMap(() =>
-        this.systemService.getInfo().pipe(
-          tap(() => {
-            const systemInfoError = this.systemInfoError$.value;
-            if (!!systemInfoError.duration) {
-              this.systemInfoError$.next({
-                duration: 0,
-                startTime: null
-              });
-            }
-          }),
-          catchError(() => {
-            const now = Date.now();
-            const systemInfoError = this.systemInfoError$.value;
-
-            if (!systemInfoError.startTime) {
-              this.systemInfoError$.next({
-                duration: 0,
-                startTime: now
-              });
-            } else {
-              this.systemInfoError$.next({
-                duration: (now - systemInfoError.startTime!) / 1000,
-                startTime: systemInfoError.startTime
-              });
-            }
-            return of(null);
-          })
-        )
-      ),
-      filter(info => info !== null),
+    this.info$ = this.liveDataService.info$.pipe(
       map(info => {
-        info.voltage = info.voltage / 1000;
-        info.current = info.current / 1000;
-        info.coreVoltageActual = info.coreVoltageActual / 1000;
-        info.coreVoltage = info.coreVoltage / 1000;
-        return info;
+        // Apply component-specific mapping
+        const processed = { ...info };
+        processed.voltage = processed.voltage / 1000;
+        processed.current = processed.current / 1000;
+        processed.coreVoltageActual = processed.coreVoltageActual / 1000;
+        processed.coreVoltage = processed.coreVoltage / 1000;
+        return processed;
       }),
       tap(info => {
+        this.lastMessageTime = new Date().getTime();
+        // Clear error indicators if data is flowing
+        const systemInfoError = this.systemInfoError$.value;
+        if (!!systemInfoError.duration) {
+          this.systemInfoError$.next({ duration: 0, startTime: null });
+        }
+
         const chartY1DataLabel = chartLabelValue(this.form.get('chartY1Data')?.value);
         const chartY2DataLabel = chartLabelValue(this.form.get('chartY2Data')?.value);
 
@@ -425,13 +433,16 @@ export class HomeComponent implements OnInit, OnDestroy {
         this.nominalVoltage = info.nominalVoltage;
         this.maxTemp = Math.max(75, info.temp);
         this.maxRpm = Math.max(7000, info.fanrpm, info.fan2rpm);
-        this.maxFrequency = Math.max(800, info.frequency);
+        this.maxFrequency = Math.max(800, info.actualFrequency || info.frequency);
 
-        // Only collect and update chart data if there's no power fault
-        if (!info.power_fault) {
-          this.dataLabel.push(new Date().getTime());
-          this.hashrateData.push(info.hashRate);
-          this.powerData.push(info.power);
+        // Only collect and update chart data if there's no power fault 
+        // and at most once every 5 seconds
+        const now = new Date().getTime();
+        if (!info.power_fault && (now - this.lastChartUpdate >= 5000)) {
+          this.lastChartUpdate = now;
+          this.dataLabel.push(now);
+          this.hashrateData.push(info.hashRate || 0);
+          this.powerData.push(info.power || 0);
           this.chartY1Data.push(HomeComponent.getDataForLabel(chartY1DataLabel, info));
           this.chartY2Data.push(HomeComponent.getDataForLabel(chartY2DataLabel, info));
 
@@ -443,7 +454,7 @@ export class HomeComponent implements OnInit, OnDestroy {
           this.chartData.datasets[0].hidden = (chartY1DataLabel === eChartLabel.none);
           this.chartData.datasets[1].hidden = (chartY2DataLabel === eChartLabel.none);
 
-          // Align both axis if they're hashrates. TODO: for others, such as temperatures as well
+          // Align both axis if they're hashrates
           if (this.isHashrateAxis(chartY1DataLabel) && this.isHashrateAxis(chartY2DataLabel)) {
             this.chartOptions.scales.y.suggestedMin = this.chartOptions.scales.y2.suggestedMin = Math.min(...this.chartY1Data, ...this.chartY2Data);
             this.chartOptions.scales.y.suggestedMax = this.chartOptions.scales.y2.suggestedMax = Math.max(...this.chartY1Data, ...this.chartY2Data);
@@ -456,38 +467,57 @@ export class HomeComponent implements OnInit, OnDestroy {
 
           this.chartOptions.scales.y.display = (chartY1DataLabel != eChartLabel.none);
           this.chartOptions.scales.y2.display = (chartY2DataLabel != eChartLabel.none);
+          this.chart?.refresh();
         }
 
-        this.chart?.refresh();
-
         const isFallbackPool = !!info.isUsingFallbackStratum;
-
         this.activePoolLabel = isFallbackPool ? 'Fallback' : 'Primary';
         this.activePoolURL = isFallbackPool ? info.fallbackStratumURL : info.stratumURL;
         this.activePoolUser = isFallbackPool ? info.fallbackStratumUser : info.stratumUser;
         this.activePoolPort = isFallbackPool ? info.fallbackStratumPort : info.stratumPort;
         this.responseTime = info.responseTime;
+
+        const currentShares = info.sharesAccepted + info.sharesRejected;
+        if (this.lastSharesCount !== -1 && currentShares > this.lastSharesCount) {
+          this.flashShare = true;
+          clearTimeout(this.shareTimeout);
+          this.shareTimeout = setTimeout(() => this.flashShare = false, 500);
+        }
+        this.lastSharesCount = currentShares;
+
+        if (this.lastScriptsig !== '' && info.scriptsig !== this.lastScriptsig) {
+          this.flashJob = true;
+          clearTimeout(this.jobTimeout);
+          this.jobTimeout = setTimeout(() => this.flashJob = false, 500);
+        }
+        this.lastScriptsig = info.scriptsig || '';
       }),
       map(info => {
-        info.power = parseFloat(info.power.toFixed(1));
-        info.voltage = parseFloat(info.voltage.toFixed(1));
-        info.current = parseFloat(info.current.toFixed(1));
-        info.coreVoltageActual = parseFloat(info.coreVoltageActual.toFixed(2));
-        info.coreVoltage = parseFloat(info.coreVoltage.toFixed(2));
-        info.temp = parseFloat(info.temp.toFixed(1));
-        info.temp2 = parseFloat(info.temp2.toFixed(1));
-        info.responseTime = parseFloat(info.responseTime.toFixed(1));
+        const formatted = { ...info };
+        formatted.power = parseFloat(formatted.power.toFixed(1));
+        formatted.voltage = parseFloat(formatted.voltage.toFixed(1));
+        formatted.current = parseFloat(formatted.current.toFixed(1));
+        formatted.coreVoltageActual = parseFloat(formatted.coreVoltageActual.toFixed(2));
+        formatted.coreVoltage = parseFloat(formatted.coreVoltage.toFixed(2));
+        formatted.temp = parseFloat(formatted.temp.toFixed(1));
+        formatted.temp2 = parseFloat(formatted.temp2.toFixed(1));
+        formatted.responseTime = parseFloat(formatted.responseTime.toFixed(1));
 
-        return info;
+        return formatted;
       }),
       shareReplay({ refCount: true, bufferSize: 1 })
     );
 
-    this.info$
-      .pipe(first())
-      .subscribe(() => {
-        this.loadingService.loading$.next(false);
+    this.infoSubscription = combineLatest([this.info$, this.systemInfoError$])
+      .pipe(takeUntil(this.destroy$))
+      .subscribe(([info, systemInfoError]) => {
+        this.handleSystemMessages(info, systemInfoError);
+        this.setTitle(info, systemInfoError);
       });
+
+    this.info$.pipe(first()).subscribe(() => {
+      this.loadingService.loading$.next(false);
+    });
 
     this.quickLink$ = this.info$.pipe(
       map(info => {
@@ -600,6 +630,10 @@ export class HomeComponent implements OnInit, OnDestroy {
     return item.message; //Track only by message
   }
 
+  trackByIndex(index: number, _item: any) {
+    return index;
+  }
+
   public calculateAverage(data: number[]): number {
     if (data.length === 0) return 0;
     const sum = data.reduce((sum, value) => sum + value, 0);
@@ -620,10 +654,6 @@ export class HomeComponent implements OnInit, OnDestroy {
     });
 
     return this.calculateAverage(efficiencies);
-  }
-
-  trackByIndex(index: number, _item: any) {
-    return index;
   }
 
   getPayoutPercentage(info: ISystemInfo) {
@@ -647,7 +677,8 @@ export class HomeComponent implements OnInit, OnDestroy {
           this.messages.push({ type, severity, text });
         } else {
           if (this.messages[existingIndex].text !== text) {
-            this.messages.splice(existingIndex, 1, { type, severity, text });
+            this.messages[existingIndex].text = text;
+            this.messages[existingIndex].severity = severity;
           }
         }
       } else {
@@ -661,7 +692,8 @@ export class HomeComponent implements OnInit, OnDestroy {
     updateMessage(!!(info as any).miningPaused, 'MINING_PAUSED', 'warn', 'Mining is paused');
     updateMessage(info.overheat_mode === 1, 'DEVICE_OVERHEAT', 'error', 'Device has overheated - See settings');
     updateMessage(!!info.power_fault, 'POWER_FAULT', 'error', `${info.power_fault} Check your Power Supply.`);
-    updateMessage(!info.frequency || info.frequency < 400, 'FREQUENCY_LOW', 'warn', 'Device frequency is set low - See settings');
+    const freq = info.actualFrequency || info.frequency;
+    updateMessage(!freq || freq < 400, 'FREQUENCY_LOW', 'warn', 'Device frequency is set low - See settings');
     updateMessage(!!info.isUsingFallbackStratum, 'FALLBACK_STRATUM', 'warn', 'Using fallback pool - Share stats reset. Check Pool Settings and / or reboot Device.');
     updateMessage(info.version !== info.axeOSVersion, 'VERSION_MISMATCH', 'warn', `Firmware (${info.version}) and AxeOS (${info.axeOSVersion}) versions do not match. Please make sure to update both www.bin and esp-miner.bin.`);
     if (info.coinbaseOutputs && info.coinbaseOutputs?.length > 0) {

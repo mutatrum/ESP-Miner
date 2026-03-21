@@ -6,6 +6,7 @@ import { FileUploadHandlerEvent, FileUpload } from 'primeng/fileupload';
 import { GithubUpdateService } from 'src/app/services/github-update.service';
 import { LoadingService } from 'src/app/services/loading.service';
 import { SystemApiService } from 'src/app/services/system.service';
+import { LiveDataService } from 'src/app/services/live-data.service';
 import { LocalStorageService } from 'src/app/local-storage.service';
 import { ModalComponent } from '../modal/modal.component';
 
@@ -33,6 +34,7 @@ export class UpdateComponent {
 
   constructor(
     private systemService: SystemApiService,
+    private liveDataService: LiveDataService,
     private toastrService: ToastrService,
     private loadingService: LoadingService,
     private githubUpdateService: GithubUpdateService,
@@ -42,11 +44,7 @@ export class UpdateComponent {
       return releases[0];
     }));
 
-    this.info$ = timer(0, 5000).pipe(
-      switchMap(() => this.systemService.getInfo()),
-      distinctUntilChanged((prev, curr) => JSON.stringify(prev) === JSON.stringify(curr)),
-      shareReplay({ refCount: true, bufferSize: 1 })
-    );
+    this.info$ = this.liveDataService.info$;
   }
 
   otaUpdate(event: FileUploadHandlerEvent) {

@@ -5,6 +5,7 @@
 #include <stdint.h>
 #include "asic_common.h"
 #include "freertos/FreeRTOS.h"
+#include "freertos/event_groups.h"
 #include "freertos/semphr.h"
 #include "power_management_task.h"
 #include "hashrate_monitor_task.h"
@@ -15,6 +16,14 @@
 #include "device_config.h"
 #include "display.h"
 #include "esp_transport.h"
+
+// WebSocket API event bits for live data notifications
+#define WS_EVENT_POWER_UPDATED    BIT0
+#define WS_EVENT_FAN_UPDATED      BIT1
+#define WS_EVENT_HASHRATE_UPDATED BIT2
+#define WS_EVENT_STRATUM_UPDATED  BIT3
+#define WS_EVENT_SYSTEM_UPDATED   BIT4
+#define WS_EVENT_ALL              (WS_EVENT_POWER_UPDATED | WS_EVENT_FAN_UPDATED | WS_EVENT_HASHRATE_UPDATED | WS_EVENT_STRATUM_UPDATED | WS_EVENT_SYSTEM_UPDATED)
 
 #define STRATUM_USER CONFIG_STRATUM_USER
 #define FALLBACK_STRATUM_USER CONFIG_FALLBACK_STRATUM_USER
@@ -148,6 +157,8 @@ typedef struct
     bool ASIC_initalized;
     bool psram_is_available;
     bool filesystem_is_available;
+
+    EventGroupHandle_t ws_event_group;
 
     int block_height;
     char scriptsig[128];

@@ -2,6 +2,7 @@
 #include "esp_log.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
+#include "freertos/event_groups.h"
 #include <math.h>
 #include "global_state.h"
 
@@ -23,6 +24,9 @@ void do_frequency_transition(void * pvParameters, set_hash_frequency_fn set_freq
     if (fabs(target_frequency - current_frequency) < STEP_SIZE) {
         current_frequency = target_frequency;
         GLOBAL_STATE->POWER_MANAGEMENT_MODULE.actual_frequency = current_frequency;
+        if (GLOBAL_STATE->ws_event_group != NULL) {
+            xEventGroupSetBits(GLOBAL_STATE->ws_event_group, WS_EVENT_POWER_UPDATED);
+        }
         set_frequency_fn(current_frequency);
         return;
     }
@@ -41,6 +45,9 @@ void do_frequency_transition(void * pvParameters, set_hash_frequency_fn set_freq
 
             current_frequency = current_step * STEP_SIZE;
             GLOBAL_STATE->POWER_MANAGEMENT_MODULE.actual_frequency = current_frequency;
+            if (GLOBAL_STATE->ws_event_group != NULL) {
+                xEventGroupSetBits(GLOBAL_STATE->ws_event_group, WS_EVENT_POWER_UPDATED);
+            }
             set_frequency_fn(current_frequency);
             
             vTaskDelay(100 / portTICK_PERIOD_MS);
@@ -50,6 +57,9 @@ void do_frequency_transition(void * pvParameters, set_hash_frequency_fn set_freq
     if (fabs(current_frequency - target_frequency) > EPSILON) {
         current_frequency = target_frequency;
         GLOBAL_STATE->POWER_MANAGEMENT_MODULE.actual_frequency = current_frequency;
+        if (GLOBAL_STATE->ws_event_group != NULL) {
+            xEventGroupSetBits(GLOBAL_STATE->ws_event_group, WS_EVENT_POWER_UPDATED);
+        }
         set_frequency_fn(current_frequency);
     }
     
