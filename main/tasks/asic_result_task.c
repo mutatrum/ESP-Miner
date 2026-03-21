@@ -63,7 +63,6 @@ void ASIC_result_task(void *pvParameters)
                 active_job->ntime,
                 asic_result->nonce,
                 asic_result->rolled_version ^ active_job->version,
-                asic_result->timestamp_us,
                 &sent_time_us);
 
             if (ret < 0) {

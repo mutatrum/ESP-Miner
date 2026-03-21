@@ -14,6 +14,8 @@ void task_monitor_task(void *pvParameters) {
     TaskStatus_t *task_array2 = malloc(MAX_TASKS * sizeof(TaskStatus_t));
     if (task_array1 == NULL || task_array2 == NULL) {
         ESP_LOGE(TAG, "Failed to allocate memory for task arrays");
+        free(task_array1);
+        free(task_array2);
         vTaskDelete(NULL);
     }
 

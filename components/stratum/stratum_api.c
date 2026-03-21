@@ -507,9 +507,10 @@ int STRATUM_V1_pong(esp_transport_handle_t transport, int message_id)
 /// @param ntime The hex-encoded time value use in the block header.
 /// @param nonce The hex-encoded nonce value to use in the block header.
 /// @param version_bits The hex-encoded version bits set by miner (BIP310).
+/// @param out_sent_time_us Pointer to store the time when the share was sent.
 int STRATUM_V1_submit_share(esp_transport_handle_t transport, int send_uid, const char * username, const char * job_id,
                             const char * extranonce_2, const uint32_t ntime,
-                            const uint32_t nonce, const uint32_t version_bits, uint64_t arrival_time_us, uint64_t *out_sent_time_us)
+                            const uint32_t nonce, const uint32_t version_bits, uint64_t *out_sent_time_us)
 {
     char submit_msg[BUFFER_SIZE];
     snprintf(submit_msg, sizeof(submit_msg),
