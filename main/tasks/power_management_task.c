@@ -105,6 +105,7 @@ void POWER_MANAGEMENT_init_frequency(void * pvParameters)
 
     float frequency = nvs_config_get_float(NVS_CONFIG_ASIC_FREQUENCY);
 
+    GLOBAL_STATE->POWER_MANAGEMENT_MODULE.actual_frequency = 50.0;
     GLOBAL_STATE->POWER_MANAGEMENT_MODULE.frequency_value = frequency;
     GLOBAL_STATE->POWER_MANAGEMENT_MODULE.actual_frequency = 50.0;    
     GLOBAL_STATE->POWER_MANAGEMENT_MODULE.expected_hashrate = expected_hashrate(GLOBAL_STATE);
