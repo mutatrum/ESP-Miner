@@ -25,6 +25,11 @@
     </div>
 
     <div class="flex justify-content-end mb-2 gap-2">
+        <button *ngIf="editMode" pButton type="button"
+            icon="pi pi-eye" label="Widgets"
+            class="p-button-outlined p-button-sm p-button-plain"
+            (click)="widgetPanel.toggle($event)">
+        </button>
         <button pButton type="button"
             [icon]="editMode ? 'pi pi-lock' : 'pi pi-pencil'"
             [label]="editMode ? 'Lock Layout' : 'Edit Layout'"
@@ -38,20 +43,19 @@
         </button>
     </div>
 
-    <div *ngIf="editMode" class="card mb-2 py-2 px-3">
-        <div class="flex align-items-center gap-3 flex-wrap">
-            <span class="text-500 font-medium mr-2">Widgets:</span>
-            <div *ngFor="let widget of widgetDefs" class="flex align-items-center gap-1">
+    <p-overlayPanel #widgetPanel>
+        <div class="flex flex-column gap-2">
+            <div *ngFor="let widget of widgetDefs" class="flex align-items-center gap-2">
                 <p-checkbox
                     [binary]="true"
                     [ngModel]="isWidgetVisible(widget.id)"
                     (onChange)="toggleWidgetVisibility(widget.id)"
                     [inputId]="'widget-' + widget.id">
                 </p-checkbox>
-                <label [for]="'widget-' + widget.id" class="text-sm cursor-pointer">{{ widget.label }}</label>
+                <label [for]="'widget-' + widget.id" class="text-sm cursor-pointer white-space-nowrap">{{ widget.label }}</label>
             </div>
         </div>
-    </div>
+    </p-overlayPanel>
 
     <div class="grid-stack" [class.gs-edit-mode]="editMode" #gridStack>
         <!-- Hashrate -->
