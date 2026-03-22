@@ -11,7 +11,7 @@
 #include "connect.h"
 #include "bm1370.h"
 
-#define DEFAULT_POLL_RATE 5000
+#define DEFAULT_POLL_RATE 1000
 
 static const char * TAG = "statistics_task";
 

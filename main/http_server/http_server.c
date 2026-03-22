@@ -650,6 +650,11 @@ static esp_err_t PATCH_update_settings(httpd_req_t * req)
         return ESP_OK;
     }
 
+    // Notify WebSocket API that settings have changed
+    if (GLOBAL_STATE->ws_event_group != NULL) {
+        xEventGroupSetBits(GLOBAL_STATE->ws_event_group, WS_EVENT_SYSTEM_UPDATED);
+    }
+
     cJSON_Delete(root);
     httpd_resp_send_chunk(req, NULL, 0);
     return ESP_OK;

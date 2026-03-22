@@ -13,6 +13,7 @@
 #include "http_server.h"
 #include "global_state.h"
 #include "connect.h"
+#include "nvs_config.h"
 
 #define WEBSOCKET_API_RATE_LIMIT_MS 500
 
@@ -71,6 +72,7 @@ typedef struct {
     float fan_perc;
     uint16_t fan_rpm;
     uint16_t fan2_rpm;
+    uint16_t stats_frequency;
 } ws_api_snapshot_t;
 
 static void take_snapshot(ws_api_snapshot_t *snapshot, GlobalState *g)
@@ -129,6 +131,8 @@ static void take_snapshot(ws_api_snapshot_t *snapshot, GlobalState *g)
 
     strncpy(snapshot->wifi_status, g->SYSTEM_MODULE.wifi_status, sizeof(snapshot->wifi_status) - 1);
     snapshot->wifi_status[sizeof(snapshot->wifi_status) - 1] = '\0';
+
+    snapshot->stats_frequency = nvs_config_get_u16(NVS_CONFIG_STATISTICS_FREQUENCY);
 }
 
 static void add_hashrate_monitor(cJSON *root, GlobalState *g) {
@@ -260,6 +264,7 @@ static cJSON* build_diff(ws_api_snapshot_t *old, ws_api_snapshot_t *new, uint32_
     if (old->wifi_rssi != new->wifi_rssi) { cJSON_AddNumberToObject(root, "wifiRSSI", new->wifi_rssi); changed = true; }
     if (strcmp(old->wifi_status, new->wifi_status) != 0) { cJSON_AddStringToObject(root, "wifiStatus", new->wifi_status); changed = true; }
     if (old->uptimeSeconds != new->uptimeSeconds) { cJSON_AddNumberToObject(root, "uptimeSeconds", new->uptimeSeconds); changed = true; }
+    if (old->stats_frequency != new->stats_frequency) { cJSON_AddNumberToObject(root, "statsFrequency", new->stats_frequency); changed = true; }
 
     if (!changed && cJSON_GetArraySize(root) == 0) {
         cJSON_Delete(root);

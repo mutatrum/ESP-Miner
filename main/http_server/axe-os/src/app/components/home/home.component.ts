@@ -263,7 +263,7 @@ export class HomeComponent implements OnInit, OnDestroy {
       .pipe(this.loadingService.lockUIUntilComplete())
       .subscribe({
         next: () => {
-          this.infoSubscription?.unsubscribe();
+          this.isStatsLoaded = false;
           this.clearDataPoints();
           this.loadPreviousData();
         },
@@ -498,9 +498,17 @@ export class HomeComponent implements OnInit, OnDestroy {
           }
         });
 
+        let statsFrequency = 0;
+        if (stats.statistics.length >= 2 && idxTimestamp !== -1) {
+          const totalDurationMs = stats.statistics[stats.statistics.length - 1][idxTimestamp] - stats.statistics[0][idxTimestamp];
+          statsFrequency = Math.floor(totalDurationMs / (stats.statistics.length - 1) / 1000);
+        }
+
+        this.limitDataPoints(statsFrequency);
         this.updateAdaptiveTicks();
         this.isStatsLoaded = true;
-        this.chart?.refresh();
+        
+        if (this.chart) this.chart.refresh();
       });
   }
 
@@ -866,48 +874,39 @@ export class HomeComponent implements OnInit, OnDestroy {
   }
 
   public limitDataPoints(statsFrequency: number = 0) {
-    const limit = 1000;
-    const statsFrequencyMs = (statsFrequency || 0) * 1000;
+    const limit = 720;
+    if (this.dataLabel.length <= limit) return;
+
+    const statsFrequencyMs = (statsFrequency || 30) * 1000;
+    const windowDurationMs = limit * statsFrequencyMs;
 
     while (this.dataLabel.length > limit) {
-      let minScore = Infinity;
-      let indexToRemove = 1;
-      let foundCandidate = false;
+      const currentSpan = this.dataLabel[this.dataLabel.length - 1] - this.dataLabel[0];
+      let indexToRemove = 0;
 
-      // Only consider points that are "denser" than the historical resolution
-      // as candidates for thinning.
-      for (let i = 1; i < this.dataLabel.length - 1; i++) {
-        const gapLeft = this.dataLabel[i] - this.dataLabel[i - 1];
-        const gapRight = this.dataLabel[i + 1] - this.dataLabel[i];
+      // If the window is not full, thin based on significance (Triangle Area)
+      if (currentSpan < windowDurationMs) {
+        let minScore = Infinity;
 
-        // If either neighbor is closer than the historical frequency, this point is a thinning candidate
-        if (statsFrequencyMs === 0 || gapLeft < statsFrequencyMs || gapRight < statsFrequencyMs) {
-          foundCandidate = true;
+        for (let i = 0; i < this.dataLabel.length - 1; i++) {
+          const gapLeft = i > 0 ? this.dataLabel[i] - this.dataLabel[i - 1] : Infinity;
+          const gapRight = this.dataLabel[i + 1] - this.dataLabel[i];
 
-          // Calculate "Significance Score" (Triangle Area) to decide which point to remove.
-          // We prioritize preserving hashrate spikes.
-          // Area approx = | x1(y2 - y3) + x2(y3 - y1) + x3(y1 - y2) |
-          const t1 = this.dataLabel[i - 1];
-          const t2 = this.dataLabel[i];
-          const t3 = this.dataLabel[i + 1];
-          const v1 = this.hashrateData[i - 1];
-          const v2 = this.hashrateData[i];
-          const v3 = this.hashrateData[i + 1];
+          if (gapLeft <= statsFrequencyMs || gapRight <= statsFrequencyMs) {
+            const t1 = i > 0 ? this.dataLabel[i - 1] : this.dataLabel[i] - gapRight;
+            const t2 = this.dataLabel[i];
+            const t3 = this.dataLabel[i + 1];
+            const v1 = i > 0 ? this.hashrateData[i - 1] : this.hashrateData[i];
+            const v2 = this.hashrateData[i];
+            const v3 = this.hashrateData[i + 1];
 
-          // Area of triangle formed by the hashrate values
-          const score = Math.abs(t1 * (v2 - v3) + t2 * (v3 - v1) + t3 * (v1 - v2));
-
-          if (score < minScore) {
-            minScore = score;
-            indexToRemove = i;
+            const score = Math.abs(t1 * (v2 - v3) + t2 * (v3 - v1) + t3 * (v1 - v2));
+            if (score < minScore) {
+              minScore = score;
+              indexToRemove = i;
+            }
           }
         }
-      }
-
-      // If no dense candidates found (all points are already at historical resolution), 
-      // just remove the oldest point to keep the rolling window moving.
-      if (!foundCandidate) {
-        indexToRemove = 1;
       }
 
       this.dataLabel.splice(indexToRemove, 1);
@@ -915,6 +914,10 @@ export class HomeComponent implements OnInit, OnDestroy {
       this.powerData.splice(indexToRemove, 1);
       this.chartY1Data.splice(indexToRemove, 1);
       this.chartY2Data.splice(indexToRemove, 1);
+    }
+
+    if (this.chartData) {
+      this.chartData = { ...this.chartData };
     }
   }
 
