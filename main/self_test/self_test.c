@@ -61,7 +61,7 @@ static bool self_test_should_run()
     return gpio_get_level(CONFIG_GPIO_BUTTON_BOOT) == 0; // LOW when pressed
 }
 
-void self_test_init(void * pvParameters)
+esp_err_t self_test_init(void * pvParameters)
 {
     if (self_test_should_run()) {
         GlobalState * GLOBAL_STATE = (GlobalState *) pvParameters;
@@ -81,24 +81,36 @@ void self_test_init(void * pvParameters)
     // No need to set version_mask, it uses default mask which is fine
     // GLOBAL_STATE->version_mask = 0xffffffff;
     // GLOBAL_STATE->new_stratum_version_rolling_msg = true;        
+
+        // Create a binary semaphore
+        longPressSemaphore = xSemaphoreCreateBinary();
+
+        if (longPressSemaphore == NULL) {
+            ESP_LOGE(TAG, "Failed to create semaphore");
+            return ESP_FAIL;
+        }
     }
+
+    return ESP_OK;
 }
 
 void self_test_reset()
 {
-    ESP_LOGI(TAG, "Long press detected...");
-    // Give the semaphore back
-    xSemaphoreGive(longPressSemaphore);
+    if (longPressSemaphore != NULL) {
+        ESP_LOGI(TAG, "Long press detected...");
+        // Give the semaphore back
+        xSemaphoreGive(longPressSemaphore);
+    }
 }
 
 void self_test_show_message(void * pvParameters, char * msg)
 {
     GlobalState * GLOBAL_STATE = (GlobalState *) pvParameters;
+    
+    if (!GLOBAL_STATE->SELF_TEST_MODULE.is_active) return;
 
-    if (GLOBAL_STATE->SELF_TEST_MODULE.is_active) {
-        GLOBAL_STATE->SELF_TEST_MODULE.message = msg;
-        vTaskDelay(10 / portTICK_PERIOD_MS);
-    }
+    GLOBAL_STATE->SELF_TEST_MODULE.message = msg;
+    vTaskDelay(10 / portTICK_PERIOD_MS);
 }
 
 static esp_err_t test_fan_sense(GlobalState * GLOBAL_STATE)
@@ -204,11 +216,12 @@ void self_test_task(void * pvParameters)
 {
     GlobalState * GLOBAL_STATE = (GlobalState *) pvParameters;
 
+    if (!GLOBAL_STATE->SELF_TEST_MODULE.is_active) return;
+
     // Check if we already have an error message from peripheral initialization
     if (GLOBAL_STATE->SELF_TEST_MODULE.message != NULL && strlen(GLOBAL_STATE->SELF_TEST_MODULE.message) > 0) {
         ESP_LOGE(TAG, "Aborting self-test due to initialization failure: %s", GLOBAL_STATE->SELF_TEST_MODULE.message);
         tests_done(GLOBAL_STATE, false);
-        return;
     }
 
     if (isFactoryTest) {
@@ -219,20 +232,10 @@ void self_test_task(void * pvParameters)
 
     char logString[300];
 
-    // Create a binary semaphore
-    longPressSemaphore = xSemaphoreCreateBinary();
-
-    if (longPressSemaphore == NULL) {
-        ESP_LOGE(TAG, "Failed to create semaphore");
-        vTaskDelete(NULL);
-        return;
-    }
-
     if (!GLOBAL_STATE->psram_is_available) {
         ESP_LOGE(TAG, "NO PSRAM on device!");
         self_test_show_message(GLOBAL_STATE, "PSRAM:FAIL");
         tests_done(GLOBAL_STATE, false);
-        return;
     }
 
     // Capture extra validation for DS4432U if present
@@ -401,10 +404,11 @@ void self_test_task(void * pvParameters)
     }
 
     tests_done(GLOBAL_STATE, true);
-
-    vTaskDelete(NULL);
 }
 
+/**
+ * Ends the self test by either resetting or ending the self_test_task
+ */
 static void tests_done(GlobalState * GLOBAL_STATE, bool isTestPassed)
 {
     GLOBAL_STATE->SELF_TEST_MODULE.is_finished = true;
@@ -445,4 +449,6 @@ static void tests_done(GlobalState * GLOBAL_STATE, bool isTestPassed)
             }
         }
     }
+
+    vTaskDelete(NULL);
 }
