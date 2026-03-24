@@ -88,7 +88,7 @@ export class SystemApiService {
         stratumDecodeCoinbase: true,
         fallbackStratumURL: "test.public-pool.io",
         fallbackStratumPort: 21497,
-        fallbackStratumUser: "bc1q99n3pu025yyu0jlywpmzalyhm36tg5u37w20d.bitaxe-U1",
+        fallbackStratumUser: "bc1q99n3pu025yyu0jlywpmwzalyhm36tg5u37w20d.bitaxe-U1",
         fallbackStratumSuggestedDifficulty: 1000,
         fallbackStratumExtranonceSubscribe: !!0,
         fallbackStratumTLS: !!0,
