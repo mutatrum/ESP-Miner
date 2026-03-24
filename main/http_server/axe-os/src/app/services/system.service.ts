@@ -217,8 +217,8 @@ export class SystemApiService {
   }
 
   public restart(uri: string = ''): Observable<GenericResponse> {
-    if (environment.production && this.generatedSystemService && !uri) {
-      return from(this.generatedSystemService.invoke(functions.restartSystem, {}) as Promise<GenericResponse>);
+    if (environment.production && this.api && !uri) {
+      return from(this.api.invoke(functions.restartSystem, {}) as Promise<GenericResponse>);
     }
 
     if (environment.production && uri) {
@@ -229,8 +229,8 @@ export class SystemApiService {
   }
 
   public dismissBlockFound(uri: string = ''): Observable<GenericResponse> {
-    if (environment.production && this.generatedSystemService && !uri) {
-      return from(this.generatedSystemService.invoke(functions.dismissBlockFound, {}) as Promise<GenericResponse>);
+    if (environment.production && this.api && !uri) {
+      return from(this.api.invoke(functions.dismissBlockFound, {}) as Promise<GenericResponse>);
     }
 
     if (environment.production && uri) {
@@ -241,8 +241,8 @@ export class SystemApiService {
   }
 
   public pauseMining(uri: string = ''): Observable<GenericResponse> {
-    if (environment.production && this.generatedSystemService && !uri) {
-      return from(this.generatedSystemService.invoke(functions.pauseMining, {}) as Promise<GenericResponse>);
+    if (environment.production && this.api && !uri) {
+      return from(this.api.invoke(functions.pauseMining, {}) as Promise<GenericResponse>);
     }
 
     if (environment.production && uri) {
@@ -253,8 +253,8 @@ export class SystemApiService {
   }
 
   public resumeMining(uri: string = ''): Observable<GenericResponse> {
-    if (environment.production && this.generatedSystemService && !uri) {
-      return from(this.generatedSystemService.invoke(functions.resumeMining, {}) as Promise<GenericResponse>);
+    if (environment.production && this.api && !uri) {
+      return from(this.api.invoke(functions.resumeMining, {}) as Promise<GenericResponse>);
     }
 
     if (environment.production && uri) {
@@ -265,8 +265,8 @@ export class SystemApiService {
   }
 
   public identify(uri: string = ''): Observable<GenericResponse> {
-    if (environment.production && this.generatedSystemService && !uri) {
-      return from(this.generatedSystemService.invoke(functions.identifySystem, {}) as Promise<GenericResponse>);
+    if (environment.production && this.api && !uri) {
+      return from(this.api.invoke(functions.identifySystem, {}) as Promise<GenericResponse>);
     }
 
     if (environment.production && uri) {
@@ -277,8 +277,8 @@ export class SystemApiService {
   }
 
   public updateSystem(uri: string = '', update: any): Observable<void> {
-    if (environment.production && this.generatedSystemService && !uri) {
-      return from(this.generatedSystemService.invoke(functions.updateSystemSettings, { body: update as Settings }) as Promise<void>);
+    if (environment.production && this.api && !uri) {
+      return from(this.api.invoke(functions.updateSystemSettings, { body: update as Settings }) as Promise<void>);
     }
 
     if (environment.production && uri) {
