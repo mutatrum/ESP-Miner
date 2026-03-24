@@ -1,6 +1,6 @@
 import { Injectable } from '@angular/core';
-import { BehaviorSubject, Observable, Subject, EMPTY, timer, merge } from 'rxjs';
-import { catchError, retry, share, tap, switchMap, startWith, scan, shareReplay, map, timeout } from 'rxjs/operators';
+import { BehaviorSubject, Observable, Subject, EMPTY, timer, merge, fromEvent } from 'rxjs';
+import { catchError, retry, share, tap, switchMap, startWith, scan, shareReplay, map, timeout, bufferTime, filter, distinctUntilChanged } from 'rxjs/operators';
 import { webSocket, WebSocketSubject } from 'rxjs/webSocket';
 import { SystemInfo as ISystemInfo } from 'src/app/generated';
 import { SystemApiService } from './system.service';
@@ -22,38 +22,49 @@ export class LiveDataService {
   constructor(
     private systemService: SystemApiService
   ) {
-    // 1. Initial fetch from HTTP
-    const initialInfo$ = this.systemService.getInfo().pipe(
-      catchError(err => {
-        console.error('Initial info fetch failed', err);
-        return EMPTY;
-      })
+    // Visibility stream for polling adjustments
+    const visibility$ = fromEvent(document, 'visibilitychange').pipe(
+      map(() => document.visibilityState),
+      startWith(document.visibilityState),
+      distinctUntilChanged(),
+      shareReplay(1)
     );
 
-    // 2. Continuous updates from WebSocket
-    const socketUpdates$ = this.connect().pipe(
-      catchError(() => EMPTY)
-    );
-
-    // 3. Periodic polling fallback (only if socket is not connected)
-    const fallbackPolling$ = timer(5000, 5000).pipe(
-      switchMap(() => {
-        if (this.connectedSubject.value) return EMPTY;
-        return this.systemService.getInfo();
+    // Periodic polling fallback (adjust frequency based on visibility)
+    const fallbackPolling$ = visibility$.pipe(
+      switchMap(state => {
+        const interval = state === 'visible' ? 5000 : 60000; // 5s when visible, 60s when hidden
+        return timer(interval, interval).pipe(
+          switchMap(() => {
+            // Only poll if not connected OR if backgrounded (to keep data fresh)
+            if (this.connectedSubject.value && state === 'visible') return EMPTY;
+            return this.systemService.getInfo();
+          })
+        );
       }),
       catchError(() => EMPTY)
     );
 
-    // 4. Combined stream: Initial -> (WS updates OR Fallback)
-    this.info$ = initialInfo$.pipe(
+    const updates$ = merge(
+      this.connect().pipe(switchMap(() => EMPTY), catchError(() => EMPTY)),
+      this.updates$.pipe(
+        // Buffer updates to handle bursts when tab is resumed
+        bufferTime(500),
+        filter(msgs => msgs.length > 0),
+        map(msgs => msgs.reduce((acc, curr) => ({ ...acc, ...curr }), {} as Partial<ISystemInfo>))
+      ),
+      fallbackPolling$
+    );
+
+    this.info$ = this.systemService.getInfo().pipe(
+      catchError(err => {
+        console.error('Initial info fetch failed', err);
+        return EMPTY;
+      }),
       switchMap(initial => 
-        merge(
-          socketUpdates$.pipe(switchMap(() => EMPTY)), // Just to trigger/maintain connection
-          this.updates$, // Delta updates from WebSocket
-          fallbackPolling$ // Periodic full updates as fallback
-        ).pipe(
+        updates$.pipe(
           startWith(initial),
-          scan((acc, curr) => ({ ...acc, ...curr }), {} as ISystemInfo)
+          scan((acc: ISystemInfo, curr: Partial<ISystemInfo>) => ({ ...acc, ...curr } as ISystemInfo), {} as ISystemInfo)
         )
       ),
       shareReplay(1)
