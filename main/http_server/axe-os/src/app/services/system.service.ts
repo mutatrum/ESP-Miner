@@ -216,33 +216,33 @@ export class SystemApiService {
     });
   }
 
-  public restart(uri: string = ''): Observable<any> {
-    if (environment.production && this.api && !uri) {
-      return from(this.api.invoke(functions.restartSystem, {}));
-    }
-
-    if (environment.production && uri) {
-      return this.httpClient.post(`${uri}/api/system/restart`, {});
-    }
-
-    return of('Device restarted (mock)');
-  }
-
-  public dismissBlockFound(uri: string = ''): Observable<any> {
-    if (environment.production && this.api && !uri) {
-      return from(this.api.invoke(functions.dismissBlockFound, {}));
-    }
-
-    if (environment.production && uri) {
-      return this.httpClient.post(`${uri}/api/system/blockFound/dismiss`, {});
-    }
-
-    return of('Block found notification dismissed (mock)');
-  }
-
-  public pauseMining(uri: string = '') {
+  public restart(uri: string = ''): Observable<GenericResponse> {
     if (environment.production && this.generatedSystemService && !uri) {
-      return this.generatedSystemService.pauseMining();
+      return from(this.generatedSystemService.invoke(functions.restartSystem, {}) as Promise<GenericResponse>);
+    }
+
+    if (environment.production && uri) {
+      return this.httpClient.post<GenericResponse>(`${uri}/api/system/restart`, {});
+    }
+
+    return of({ message: 'Device restarted (mock)' });
+  }
+
+  public dismissBlockFound(uri: string = ''): Observable<GenericResponse> {
+    if (environment.production && this.generatedSystemService && !uri) {
+      return from(this.generatedSystemService.invoke(functions.dismissBlockFound, {}) as Promise<GenericResponse>);
+    }
+
+    if (environment.production && uri) {
+      return this.httpClient.post<GenericResponse>(`${uri}/api/system/blockFound/dismiss`, {});
+    }
+
+    return of({ message: 'Block found notification dismissed (mock)' });
+  }
+
+  public pauseMining(uri: string = ''): Observable<GenericResponse> {
+    if (environment.production && this.generatedSystemService && !uri) {
+      return from(this.generatedSystemService.invoke(functions.pauseMining, {}) as Promise<GenericResponse>);
     }
 
     if (environment.production && uri) {
@@ -252,9 +252,9 @@ export class SystemApiService {
     return of<GenericResponse>({ message: 'Mining paused' });
   }
 
-  public resumeMining(uri: string = '') {
+  public resumeMining(uri: string = ''): Observable<GenericResponse> {
     if (environment.production && this.generatedSystemService && !uri) {
-      return this.generatedSystemService.resumeMining();
+      return from(this.generatedSystemService.invoke(functions.resumeMining, {}) as Promise<GenericResponse>);
     }
 
     if (environment.production && uri) {
@@ -264,28 +264,28 @@ export class SystemApiService {
     return of<GenericResponse>({ message: 'Mining resumed' });
   }
 
-  public identify(uri: string = ''): Observable<any> {
-    if (environment.production && this.api && !uri) {
-      return from(this.api.invoke(functions.identifySystem, {}));
+  public identify(uri: string = ''): Observable<GenericResponse> {
+    if (environment.production && this.generatedSystemService && !uri) {
+      return from(this.generatedSystemService.invoke(functions.identifySystem, {}) as Promise<GenericResponse>);
     }
 
     if (environment.production && uri) {
-      return this.httpClient.post(`${uri}/api/system/identify`, {});
+      return this.httpClient.post<GenericResponse>(`${uri}/api/system/identify`, {});
     }
 
-    return of('Device identified (mock)');
+    return of({ message: 'Device identified (mock)' });
   }
 
-  public updateSystem(uri: string = '', update: any): Observable<any> {
-    if (environment.production && this.api && !uri) {
-      return from(this.api.invoke(functions.updateSystemSettings, { body: update as Settings }) as Promise<any>);
+  public updateSystem(uri: string = '', update: any): Observable<void> {
+    if (environment.production && this.generatedSystemService && !uri) {
+      return from(this.generatedSystemService.invoke(functions.updateSystemSettings, { body: update as Settings }) as Promise<void>);
     }
 
     if (environment.production && uri) {
-      return this.httpClient.patch(`${uri}/api/system`, update);
+      return this.httpClient.patch<void>(`${uri}/api/system`, update);
     }
 
-    return of(true);
+    return of(undefined);
   }
 
   private otaUpdate(file: File | Blob, url: string): Observable<HttpEvent<string>> {
