@@ -20,6 +20,7 @@ SRCS
     "device_config.c"
     "./http_server/http_server.c"
     "./http_server/websocket.c"
+    "./http_server/websocket_log.c"
     "./http_server/websocket_api.c"
     "./http_server/theme_api.c"
     "./http_server/axe-os/api/system/asic_settings.c"

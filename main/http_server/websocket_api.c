@@ -6,10 +6,9 @@
 #include "esp_log.h"
 #include "esp_http_server.h"
 #include "esp_timer.h"
-#include "esp_heap_caps.h"
-#include "esp_wifi.h"
 #include "cJSON.h"
 #include "websocket_api.h"
+#include "websocket.h"
 #include "http_server.h"
 #include "global_state.h"
 #include "connect.h"
@@ -18,12 +17,7 @@
 #define WEBSOCKET_API_RATE_LIMIT_MS 500
 
 static const char *TAG = "websocket_api";
-
-static int clients[MAX_LIVE_CLIENTS];
-static int active_clients = 0;
-static SemaphoreHandle_t clients_mutex = NULL;
 static GlobalState *GLOBAL_STATE = NULL;
-static httpd_handle_t server_handle = NULL;
 
 // Snapshot of dynamic values for diff comparison
 typedef struct {
@@ -274,128 +268,6 @@ static cJSON* build_diff(ws_api_snapshot_t *old, ws_api_snapshot_t *new, uint32_
     return root;
 }
 
-static esp_err_t add_live_client(int fd)
-{
-    if (clients_mutex == NULL) {
-        ESP_LOGE(TAG, "Clients mutex NOT initialized!");
-        return ESP_FAIL;
-    }
-
-    if (xSemaphoreTake(clients_mutex, pdMS_TO_TICKS(100)) != pdTRUE) {
-        ESP_LOGE(TAG, "Failed to acquire mutex for adding client");
-        return ESP_FAIL;
-    }
-
-    esp_err_t ret = ESP_FAIL;
-    for (int i = 0; i < MAX_LIVE_CLIENTS; i++) {
-        if (clients[i] == -1) {
-            clients[i] = fd;
-            active_clients++;
-            ESP_LOGI(TAG, "Added live client, fd: %d, slot: %d", fd, i);
-            ret = ESP_OK;
-            break;
-        }
-    }
-    if (ret != ESP_OK) {
-        ESP_LOGE(TAG, "Max live clients reached, cannot add fd: %d", fd);
-    }
-
-    xSemaphoreGive(clients_mutex);
-    return ret;
-}
-
-static void remove_live_client(int fd)
-{
-    if (clients_mutex == NULL) {
-        ESP_LOGE(TAG, "Clients mutex NOT initialized!");
-        return;
-    }
-
-    if (xSemaphoreTake(clients_mutex, pdMS_TO_TICKS(100)) != pdTRUE) {
-        ESP_LOGE(TAG, "Failed to acquire mutex for removing client");
-        return;
-    }
-
-    for (int i = 0; i < MAX_LIVE_CLIENTS; i++) {
-        if (clients[i] == fd) {
-            clients[i] = -1;
-            active_clients--;
-            ESP_LOGI(TAG, "Removed live client, fd: %d, slot: %d", fd, i);
-            break;
-        }
-    }
-
-    xSemaphoreGive(clients_mutex);
-}
-
-void websocket_api_close_fn(httpd_handle_t hd, int fd)
-{
-    ESP_LOGI(TAG, "Live client disconnected, fd: %d", fd);
-    remove_live_client(fd);
-    // Note: we don't close(fd) here because the main websocket_close_fn handles that
-}
-
-esp_err_t websocket_api_handler(httpd_req_t *req)
-{
-    if (is_network_allowed(req) != ESP_OK) {
-        return httpd_resp_send_err(req, HTTPD_401_UNAUTHORIZED, "Unauthorized");
-    }
-
-    if (req->method == HTTP_GET) {
-        if (active_clients >= MAX_LIVE_CLIENTS) {
-            ESP_LOGE(TAG, "Max live clients reached, rejecting connection");
-            esp_err_t ret = httpd_resp_send_custom_err(req, "429 Too Many Requests", "Max live clients reached");
-            int fd = httpd_req_to_sockfd(req);
-            if (fd >= 0) {
-                httpd_sess_trigger_close(req->handle, fd);
-            }
-            return ret;
-        }
-
-        int fd = httpd_req_to_sockfd(req);
-        esp_err_t ret = add_live_client(fd);
-        if (ret != ESP_OK) {
-            httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "Failed to add client");
-            httpd_sess_trigger_close(req->handle, fd);
-            return ret;
-        }
-        ESP_LOGI(TAG, "Live WebSocket handshake successful, fd: %d", fd);
-        return ESP_OK;
-    }
-
-    // Handle incoming frames (we don't expect any, but drain them)
-    httpd_ws_frame_t ws_pkt;
-    memset(&ws_pkt, 0, sizeof(httpd_ws_frame_t));
-
-    esp_err_t ret = httpd_ws_recv_frame(req, &ws_pkt, 0);
-    if (ret != ESP_OK || ws_pkt.len == 0) {
-        return ret;
-    }
-
-    uint8_t *buf = (uint8_t *)calloc(ws_pkt.len, sizeof(uint8_t));
-    if (buf == NULL) {
-        remove_live_client(httpd_req_to_sockfd(req));
-        return ESP_FAIL;
-    }
-
-    ws_pkt.payload = buf;
-    ret = httpd_ws_recv_frame(req, &ws_pkt, ws_pkt.len);
-    if (ret != ESP_OK) {
-        free(buf);
-        remove_live_client(httpd_req_to_sockfd(req));
-        return ret;
-    }
-
-    if (ws_pkt.type == HTTPD_WS_TYPE_CLOSE) {
-        free(buf);
-        remove_live_client(httpd_req_to_sockfd(req));
-        return ESP_OK;
-    }
-
-    free(buf);
-    return ESP_OK;
-}
-
 static void broadcast_json(cJSON *root)
 {
     char *json_str = cJSON_PrintUnformatted(root);
@@ -410,37 +282,15 @@ static void broadcast_json(cJSON *root)
     ws_pkt.len = strlen(json_str);
     ws_pkt.type = HTTPD_WS_TYPE_TEXT;
 
-    for (int i = 0; i < MAX_LIVE_CLIENTS; i++) {
-        int client_fd = clients[i];
-        if (client_fd != -1) {
-            if (httpd_ws_send_frame_async(server_handle, client_fd, &ws_pkt) != ESP_OK) {
-                ESP_LOGW(TAG, "Failed to send frame to fd: %d", client_fd);
-                remove_live_client(client_fd);
-            }
-        }
-    }
+    websocket_broadcast(WS_TYPE_API, &ws_pkt);
 
     free(json_str);
 }
 
-void websocket_api_init(void *global_state)
-{
-    GLOBAL_STATE = (GlobalState *)global_state;
-    memset(clients, -1, sizeof(clients));
-    
-    if (clients_mutex == NULL) {
-        clients_mutex = xSemaphoreCreateMutex();
-        if (clients_mutex == NULL) {
-            ESP_LOGE(TAG, "Failed to create clients mutex");
-        }
-    }
-}
-
 void websocket_api_task(void *pvParameters)
 {
+    GLOBAL_STATE = (GlobalState *)pvParameters;
     ESP_LOGI(TAG, "websocket_api_task starting");
-
-    server_handle = (httpd_handle_t)pvParameters;
 
     // Wait until network is connected before proceeding
     while (!GLOBAL_STATE->SYSTEM_MODULE.is_connected) {
@@ -460,7 +310,7 @@ void websocket_api_task(void *pvParameters)
             bits = WS_EVENT_SYSTEM_UPDATED;
         }
         
-        if (active_clients == 0) {
+        if (websocket_get_active_client_count(WS_TYPE_API) == 0) {
             // If no active clients, just update the last snapshot and continue
             // This ensures that when a client connects, the first diff is accurate
             take_snapshot(&last_snapshot, GLOBAL_STATE);

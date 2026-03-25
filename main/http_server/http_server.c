@@ -46,6 +46,7 @@
 #include "http_server.h"
 #include "system.h"
 #include "websocket.h"
+#include "websocket_log.h"
 #include "websocket_api.h"
 
 static const char * TAG = "http_server";
@@ -1322,9 +1323,6 @@ esp_err_t start_rest_server(void * pvParameters)
 {
     GLOBAL_STATE = (GlobalState *) pvParameters;
     
-    // Initialize the WebSocket API mutex and clients array early to avoid startup crashes
-    websocket_api_init(GLOBAL_STATE);
-
     // Initialize the ASIC API with the global state
     asic_api_init(GLOBAL_STATE);
     const char * base_path = "";
@@ -1344,6 +1342,9 @@ esp_err_t start_rest_server(void * pvParameters)
 
     ESP_LOGI(TAG, "Starting HTTP Server");
     REST_CHECK(httpd_start(&server, &config) == ESP_OK, "Start server failed", err_start);
+
+    // Initialize the WebSocket registry with the valid server handle
+    websocket_init(server);
 
     httpd_uri_t api_options_uri = {
         .uri = "/api/*", 
@@ -1466,7 +1467,7 @@ esp_err_t start_rest_server(void * pvParameters)
         .uri = "/api/ws", 
         .method = HTTP_GET, 
         .handler = websocket_handler, 
-        .user_ctx = NULL, 
+        .user_ctx = (void *)WS_TYPE_LOGS, 
         .is_websocket = true
     };
     httpd_register_uri_handler(server, &ws);
@@ -1474,8 +1475,8 @@ esp_err_t start_rest_server(void * pvParameters)
     httpd_uri_t ws_live = {
         .uri = "/api/ws/live", 
         .method = HTTP_GET, 
-        .handler = websocket_api_handler, 
-        .user_ctx = NULL, 
+        .handler = websocket_handler, 
+        .user_ctx = (void *)WS_TYPE_API, 
         .is_websocket = true
     };
     httpd_register_uri_handler(server, &ws_live);
@@ -1509,12 +1510,12 @@ esp_err_t start_rest_server(void * pvParameters)
     httpd_register_err_handler(server, HTTPD_404_NOT_FOUND, http_404_error_handler);
 
     // Start websocket log handler thread
-    if (xTaskCreateWithCaps(websocket_task, "websocket_task", 8192, server, 2, NULL, MALLOC_CAP_SPIRAM) != pdPASS) {
-        ESP_LOGE(TAG, "Error creating websicket task");
+    if (xTaskCreateWithCaps(websocket_log_task, "ws_log_task", 8192, NULL, 2, NULL, MALLOC_CAP_SPIRAM) != pdPASS) {
+        ESP_LOGE(TAG, "Error creating websocket log task");
     }
 
     // Start websocket API live data handler thread
-    if (xTaskCreateWithCaps(websocket_api_task, "ws_api_task", 8192, server, 2, NULL, MALLOC_CAP_SPIRAM) != pdPASS) {
+    if (xTaskCreateWithCaps(websocket_api_task, "ws_api_task", 8192, GLOBAL_STATE, 2, NULL, MALLOC_CAP_SPIRAM) != pdPASS) {
         ESP_LOGE(TAG, "Error creating ws api task");
     }
 
