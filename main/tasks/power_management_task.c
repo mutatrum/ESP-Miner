@@ -81,6 +81,7 @@ static uint8_t mining_start(GlobalState * GLOBAL_STATE)
     vTaskDelay(100 / portTICK_PERIOD_MS);
 
     POWER_MANAGEMENT_init_frequency(GLOBAL_STATE);
+
     // Stabilization delay of 2000ms prevents race conditions where tasks are
     // just starting to use the ASIC while power management tries to change frequency
     uint8_t chip_count = asic_initialize(GLOBAL_STATE, ASIC_INIT_RECOVERY, 2000);
