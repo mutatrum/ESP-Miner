@@ -1,13 +1,8 @@
 #include <string.h>
-
-// #include "freertos/event_groups.h"
-// #include "freertos/timers.h"
 #include "driver/gpio.h"
-
 #include "esp_log.h"
 #include "esp_timer.h"
 #include "esp_check.h"
-#include "esp_psram.h"
 
 #include "DS4432U.h"
 #include "thermal.h"
@@ -15,8 +10,6 @@
 #include "power.h"
 #include "nvs_config.h"
 #include "global_state.h"
-
-#include "asic.h"
 #include "asic_reset.h"
 #include "device_config.h"
 #include "hashrate_monitor_task.h"
@@ -219,7 +212,7 @@ void self_test_task(void * pvParameters)
     if (!GLOBAL_STATE->SELF_TEST_MODULE.is_active) return;
 
     // Check if we already have an error message from peripheral initialization
-    if (GLOBAL_STATE->SELF_TEST_MODULE.message != NULL && strlen(GLOBAL_STATE->SELF_TEST_MODULE.message) > 0) {
+    if (GLOBAL_STATE->SELF_TEST_MODULE.system_init_ret != ESP_OK) {
         ESP_LOGE(TAG, "Aborting self-test due to initialization failure: %s", GLOBAL_STATE->SELF_TEST_MODULE.message);
         tests_done(GLOBAL_STATE, false);
     }
@@ -307,7 +300,7 @@ void self_test_task(void * pvParameters)
         tests_done(GLOBAL_STATE, false);
     }
 
-    Thermal_set_fan_percent(&GLOBAL_STATE->DEVICE_CONFIG, 1);
+    // Thermal_set_fan_percent(&GLOBAL_STATE->DEVICE_CONFIG, 1);
 
     float asic_temp = Thermal_get_chip_temp(GLOBAL_STATE);
     ESP_LOGI(TAG, "ASIC Temp %.1f°C", asic_temp);
@@ -320,7 +313,7 @@ void self_test_task(void * pvParameters)
         tests_done(GLOBAL_STATE, false);
     }
 
-    Thermal_set_fan_percent(&GLOBAL_STATE->DEVICE_CONFIG, 0.1f);
+    // Thermal_set_fan_percent(&GLOBAL_STATE->DEVICE_CONFIG, 0.1f);
     while (asic_temp < 40.0f)
     {
         vTaskDelay(500 / portTICK_PERIOD_MS);
@@ -329,7 +322,7 @@ void self_test_task(void * pvParameters)
         snprintf(logString, sizeof(logString), "ASIC Temp: %.1f°C", asic_temp);
         self_test_show_message(GLOBAL_STATE, logString);
     }
-    Thermal_set_fan_percent(&GLOBAL_STATE->DEVICE_CONFIG, 1.0f);
+    // Thermal_set_fan_percent(&GLOBAL_STATE->DEVICE_CONFIG, 1.0f);
 
     uint32_t start_ms = esp_timer_get_time() / 1000;
     uint32_t hashtest_ms = 30000;
