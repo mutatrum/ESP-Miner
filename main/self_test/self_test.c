@@ -300,7 +300,7 @@ void self_test_task(void * pvParameters)
         tests_done(GLOBAL_STATE, false);
     }
 
-    // Thermal_set_fan_percent(&GLOBAL_STATE->DEVICE_CONFIG, 1);
+    Thermal_set_fan_percent(&GLOBAL_STATE->DEVICE_CONFIG, 1);
 
     float asic_temp = Thermal_get_chip_temp(GLOBAL_STATE);
     ESP_LOGI(TAG, "ASIC Temp %.1f°C", asic_temp);
@@ -313,7 +313,7 @@ void self_test_task(void * pvParameters)
         tests_done(GLOBAL_STATE, false);
     }
 
-    // Thermal_set_fan_percent(&GLOBAL_STATE->DEVICE_CONFIG, 0.1f);
+    Thermal_set_fan_percent(&GLOBAL_STATE->DEVICE_CONFIG, 0.1f);
     while (asic_temp < 40.0f)
     {
         vTaskDelay(500 / portTICK_PERIOD_MS);
@@ -322,7 +322,7 @@ void self_test_task(void * pvParameters)
         snprintf(logString, sizeof(logString), "ASIC Temp: %.1f°C", asic_temp);
         self_test_show_message(GLOBAL_STATE, logString);
     }
-    // Thermal_set_fan_percent(&GLOBAL_STATE->DEVICE_CONFIG, 1.0f);
+    Thermal_set_fan_percent(&GLOBAL_STATE->DEVICE_CONFIG, 1.0f);
 
     uint32_t start_ms = esp_timer_get_time() / 1000;
     uint32_t hashtest_ms = 30000;
