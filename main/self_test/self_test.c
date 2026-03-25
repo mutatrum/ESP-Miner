@@ -415,8 +415,12 @@ static void tests_done(GlobalState * GLOBAL_STATE, bool isTestPassed)
         }
         ESP_LOGI(TAG, "SELF-TEST PASS! -- Restarting in 10 seconds.");
         GLOBAL_STATE->SELF_TEST_MODULE.result = "SELF-TEST PASS!";
-        GLOBAL_STATE->SELF_TEST_MODULE.finished = "Restarting in 10 seconds.";
-        vTaskDelay(10000 / portTICK_PERIOD_MS);
+        char logString[21];
+        for (int i = 10; i > 0; i--) {
+            snprintf(logString, sizeof(logString), "Restarting in %d...", i);
+            GLOBAL_STATE->SELF_TEST_MODULE.finished = logString;
+            vTaskDelay(1000 / portTICK_PERIOD_MS);
+        }
         esp_restart();
     } else {
         // isTestFailed
