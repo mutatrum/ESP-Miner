@@ -9,7 +9,8 @@
 
 typedef enum {
     WS_TYPE_LOGS,
-    WS_TYPE_API
+    WS_TYPE_API,
+    WS_TYPE_MAX
 } WebSocketClientType;
 
 esp_err_t websocket_add_client(int fd, WebSocketClientType type);

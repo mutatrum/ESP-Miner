@@ -17,29 +17,14 @@ typedef struct {
 } ws_client_t;
 
 static ws_client_t clients[MAX_WEBSOCKET_CLIENTS];
-static int active_clients = 0;
+static int type_counts[WS_TYPE_MAX] = {0};
 static SemaphoreHandle_t clients_mutex = NULL;
 static httpd_handle_t server_handle = NULL;
 
-static int _websocket_get_active_client_count_locked(WebSocketClientType type)
-{
-    int result = 0;
-    for (int i = 0; i < MAX_WEBSOCKET_CLIENTS; i++) {
-        if (clients[i].fd != -1 && (clients[i].type == type)) {
-            result++;
-        }
-    }
-    return result;
-}
-
 int websocket_get_active_client_count(WebSocketClientType type)
 {
-    if (xSemaphoreTake(clients_mutex, pdMS_TO_TICKS(100)) != pdTRUE) {
-        return 0; // Or handle error
-    }
-    int count = _websocket_get_active_client_count_locked(type);
-    xSemaphoreGive(clients_mutex);
-    return count;
+    if (type >= 0 && type < WS_TYPE_MAX) return type_counts[type];
+    return 0;
 }
 
 esp_err_t websocket_add_client(int fd, WebSocketClientType type)
@@ -49,28 +34,18 @@ esp_err_t websocket_add_client(int fd, WebSocketClientType type)
         return ESP_FAIL;
     }
 
-    // Check if client already exists
-    for (int i = 0; i < MAX_WEBSOCKET_CLIENTS; i++) {
-        if (clients[i].fd == fd) {
-            clients[i].type = type; // Update type
-            xSemaphoreGive(clients_mutex);
-            return ESP_OK;
-        }
-    }
-
     esp_err_t ret = ESP_FAIL;
     for (int i = 0; i < MAX_WEBSOCKET_CLIENTS; i++) {
         if (clients[i].fd == -1) {
-            if (type == WS_TYPE_LOGS && _websocket_get_active_client_count_locked(WS_TYPE_LOGS) == 0) {
+            if (type == WS_TYPE_LOGS && type_counts[WS_TYPE_LOGS] == 0) {
                 esp_log_set_vprintf(websocket_log_to_queue);
             }
 
             clients[i].fd = fd;
             clients[i].type = type;
-            active_clients++;
+            if (type >= 0 && type < WS_TYPE_MAX) type_counts[type]++;
 
-            char * type_str = type == WS_TYPE_LOGS ? "log" : "api";
-            ESP_LOGI(TAG, "Added WebSocket %s client, fd: %d, slot: %d", type_str, fd, i);
+            ESP_LOGI(TAG, "Added WebSocket %s client, fd: %d, slot: %d", WS_TYPE_LOGS ? "log" : "api", fd, i);
 
             ret = ESP_OK;
             break;
@@ -93,16 +68,15 @@ void websocket_remove_client(int fd)
 
     for (int i = 0; i < MAX_WEBSOCKET_CLIENTS; i++) {
         if (clients[i].fd == fd) {
-            uint32_t type = clients[i].type;
+            WebSocketClientType type = (WebSocketClientType)clients[i].type;
             clients[i].fd = -1;
             clients[i].type = 0;
-            active_clients--;
+            if (type >= 0 && type < WS_TYPE_MAX) type_counts[type]--;
 
-            char * type_str = type == WS_TYPE_LOGS ? "log" : "api";
-            ESP_LOGI(TAG, "Removed WebSocket %s client, fd: %d, slot: %d", type_str, fd, i);
+            ESP_LOGI(TAG, "Removed WebSocket %s client, fd: %d, slot: %d", WS_TYPE_LOGS ? "log" : "api", fd, i);
 
             // If no more log clients, disable log redirection
-            if (type == WS_TYPE_LOGS && _websocket_get_active_client_count_locked(WS_TYPE_LOGS) == 0) {
+            if (type == WS_TYPE_LOGS && type_counts[WS_TYPE_LOGS] == 0) {
                 esp_log_set_vprintf(vprintf);
             }
             break;
@@ -155,6 +129,8 @@ esp_err_t websocket_handler(httpd_req_t *req)
             return httpd_resp_send_err(req, HTTPD_401_UNAUTHORIZED, "Unauthorized");
         }
 
+        int active_clients = 0;
+        for (int i = 0; i < WS_TYPE_MAX; i++) active_clients += type_counts[i];
         if (active_clients >= MAX_WEBSOCKET_CLIENTS) {
             ESP_LOGE(TAG, "Max WebSocket clients reached, rejecting new connection");
             return httpd_resp_send_custom_err(req, "429 Too Many Requests", "Max WebSocket clients reached");
