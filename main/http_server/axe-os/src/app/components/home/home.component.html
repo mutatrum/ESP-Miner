@@ -74,7 +74,7 @@
                                 </thead>
                                 <tbody>
                                     <tr>
-                                        <td *ngFor="let i of hashrateAverages" class="p-0 text-center text-green-500 font-medium">
+                                        <td *ngFor="let i of hashrateAverages" class="p-0 text-center text-primary font-medium">
                                             {{ info[i.key] | hashSuffix }}
                                         </td>
                                     </tr>
@@ -117,7 +117,7 @@
                             </div>
 
                             <div>
-                                <span class="text-green-500 font-medium white-space-nowrap">
+                                <span class="text-primary font-medium white-space-nowrap">
                                     {{getEfficiencyAverage() | number: '1.2-2'}} J/Th
                                 </span>
                                 <span class="text-500">
