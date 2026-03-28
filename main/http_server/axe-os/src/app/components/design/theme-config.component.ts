@@ -104,7 +104,7 @@ export class ThemeConfigComponent implements OnInit {
               this.selectedScheme = settings.colorScheme;
             }
             if (settings.primaryColor) {
-              this.currentColor = settings.primaryColor;
+              this.currentColor = settings.primaryColor.toUpperCase();
               const accentColors = ThemeService.generateThemeVariables(this.currentColor);
               this.applyThemeColors(accentColors);
             }
@@ -154,7 +154,7 @@ export class ThemeConfigComponent implements OnInit {
 
   onCustomColorChange(event: any) {
     const color = event.target.value;
-    this.currentColor = color;
+    this.currentColor = color.toUpperCase();
     const accentColors = ThemeService.generateThemeVariables(this.currentColor);
     this.applyThemeColors(accentColors);
 
