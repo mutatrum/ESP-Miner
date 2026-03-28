@@ -21,6 +21,7 @@ import { chartLabelValue } from 'src/models/enum/eChartLabel';
 import { chartLabelKey } from 'src/models/enum/eChartLabel';
 import { LocalStorageService } from 'src/app/local-storage.service';
 import { GridStack, GridItemHTMLElement } from 'gridstack';
+import { DashboardEditService, WidgetDef } from 'src/app/services/dashboard-edit.service';
 
 type PoolLabel = 'Primary' | 'Fallback';
 type MessageType =
@@ -46,15 +47,6 @@ interface ISystemInfoError {
 const HOME_CHART_DATA_SOURCES = 'HOME_CHART_DATA_SOURCES';
 const DASHBOARD_LAYOUT_KEY = 'DASHBOARD_LAYOUT_V1';
 const HIDDEN_WIDGETS_KEY = 'DASHBOARD_HIDDEN_WIDGETS';
-
-interface WidgetDef {
-  id: string;
-  label: string;
-  x: number;
-  y: number;
-  w: number;
-  h: number;
-}
 
 const WIDGET_DEFAULTS: WidgetDef[] = [
   { id: 'hashrate',    label: 'Hashrate',            x: 0, y: 0,  w: 3,  h: 5 },
@@ -148,12 +140,34 @@ export class HomeComponent implements OnInit, OnDestroy {
     private loadingService: LoadingService,
     private toastr: ToastrService,
     private shareRejectReasonsService: ShareRejectionExplanationService,
-    private storageService: LocalStorageService
+    private storageService: LocalStorageService,
+    private dashboardEditService: DashboardEditService
   ) {
     this.initializeChart();
   }
 
   ngOnInit(): void {
+    this.dashboardEditService.widgetDefs = this.widgetDefs;
+    this.dashboardEditService.isActive$.next(true);
+
+    this.dashboardEditService.editMode$
+      .pipe(takeUntil(this.destroy$))
+      .subscribe(mode => {
+        this.editMode = mode;
+        if (this.grid) {
+          this.grid.enableMove(mode);
+          this.grid.enableResize(mode);
+        }
+      });
+
+    this.dashboardEditService.resetRequested$
+      .pipe(takeUntil(this.destroy$))
+      .subscribe(() => this.resetLayout());
+
+    this.dashboardEditService.toggleWidgetRequested$
+      .pipe(takeUntil(this.destroy$))
+      .subscribe(id => this.toggleWidgetVisibility(id));
+
     this.themeService.getThemeSettings()
       .pipe(takeUntil(this.destroy$))
       .subscribe(() => {
@@ -179,6 +193,8 @@ export class HomeComponent implements OnInit, OnDestroy {
   }
 
   ngOnDestroy() {
+    this.dashboardEditService.isActive$.next(false);
+    this.dashboardEditService.editMode$.next(false);
     this.destroy$.next();
     this.destroy$.complete();
     this.grid?.destroy(false);
@@ -190,6 +206,7 @@ export class HomeComponent implements OnInit, OnDestroy {
     if (Array.isArray(savedHidden)) {
       this.hiddenWidgets = new Set(savedHidden);
     }
+    this.dashboardEditService.hiddenWidgets = new Set(this.hiddenWidgets);
 
     // Stash hidden items out of the container before gridstack initializes
     const container = this.gridStackEl!.nativeElement;
@@ -241,9 +258,7 @@ export class HomeComponent implements OnInit, OnDestroy {
   }
 
   public toggleEditMode(): void {
-    this.editMode = !this.editMode;
-    this.grid.enableMove(this.editMode);
-    this.grid.enableResize(this.editMode);
+    this.dashboardEditService.toggleEditMode();
   }
 
   public resetLayout(): void {
@@ -281,6 +296,7 @@ export class HomeComponent implements OnInit, OnDestroy {
 
   private saveHiddenWidgets(): void {
     this.storageService.setObject(HIDDEN_WIDGETS_KEY, [...this.hiddenWidgets]);
+    this.dashboardEditService.hiddenWidgets = new Set(this.hiddenWidgets);
   }
 
   private updateChartColors() {

@@ -19,6 +19,36 @@
         >{{info.hostname}}</span>
 
         <ul *ngIf="!isAPMode" class="flex ml-auto list-none p-0 m-0 gap-4 lg:flex-order-2">
+            <ng-container *ngIf="dashboardEdit.isActive$ | async">
+                <li *ngIf="dashboardEdit.editMode$ | async">
+                    <a class="block py-2 text-white cursor-pointer"
+                        tooltipPosition="bottom"
+                        pTooltip="Widgets"
+                        (click)="widgetPanel.toggle($event)"
+                    >
+                        <i class="pi pi-th-large text-xl block"></i>
+                    </a>
+                </li>
+                <li>
+                    <a class="block py-2 text-white cursor-pointer"
+                        tooltipPosition="bottom"
+                        [pTooltip]="(dashboardEdit.editMode$ | async) ? 'Lock Layout' : 'Edit Layout'"
+                        (click)="dashboardEdit.toggleEditMode()"
+                    >
+                        <i class="pi text-xl block"
+                            [ngClass]="(dashboardEdit.editMode$ | async) ? 'pi-lock' : 'pi-pencil'"></i>
+                    </a>
+                </li>
+                <li *ngIf="dashboardEdit.editMode$ | async">
+                    <a class="block py-2 text-white cursor-pointer"
+                        tooltipPosition="bottom"
+                        pTooltip="Reset Layout"
+                        (click)="dashboardEdit.requestReset()"
+                    >
+                        <i class="pi pi-replay text-xl block"></i>
+                    </a>
+                </li>
+            </ng-container>
             <li>
                 <a class="block py-2 text-white cursor-pointer"
                     tooltipPosition="bottom"
@@ -47,6 +77,20 @@
                 </a>
             </li>
         </ul>
+
+        <p-overlayPanel #widgetPanel>
+            <div class="flex flex-column gap-2">
+                <div *ngFor="let widget of dashboardEdit.widgetDefs" class="flex align-items-center gap-2">
+                    <p-checkbox
+                        [binary]="true"
+                        [ngModel]="dashboardEdit.isWidgetVisible(widget.id)"
+                        (onChange)="dashboardEdit.toggleWidgetRequested$.next(widget.id)"
+                        [inputId]="'widget-' + widget.id">
+                    </p-checkbox>
+                    <label [for]="'widget-' + widget.id" class="text-sm cursor-pointer white-space-nowrap">{{ widget.label }}</label>
+                </div>
+            </div>
+        </p-overlayPanel>
     </ng-container>
 
     <button *ngIf="!isAPMode" #menubutton class="p-link layout-topbar-button"
