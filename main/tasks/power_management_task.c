@@ -81,7 +81,6 @@ static uint8_t mining_start(GlobalState * GLOBAL_STATE)
     vTaskDelay(100 / portTICK_PERIOD_MS);
 
     POWER_MANAGEMENT_init_frequency(GLOBAL_STATE);
-
     // Stabilization delay of 2000ms prevents race conditions where tasks are
     // just starting to use the ASIC while power management tries to change frequency
     uint8_t chip_count = asic_initialize(GLOBAL_STATE, ASIC_INIT_RECOVERY, 2000);
@@ -106,8 +105,8 @@ void POWER_MANAGEMENT_init_frequency(void * pvParameters)
 
     float frequency = nvs_config_get_float(NVS_CONFIG_ASIC_FREQUENCY);
 
-    GLOBAL_STATE->POWER_MANAGEMENT_MODULE.actual_frequency = 50.0;
     GLOBAL_STATE->POWER_MANAGEMENT_MODULE.frequency_value = frequency;
+    GLOBAL_STATE->POWER_MANAGEMENT_MODULE.actual_frequency = 50.0;
     GLOBAL_STATE->POWER_MANAGEMENT_MODULE.expected_hashrate = expected_hashrate(GLOBAL_STATE);
     
     char expected_hashrate_str[16] = {0};
