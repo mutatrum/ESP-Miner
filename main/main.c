@@ -86,8 +86,6 @@ void app_main(void)
         wifi_init(&GLOBAL_STATE);
     }
 
-    SYSTEM_init_peripherals(&GLOBAL_STATE);
-
     esp_err_t system_init_ret = SYSTEM_init_peripherals(&GLOBAL_STATE);
     
     if (system_init_ret == ESP_OK) {
