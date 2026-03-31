@@ -12,10 +12,7 @@
 #define I2C_MASTER_FREQ_HZ 100000   /*!< I2C master clock frequency */
 
 #define I2C_MASTER_NUM 0            /*!< I2C master i2c port number, the number of i2c peripheral interfaces available will depend on the chip */
-#define I2C_MASTER_TIMEOUT_MS 1000
-
-//#define I2C_DEFAULT_TIMEOUT ( I2C_MASTER_TIMEOUT_MS / portTICK_PERIOD_MS )
-#define I2C_DEFAULT_TIMEOUT -1  //-1 means wait forever
+#define I2C_MASTER_TIMEOUT_MS 100
 
 static i2c_master_bus_handle_t i2c_bus_handle;
 
@@ -108,10 +105,7 @@ esp_err_t i2c_bitaxe_get_master_bus_handle(i2c_master_bus_handle_t * dev_handle)
  */
 esp_err_t i2c_bitaxe_register_read(i2c_master_dev_handle_t dev_handle, uint8_t reg_addr, uint8_t * read_buf, size_t len)
 {
-    // return i2c_master_write_read_device(I2C_MASTER_NUM, device_address, &reg_addr, 1, data, len, I2C_MASTER_TIMEOUT_MS / portTICK_PERIOD_MS);
-    //ESP_LOGI("I2C", "Reading %d bytes from register 0x%02X", len, reg_addr);
-
-    return log_on_error(i2c_master_transmit_receive(dev_handle, &reg_addr, 1, read_buf, len, I2C_DEFAULT_TIMEOUT), dev_handle);
+    return log_on_error(i2c_master_transmit_receive(dev_handle, &reg_addr, 1, read_buf, len, I2C_MASTER_TIMEOUT_MS), dev_handle);
 }
 
 /**
@@ -123,7 +117,7 @@ esp_err_t i2c_bitaxe_register_read(i2c_master_dev_handle_t dev_handle, uint8_t r
  */
 esp_err_t i2c_bitaxe_register_write_addr(i2c_master_dev_handle_t dev_handle, uint8_t reg_addr)
 {
-    return log_on_error(i2c_master_transmit(dev_handle, &reg_addr, 1, I2C_DEFAULT_TIMEOUT), dev_handle);
+    return log_on_error(i2c_master_transmit(dev_handle, &reg_addr, 1, I2C_MASTER_TIMEOUT_MS), dev_handle);
 }
 
 /**
@@ -136,9 +130,7 @@ esp_err_t i2c_bitaxe_register_write_byte(i2c_master_dev_handle_t dev_handle, uin
 {
     uint8_t write_buf[2] = {reg_addr, data};
 
-    //return i2c_master_write_to_device(I2C_MASTER_NUM, device_address, write_buf, sizeof(write_buf), I2C_MASTER_TIMEOUT_MS / portTICK_PERIOD_MS);
-
-    return log_on_error(i2c_master_transmit(dev_handle, write_buf, 2, I2C_DEFAULT_TIMEOUT), dev_handle);
+    return log_on_error(i2c_master_transmit(dev_handle, write_buf, 2, I2C_MASTER_TIMEOUT_MS), dev_handle);
 }
 
 /**
@@ -149,7 +141,7 @@ esp_err_t i2c_bitaxe_register_write_byte(i2c_master_dev_handle_t dev_handle, uin
  */
 esp_err_t i2c_bitaxe_register_write_bytes(i2c_master_dev_handle_t dev_handle, uint8_t * data, uint8_t len)
 {
-    return log_on_error(i2c_master_transmit(dev_handle, data, len, I2C_DEFAULT_TIMEOUT), dev_handle);
+    return log_on_error(i2c_master_transmit(dev_handle, data, len, I2C_MASTER_TIMEOUT_MS), dev_handle);
 }
 
 /**
@@ -162,7 +154,5 @@ esp_err_t i2c_bitaxe_register_write_word(i2c_master_dev_handle_t dev_handle, uin
 {
     uint8_t write_buf[3] = {reg_addr, (uint8_t)(data & 0x00FF), (uint8_t)((data & 0xFF00) >> 8)};
 
-    //return i2c_master_write_to_device(I2C_MASTER_NUM, device_address, write_buf, sizeof(write_buf), I2C_MASTER_TIMEOUT_MS / portTICK_PERIOD_MS);
-
-    return log_on_error(i2c_master_transmit(dev_handle, write_buf, 3, I2C_DEFAULT_TIMEOUT), dev_handle);
+    return log_on_error(i2c_master_transmit(dev_handle, write_buf, 3, I2C_MASTER_TIMEOUT_MS), dev_handle);
 }
