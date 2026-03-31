@@ -1,5 +1,5 @@
 import { Component, OnInit, OnDestroy } from '@angular/core';
-import { Observable, Subject, combineLatest, switchMap, shareReplay, first, takeUntil, map, of } from 'rxjs';
+import { Observable, Subject, combineLatest, shareReplay, first, takeUntil, map } from 'rxjs';
 import { HttpErrorResponse } from '@angular/common/http';
 import { ToastrService } from 'ngx-toastr';
 import { SystemApiService } from 'src/app/services/system.service';
