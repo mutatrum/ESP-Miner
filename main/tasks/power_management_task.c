@@ -142,8 +142,7 @@ void POWER_MANAGEMENT_task(void * pvParameters)
         }
 
         power_management->voltage = Power_get_input_voltage(GLOBAL_STATE);
-        power_management->power = Power_get_power(GLOBAL_STATE);
-        power_management->current = Power_get_current(GLOBAL_STATE);
+        Power_get_output(GLOBAL_STATE, &power_management->power, &power_management->current);
         power_management->core_voltage = VCORE_get_voltage_mv(GLOBAL_STATE);
 
         power_management->chip_temp_avg = Thermal_get_chip_temp(GLOBAL_STATE);
