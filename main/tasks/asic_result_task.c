@@ -10,6 +10,7 @@
 #include "stratum_task.h"
 #include "hashrate_monitor_task.h"
 #include "asic.h"
+#include "freertos/task.h"
 
 static const char *TAG = "asic_result";
 
@@ -40,13 +41,16 @@ void ASIC_result_task(void *pvParameters)
 
         uint8_t job_id = asic_result->job_id;
 
-        if (GLOBAL_STATE->valid_jobs[job_id] == 0)
+        pthread_mutex_lock(&GLOBAL_STATE->valid_jobs_lock);
+        bool valid = (GLOBAL_STATE->valid_jobs[job_id] != 0);
+        bm_job *active_job = valid ? GLOBAL_STATE->ASIC_TASK_MODULE.active_jobs[job_id] : NULL;
+        pthread_mutex_unlock(&GLOBAL_STATE->valid_jobs_lock);
+
+        if (!valid || active_job == NULL)
         {
             ESP_LOGW(TAG, "Invalid job nonce found, 0x%02X", job_id);
             continue;
         }
-
-        bm_job *active_job = GLOBAL_STATE->ASIC_TASK_MODULE.active_jobs[job_id];
         // check the nonce difficulty
         double nonce_diff = test_nonce_value(active_job, asic_result->nonce, asic_result->rolled_version);
 
@@ -58,19 +62,29 @@ void ASIC_result_task(void *pvParameters)
         if (nonce_diff >= active_job->pool_diff)
         {
             char * user = GLOBAL_STATE->SYSTEM_MODULE.is_using_fallback ? GLOBAL_STATE->SYSTEM_MODULE.fallback_pool_user : GLOBAL_STATE->SYSTEM_MODULE.pool_user;
-            int ret = STRATUM_V1_submit_share(
-                GLOBAL_STATE->transport,
-                GLOBAL_STATE->send_uid++,
-                user,
-                active_job->jobid,
-                active_job->extranonce2,
-                active_job->ntime,
-                asic_result->nonce,
-                asic_result->rolled_version ^ active_job->version);
 
-            if (ret < 0) {
-                ESP_LOGI(TAG, "Unable to write share to socket. Closing connection. Ret: %d (errno %d: %s)", ret, errno, strerror(errno));
-                stratum_close_connection(GLOBAL_STATE);
+            taskENTER_CRITICAL(&GLOBAL_STATE->stratum_mux);
+            esp_transport_handle_t transport = GLOBAL_STATE->transport;
+            int uid = GLOBAL_STATE->send_uid++;
+            taskEXIT_CRITICAL(&GLOBAL_STATE->stratum_mux);
+
+            if (transport == NULL) {
+                ESP_LOGW(TAG, "No stratum connection, dropping share (job 0x%02X)", job_id);
+            } else {
+                int ret = STRATUM_V1_submit_share(
+                    transport,
+                    uid,
+                    user,
+                    active_job->jobid,
+                    active_job->extranonce2,
+                    active_job->ntime,
+                    asic_result->nonce,
+                    asic_result->rolled_version ^ active_job->version);
+
+                if (ret < 0) {
+                    ESP_LOGW(TAG, "Unable to write share to socket (ret: %d, errno %d: %s)", ret, errno, strerror(errno));
+                    // stratum_task recv loop will detect a broken connection on its next read and handle reconnection
+                }
             }
         }
 
