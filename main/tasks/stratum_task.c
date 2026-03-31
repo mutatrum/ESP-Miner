@@ -674,16 +674,6 @@ void stratum_task(void * pvParameters)
                     ESP_LOGE(TAG, "setup message rejected: %s", stratum_api_v1_message.error_str);
                 }
             }
-
-            float response_time_ms = STRATUM_V1_get_response_time_ms(stratum_api_v1_message.message_id, receive_time_us);
-            if (response_time_ms >= 0) {
-                ESP_LOGI(TAG, "Stratum response time: %.1f ms", response_time_ms);
-                GLOBAL_STATE->SYSTEM_MODULE.response_time = response_time_ms;
-                // Notify WebSocket API
-                if (GLOBAL_STATE->ws_event_group != NULL) {
-                    xEventGroupSetBits(GLOBAL_STATE->ws_event_group, WS_EVENT_STRATUM_UPDATED);
-                }
-            }
         }
 
         if (stratum_api_v1_message.error_str) {
