@@ -90,6 +90,8 @@ typedef struct
     bool is_firmware_update;
     char firmware_update_filename[20];
     char firmware_update_status[20];
+    bool hardware_fault;
+    char hardware_fault_msg[64];
     char * asic_status;
     char * version;
     char * axeOSVersion;
