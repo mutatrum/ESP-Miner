@@ -3,14 +3,11 @@
 
 #include <stdbool.h>
 #include <stdint.h>
-#include "asic_common.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/semphr.h"
 #include "freertos/portmacro.h"
 #include "power_management_task.h"
 #include "hashrate_monitor_task.h"
-#include "serial.h"
-#include "stratum_api.h"
 #include "coinbase_decoder.h"
 #include "work_queue.h"
 #include "device_config.h"
