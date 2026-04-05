@@ -128,6 +128,7 @@ export class HomeComponent implements OnInit, OnDestroy {
   private pageDefaultTitle: string = '';
   private destroy$ = new Subject<void>();
   private infoSubscription?: Subscription;
+  private liveDataStarted = false;
   public form!: FormGroup;
 
   @Input() uri = '';
@@ -187,7 +188,10 @@ export class HomeComponent implements OnInit, OnDestroy {
     this.form = this.fb.group(JSON.parse(dataSources));
 
     this.form.valueChanges.subscribe(() => {
-      this.updateSystem();
+      this.storageService.setItem(HOME_CHART_DATA_SOURCES, JSON.stringify(this.form.getRawValue()));
+      this.infoSubscription?.unsubscribe();
+      this.clearDataPoints();
+      this.loadPreviousData();
     })
 
     this.loadPreviousData();
@@ -521,8 +525,11 @@ export class HomeComponent implements OnInit, OnDestroy {
           }
 
           this.limitDataPoints();
-        }),
-        this.startGetLiveData();
+        });
+        if (!this.liveDataStarted) {
+          this.liveDataStarted = true;
+          this.startGetLiveData();
+        }
       });
   }
 
