@@ -33,6 +33,37 @@
         }
     }
 
+    // Chart widget: make the canvas fill the full card height
+    .grid-stack-item[gs-id="chart"] {
+        .grid-stack-item-content {
+            > ng-container > .card {
+                display: flex;
+                flex-direction: column;
+                overflow: hidden;
+
+                form {
+                    flex: 1;
+                    min-height: 0;
+                    display: flex;
+                    flex-direction: column;
+
+                    p-chart {
+                        flex: 1;
+                        min-height: 0;
+
+                        .p-chart {
+                            height: 100%;
+
+                            canvas {
+                                height: 100% !important;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
     // Hide resize handles by default
     .ui-resizable-handle,
     .gs-resizable-handle {
