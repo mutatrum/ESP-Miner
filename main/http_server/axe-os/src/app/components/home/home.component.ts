@@ -50,17 +50,17 @@ const DASHBOARD_LAYOUT_KEY = 'DASHBOARD_LAYOUT_V1';
 const HIDDEN_WIDGETS_KEY = 'DASHBOARD_HIDDEN_WIDGETS';
 
 const WIDGET_DEFAULTS: WidgetDef[] = [
-  { id: 'hashrate',    label: 'Hashrate',            x: 0, y: 0,  w: 3,  h: 5 },
-  { id: 'efficiency',  label: 'Efficiency',          x: 3, y: 0,  w: 3,  h: 5 },
-  { id: 'shares',      label: 'Shares',              x: 6, y: 0,  w: 3,  h: 5 },
-  { id: 'bestdiff',    label: 'Best Difficulty',     x: 9, y: 0,  w: 3,  h: 5 },
-  { id: 'chart',       label: 'Chart',               x: 0, y: 5,  w: 12, h: 14 },
-  { id: 'power',       label: 'Power',               x: 0, y: 16, w: 4,  h: 7 },
-  { id: 'heat',        label: 'Heat',                x: 4, y: 16, w: 4,  h: 7 },
-  { id: 'fan',         label: 'Fan',                 x: 8, y: 16, w: 4,  h: 7 },
-  { id: 'pool',        label: 'Pool',                x: 0, y: 23, w: 4,  h: 6 },
-  { id: 'blockheader', label: 'Block Header',        x: 4, y: 23, w: 4,  h: 6 },
-  { id: 'registers',   label: 'Hashrate Registers',  x: 8, y: 23, w: 4,  h: 6 },
+  { id: 'hashrate',    label: 'Hashrate',            x: 0, y: 0,  w: 3,  h: 5,  minW: 2, minH: 4 },
+  { id: 'efficiency',  label: 'Efficiency',          x: 3, y: 0,  w: 3,  h: 5,  minW: 2, minH: 4 },
+  { id: 'shares',      label: 'Shares',              x: 6, y: 0,  w: 3,  h: 5,  minW: 2, minH: 4 },
+  { id: 'bestdiff',    label: 'Best Difficulty',     x: 9, y: 0,  w: 3,  h: 5,  minW: 2, minH: 4 },
+  { id: 'chart',       label: 'Chart',               x: 0, y: 5,  w: 12, h: 13, minW: 4, minH: 13 },
+  { id: 'power',       label: 'Power',               x: 0, y: 16, w: 4,  h: 7,  minW: 2, minH: 5 },
+  { id: 'heat',        label: 'Heat',                x: 4, y: 16, w: 4,  h: 7,  minW: 2, minH: 5 },
+  { id: 'fan',         label: 'Fan',                 x: 8, y: 16, w: 4,  h: 7,  minW: 2, minH: 4 },
+  { id: 'pool',        label: 'Pool',                x: 0, y: 23, w: 4,  h: 6,  minW: 2, minH: 4 },
+  { id: 'blockheader', label: 'Block Header',        x: 4, y: 23, w: 4,  h: 6,  minW: 2, minH: 4 },
+  { id: 'registers',   label: 'Hashrate Registers',  x: 8, y: 23, w: 4,  h: 6,  minW: 2, minH: 4 },
 ];
 
 @Component({
@@ -245,6 +245,8 @@ export class HomeComponent implements OnInit, OnDestroy {
     const savedLayout = this.storageService.getObject(DASHBOARD_LAYOUT_KEY);
     this.grid.load(savedLayout ?? WIDGET_DEFAULTS);
 
+    setTimeout(() => this.chart?.refresh(), 100);
+
     this.grid.on('change', () => {
       this.saveLayout();
     });
@@ -393,6 +395,15 @@ export class HomeComponent implements OnInit, OnDestroy {
     this.chartOptions = {
       animation: false,
       maintainAspectRatio: false,
+      onResize: (chart: any, size: { width: number; height: number }) => {
+        const fontSize = Math.max(8, Math.min(12, Math.round(size.width / 50)));
+        const tickFont = { size: fontSize };
+        chart.options.scales.x.ticks.font = tickFont;
+        chart.options.scales.y.ticks.font = tickFont;
+        chart.options.scales.y2.ticks.font = tickFont;
+        // Hide x-axis labels when chart is very short to reclaim space
+        chart.options.scales.x.ticks.display = size.height > 150;
+      },
       plugins: {
         legend: {
           display: false

@@ -8,6 +8,8 @@ export interface WidgetDef {
   y: number;
   w: number;
   h: number;
+  minW?: number;
+  minH?: number;
 }
 
 @Injectable({ providedIn: 'root' })
