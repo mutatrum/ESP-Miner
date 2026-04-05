@@ -54,12 +54,12 @@ const WIDGET_DEFAULTS: WidgetDef[] = [
   { id: 'efficiency',  label: 'Efficiency',          x: 3, y: 0,  w: 3,  h: 5 },
   { id: 'shares',      label: 'Shares',              x: 6, y: 0,  w: 3,  h: 5 },
   { id: 'bestdiff',    label: 'Best Difficulty',     x: 9, y: 0,  w: 3,  h: 5 },
-  { id: 'chart',       label: 'Chart',               x: 0, y: 4,  w: 12, h: 12 },
+  { id: 'chart',       label: 'Chart',               x: 0, y: 5,  w: 12, h: 14 },
   { id: 'power',       label: 'Power',               x: 0, y: 16, w: 4,  h: 7 },
   { id: 'heat',        label: 'Heat',                x: 4, y: 16, w: 4,  h: 7 },
-  { id: 'fan',         label: 'Fan',                 x: 8, y: 16, w: 4,  h: 4 },
-  { id: 'pool',        label: 'Pool',                x: 0, y: 23, w: 4,  h: 7 },
-  { id: 'blockheader', label: 'Block Header',        x: 4, y: 23, w: 4,  h: 7 },
+  { id: 'fan',         label: 'Fan',                 x: 8, y: 16, w: 4,  h: 7 },
+  { id: 'pool',        label: 'Pool',                x: 0, y: 23, w: 4,  h: 6 },
+  { id: 'blockheader', label: 'Block Header',        x: 4, y: 23, w: 4,  h: 6 },
   { id: 'registers',   label: 'Hashrate Registers',  x: 8, y: 23, w: 4,  h: 6 },
 ];
 
@@ -238,9 +238,7 @@ export class HomeComponent implements OnInit, OnDestroy {
     }, this.gridStackEl!.nativeElement);
 
     const savedLayout = this.storageService.getObject(DASHBOARD_LAYOUT_KEY);
-    if (savedLayout) {
-      this.grid.load(savedLayout);
-    }
+    this.grid.load(savedLayout ?? WIDGET_DEFAULTS);
 
     this.grid.on('change', () => {
       this.saveLayout();

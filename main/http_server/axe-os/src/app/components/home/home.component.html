@@ -26,7 +26,7 @@
 
     <div class="grid-stack" [class.gs-edit-mode]="editMode" #gridStack>
         <!-- Hashrate -->
-        <div class="grid-stack-item" gs-id="hashrate" gs-x="0" gs-y="0" gs-w="3" gs-h="5">
+        <div class="grid-stack-item" gs-id="hashrate">
             <div class="grid-stack-item-content">
                 <div class="card mb-0">
                     <div class="flex flex-column justify-content-between">
@@ -87,7 +87,7 @@
         </div>
 
         <!-- Efficiency -->
-        <div class="grid-stack-item" gs-id="efficiency" gs-x="3" gs-y="0" gs-w="3" gs-h="5">
+        <div class="grid-stack-item" gs-id="efficiency">
             <div class="grid-stack-item-content">
                 <div class="card mb-0">
                     <div class="flex flex-column justify-content-between">
@@ -131,7 +131,7 @@
         </div>
 
         <!-- Shares -->
-        <div class="grid-stack-item" gs-id="shares" gs-x="6" gs-y="0" gs-w="3" gs-h="5">
+        <div class="grid-stack-item" gs-id="shares">
             <div class="grid-stack-item-content">
                 <div class="card mb-0">
                     <div class="flex justify-content-between mb-3">
@@ -165,7 +165,7 @@
         </div>
 
         <!-- Best Difficulty -->
-        <div class="grid-stack-item" gs-id="bestdiff" gs-x="9" gs-y="0" gs-w="3" gs-h="5">
+        <div class="grid-stack-item" gs-id="bestdiff">
             <div class="grid-stack-item-content">
                 <div class="card mb-0">
                     <div class="flex justify-content-between mb-3">
@@ -198,7 +198,7 @@
         </div>
 
         <!-- Chart -->
-        <div class="grid-stack-item" gs-id="chart" gs-x="0" gs-y="5" gs-w="12" gs-h="14">
+        <div class="grid-stack-item" gs-id="chart">
             <div class="grid-stack-item-content">
                 <ng-container *ngIf="!info.power_fault">
                     <div class="card">
@@ -228,7 +228,7 @@
         </div>
 
         <!-- Power -->
-        <div class="grid-stack-item" gs-id="power" gs-x="0" gs-y="16" gs-w="4" gs-h="7">
+        <div class="grid-stack-item" gs-id="power">
             <div class="grid-stack-item-content">
                 <div class="card">
                     <h4 class="text-center">Power</h4>
@@ -289,7 +289,7 @@
         </div>
 
         <!-- Heat -->
-        <div class="grid-stack-item" gs-id="heat" gs-x="4" gs-y="16" gs-w="4" gs-h="7">
+        <div class="grid-stack-item" gs-id="heat">
             <div class="grid-stack-item-content">
                 <div class="card">
                     <h4 class="text-center">Heat</h4>
@@ -350,7 +350,7 @@
         </div>
 
         <!-- Fan -->
-        <div class="grid-stack-item" gs-id="fan" gs-x="8" gs-y="16" gs-w="4" gs-h="7">
+        <div class="grid-stack-item" gs-id="fan">
             <div class="grid-stack-item-content">
                 <div class="card">
                     <h4 class="text-center">Fan</h4>
@@ -377,7 +377,7 @@
         </div>
 
         <!-- Pool -->
-        <div class="grid-stack-item" gs-id="pool" gs-x="0" gs-y="23" gs-w="4" gs-h="7">
+        <div class="grid-stack-item" gs-id="pool">
             <div class="grid-stack-item-content">
                 <ng-container *ngIf="activePoolUser">
                     <div class="card">
@@ -473,7 +473,7 @@
         </div>
 
         <!-- Block Header -->
-        <div class="grid-stack-item" gs-id="blockheader" gs-x="4" gs-y="23" gs-w="4" gs-h="7">
+        <div class="grid-stack-item" gs-id="blockheader">
             <div class="grid-stack-item-content">
                 <div class="card">
                     <h4 class="white-space-nowrap overflow-hidden text-overflow-ellipsis">
@@ -549,7 +549,7 @@
         </div>
 
         <!-- Hashrate Registers -->
-        <div class="grid-stack-item" gs-id="registers" gs-x="8" gs-y="23" gs-w="4" gs-h="7">
+        <div class="grid-stack-item" gs-id="registers">
             <div class="grid-stack-item-content">
                 <div class="card">
                     <h4 class="white-space-nowrap overflow-hidden text-overflow-ellipsis">Hashrate Registers</h4>
