@@ -227,6 +227,7 @@ export class HomeComponent implements OnInit, OnDestroy {
       column: 12,
       cellHeight: 40,
       margin: 8,
+      marginTop: 0,
       float: false,
       disableResize: true,
       disableDrag: true,
