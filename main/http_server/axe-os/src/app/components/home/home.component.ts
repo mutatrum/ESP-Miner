@@ -1,4 +1,4 @@
-import { Component, OnInit, ViewChild, Input, OnDestroy, ElementRef } from '@angular/core';
+import { Component, OnInit, ViewChild, Input, OnDestroy, ElementRef, HostListener } from '@angular/core';
 import { interval, map, Observable, shareReplay, startWith, Subscription, switchMap, tap, first, Subject, takeUntil, BehaviorSubject, filter, catchError, of, combineLatest } from 'rxjs';
 import { HttpErrorResponse } from '@angular/common/http';
 import { FormBuilder, FormGroup } from '@angular/forms';
@@ -54,7 +54,7 @@ const WIDGET_DEFAULTS: WidgetDef[] = [
   { id: 'efficiency',  label: 'Efficiency',          x: 3, y: 0,  w: 3,  h: 5,  minW: 2, minH: 4 },
   { id: 'shares',      label: 'Shares',              x: 6, y: 0,  w: 3,  h: 5,  minW: 2, minH: 4 },
   { id: 'bestdiff',    label: 'Best Difficulty',     x: 9, y: 0,  w: 3,  h: 5,  minW: 2, minH: 4 },
-  { id: 'chart',       label: 'Chart',               x: 0, y: 5,  w: 12, h: 13, minW: 4, minH: 13 },
+  { id: 'chart',       label: 'Chart',               x: 0, y: 5,  w: 12, h: 13, minW: 4, minH: 8 },
   { id: 'power',       label: 'Power',               x: 0, y: 16, w: 4,  h: 7,  minW: 2, minH: 5 },
   { id: 'heat',        label: 'Heat',                x: 4, y: 16, w: 4,  h: 7,  minW: 2, minH: 5 },
   { id: 'fan',         label: 'Fan',                 x: 8, y: 16, w: 4,  h: 7,  minW: 2, minH: 4 },
@@ -256,6 +256,27 @@ export class HomeComponent implements OnInit, OnDestroy {
         setTimeout(() => this.chart?.refresh(), 100);
       }
     });
+
+    this.updateChartHeightForViewport();
+  }
+
+  @HostListener('window:resize')
+  onWindowResize(): void {
+    this.updateChartHeightForViewport();
+  }
+
+  private updateChartHeightForViewport(): void {
+    if (!this.grid) return;
+    const chartEl = this.gridStackEl?.nativeElement.querySelector('[gs-id="chart"]') as GridItemHTMLElement;
+    if (!chartEl?.gridstackNode) return;
+
+    const isMobile = window.innerWidth < 768;
+    const targetH = isMobile ? 8 : 13;
+
+    if (chartEl.gridstackNode.h !== targetH) {
+      this.grid.update(chartEl, { h: targetH });
+      setTimeout(() => this.chart?.refresh(), 100);
+    }
   }
 
   private saveLayout(): void {
