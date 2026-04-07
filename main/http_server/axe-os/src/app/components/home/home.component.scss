@@ -32,6 +32,7 @@
             height: 100%;
             margin: 0;
             overflow: auto;
+            padding: 2rem;
         }
     }
 
@@ -92,7 +93,7 @@
     }
 }
 
-@container widget (max-width: 300px) {
+@container widget (max-width: 250px) {
     .card {
         padding: 0.75rem;
     }
