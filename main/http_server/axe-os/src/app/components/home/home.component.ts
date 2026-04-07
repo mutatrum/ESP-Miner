@@ -54,13 +54,13 @@ const WIDGET_DEFAULTS: WidgetDef[] = [
   { id: 'efficiency',  label: 'Efficiency',          x: 3, y: 0,  w: 3,  h: 5,  minW: 2, minH: 4 },
   { id: 'shares',      label: 'Shares',              x: 6, y: 0,  w: 3,  h: 5,  minW: 2, minH: 4 },
   { id: 'bestdiff',    label: 'Best Difficulty',     x: 9, y: 0,  w: 3,  h: 5,  minW: 2, minH: 4 },
-  { id: 'chart',       label: 'Chart',               x: 0, y: 5,   w: 12, h: 15, minW: 4, minH: 8 },
-  { id: 'power',       label: 'Power',               x: 0, y: 20,  w: 4,  h: 7,  minW: 2, minH: 5 },
-  { id: 'heat',        label: 'Heat',                x: 4, y: 20,  w: 4,  h: 7,  minW: 2, minH: 5 },
-  { id: 'fan',         label: 'Fan',                 x: 8, y: 20,  w: 4,  h: 7,  minW: 2, minH: 4 },
-  { id: 'pool',        label: 'Pool',                x: 0, y: 27,  w: 4,  h: 6,  minW: 2, minH: 4 },
-  { id: 'blockheader', label: 'Block Header',        x: 4, y: 27,  w: 4,  h: 6,  minW: 2, minH: 4 },
-  { id: 'registers',   label: 'Hashrate Registers',  x: 8, y: 27,  w: 4,  h: 6,  minW: 2, minH: 4 },
+  { id: 'chart',       label: 'Chart',               x: 0, y: 5,   w: 12, h: 21, minW: 4, minH: 8 },
+  { id: 'power',       label: 'Power',               x: 0, y: 26,  w: 4,  h: 7,  minW: 2, minH: 5 },
+  { id: 'heat',        label: 'Heat',                x: 4, y: 26,  w: 4,  h: 7,  minW: 2, minH: 5 },
+  { id: 'fan',         label: 'Fan',                 x: 8, y: 26,  w: 4,  h: 7,  minW: 2, minH: 5 },
+  { id: 'pool',        label: 'Pool',                x: 0, y: 33,  w: 4,  h: 6,  minW: 2, minH: 4 },
+  { id: 'blockheader', label: 'Block Header',        x: 4, y: 33,  w: 4,  h: 6,  minW: 2, minH: 4 },
+  { id: 'registers',   label: 'Hashrate Registers',  x: 8, y: 33,  w: 4,  h: 6,  minW: 2, minH: 4 },
 ];
 
 @Component({
