@@ -20,15 +20,6 @@
 
         <ul *ngIf="!isAPMode" class="flex ml-auto list-none p-0 m-0 gap-4 lg:flex-order-2">
             <ng-container *ngIf="dashboardEdit.isActive$ | async">
-                <li *ngIf="dashboardEdit.editMode$ | async" class="hidden md:block">
-                    <a class="block py-2 text-white cursor-pointer"
-                        tooltipPosition="bottom"
-                        pTooltip="Widgets"
-                        (click)="widgetPanel.toggle($event)"
-                    >
-                        <i class="pi pi-th-large text-xl block"></i>
-                    </a>
-                </li>
                 <li class="hidden md:block">
                     <a class="block py-2 text-white cursor-pointer"
                         tooltipPosition="bottom"
@@ -36,7 +27,16 @@
                         (click)="dashboardEdit.toggleEditMode()"
                     >
                         <i class="pi text-xl block"
-                            [ngClass]="(dashboardEdit.editMode$ | async) ? 'pi-lock' : 'pi-pencil'"></i>
+                            [ngClass]="(dashboardEdit.editMode$ | async) ? 'pi-save' : 'pi-th-large'"></i>
+                    </a>
+                </li>
+                <li *ngIf="dashboardEdit.editMode$ | async" class="hidden md:block">
+                    <a class="block py-2 text-white cursor-pointer"
+                        tooltipPosition="bottom"
+                        pTooltip="Widgets"
+                        (click)="widgetPanel.toggle($event)"
+                    >
+                        <i class="pi pi-list-check text-xl block"></i>
                     </a>
                 </li>
                 <li *ngIf="dashboardEdit.editMode$ | async" class="hidden md:block">
