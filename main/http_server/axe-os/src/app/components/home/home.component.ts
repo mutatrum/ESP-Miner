@@ -129,6 +129,7 @@ export class HomeComponent implements OnInit, OnDestroy {
   private destroy$ = new Subject<void>();
   private infoSubscription?: Subscription;
   private liveDataStarted = false;
+  private resizeTimer: any;
   public form!: FormGroup;
 
   @Input() uri = '';
@@ -197,7 +198,14 @@ export class HomeComponent implements OnInit, OnDestroy {
     this.loadPreviousData();
   }
 
+  @HostListener('window:resize')
+  onWindowResize() {
+    clearTimeout(this.resizeTimer);
+    this.resizeTimer = setTimeout(() => this.chart?.reinit(), 200);
+  }
+
   ngOnDestroy() {
+    clearTimeout(this.resizeTimer);
     this.dashboardEditService.isActive$.next(false);
     this.dashboardEditService.editMode$.next(false);
     this.destroy$.next();
