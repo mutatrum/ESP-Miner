@@ -55,13 +55,10 @@
                         flex: 1;
                         min-height: 0;
                         display: block;
-                        position: relative;
 
                         ::ng-deep > div {
-                            position: absolute;
-                            inset: 0;
-
-
+                            height: 100%;
+                            position: relative;
                         }
                     }
                 }

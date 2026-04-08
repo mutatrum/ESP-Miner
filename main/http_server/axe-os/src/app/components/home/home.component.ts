@@ -198,10 +198,20 @@ export class HomeComponent implements OnInit, OnDestroy {
     this.loadPreviousData();
   }
 
+  private getCellHeight(): number {
+    if (window.innerWidth < 768) {
+      return 50; // mobile: large enough for card content, prevents scrollbars
+    }
+    return Math.max(40, Math.round(window.innerHeight * 0.02)); // desktop: scales on large monitors
+  }
+
   @HostListener('window:resize')
   onWindowResize() {
     clearTimeout(this.resizeTimer);
-    this.resizeTimer = setTimeout(() => this.chart?.reinit(), 200);
+    this.resizeTimer = setTimeout(() => {
+      this.grid?.cellHeight(this.getCellHeight());
+      this.chart?.chart?.resize();
+    }, 200);
   }
 
   ngOnDestroy() {
@@ -233,7 +243,7 @@ export class HomeComponent implements OnInit, OnDestroy {
 
     this.grid = GridStack.init({
       column: 12,
-      cellHeight: 40,
+      cellHeight: this.getCellHeight(),
       margin: 8,
       float: false,
       disableResize: true,
@@ -252,7 +262,7 @@ export class HomeComponent implements OnInit, OnDestroy {
     const savedLayout = this.storageService.getObject(DASHBOARD_LAYOUT_KEY);
     this.grid.load(savedLayout ?? WIDGET_DEFAULTS);
 
-    setTimeout(() => this.chart?.refresh(), 100);
+    setTimeout(() => this.chart?.chart?.resize(), 100);
 
     this.grid.on('change', () => {
       this.saveLayout();
@@ -260,7 +270,7 @@ export class HomeComponent implements OnInit, OnDestroy {
 
     this.grid.on('resizestop', (_event: Event, el: GridItemHTMLElement) => {
       if (el.gridstackNode?.id === 'chart') {
-        setTimeout(() => this.chart?.refresh(), 100);
+        setTimeout(() => this.chart?.chart?.resize(), 50);
       }
     });
   }
