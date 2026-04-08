@@ -24,6 +24,8 @@
     "@angular/platform-browser": "^19.2.20",
     "@angular/platform-browser-dynamic": "^19.2.20",
     "@angular/router": "^19.2.20",
+    "@primeng/themes": "^21.0.4",
+    "@primeuix/themes": "^2.0.3",
     "chart.js": "^4.4.7",
     "chartjs-adapter-moment": "^1.0.1",
     "moment": "^2.30.1",
