@@ -10,6 +10,7 @@
 #include "stratum_task.h"
 #include "hashrate_monitor_task.h"
 #include "asic.h"
+#include "scoreboard.h"
 
 static const char *TAG = "asic_result";
 
@@ -52,6 +53,7 @@ void ASIC_result_task(void *pvParameters)
 
         if (GLOBAL_STATE->SELF_TEST_MODULE.is_active) continue;
 
+        uint32_t version_bits = asic_result->rolled_version ^ active_job->version;
         if (nonce_diff >= active_job->pool_diff)
         {
             char * user = GLOBAL_STATE->SYSTEM_MODULE.is_using_fallback ? GLOBAL_STATE->SYSTEM_MODULE.fallback_pool_user : GLOBAL_STATE->SYSTEM_MODULE.pool_user;
@@ -64,7 +66,7 @@ void ASIC_result_task(void *pvParameters)
                 active_job->extranonce2,
                 active_job->ntime,
                 asic_result->nonce,
-                asic_result->rolled_version ^ active_job->version,
+                version_bits,
                 &sent_time_us);
 
             if (ret < 0) {
@@ -81,5 +83,7 @@ void ASIC_result_task(void *pvParameters)
         ESP_LOGI(TAG, "ID: %s, ASIC nr: %d, Core: %d/%d, ver: %08" PRIX32 " Nonce %08" PRIX32 " diff %.1f of %ld.", active_job->jobid, asic_result->asic_nr, asic_result->core_id, asic_result->small_core_id, asic_result->rolled_version, asic_result->nonce, nonce_diff, active_job->pool_diff);
 
         SYSTEM_notify_found_nonce(GLOBAL_STATE, nonce_diff, job_id);
+
+        scoreboard_add(&GLOBAL_STATE->SYSTEM_MODULE.scoreboard, nonce_diff, active_job->jobid, active_job->extranonce2, active_job->ntime, asic_result->nonce, version_bits);
     }
 }
