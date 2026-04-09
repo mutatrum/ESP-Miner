@@ -9,6 +9,7 @@ import { SettingsComponent } from './components/settings/settings.component';
 import { NetworkComponent } from './components/network/network.component';
 import { SwarmComponent } from './components/swarm/swarm.component';
 import { SoloChanceComponent } from './components/solo-chance/solo-chance.component';
+import { ScoreboardComponent } from './components/scoreboard/scoreboard.component';
 import { DesignComponent } from './components/design/design.component';
 import { PoolComponent } from './components/pool/pool.component';
 import { AppLayoutComponent } from './layout/app.layout.component';
@@ -72,6 +73,11 @@ const routes: Routes = [
         path: 'swarm',
         component: SwarmComponent,
         title: `${TITLE_PREFIX} Swarm`,
+      },
+      {
+        path: 'scoreboard',
+        component: ScoreboardComponent,
+        title: `${TITLE_PREFIX} Scoreboard`,
       },
       {
         path: 'design',

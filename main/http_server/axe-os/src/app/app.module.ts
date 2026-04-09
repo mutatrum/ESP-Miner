@@ -10,7 +10,8 @@ import { ToastrModule } from 'ngx-toastr';
 
 import { AppRoutingModule } from './app-routing.module';
 import { AppComponent } from './app.component';
-import { ApiModule, Configuration } from './generated';
+import { Api } from './generated/api';
+import { ApiConfiguration } from './generated/api-configuration';
 import { EditComponent } from './components/edit/edit.component';
 import { PoolComponent } from './components/pool/pool.component';
 import { NetworkEditComponent } from './components/network-edit/network.edit.component';
@@ -27,6 +28,7 @@ import { NetworkComponent } from './components/network/network.component';
 import { SettingsComponent } from './components/settings/settings.component';
 import { SwarmComponent } from './components/swarm/swarm.component';
 import { SoloChanceComponent } from './components/solo-chance/solo-chance.component';
+import { ScoreboardComponent } from './components/scoreboard/scoreboard.component';
 import { ThemeConfigComponent } from './components/design/theme-config.component';
 import { DesignComponent } from './components/design/design.component';
 import { AppLayoutModule } from './layout/app.layout.module';
@@ -69,6 +71,7 @@ const components = [
     DateAgoPipe,
     SwarmComponent,
     SoloChanceComponent,
+    ScoreboardComponent,
     SettingsComponent,
     HashSuffixPipe,
     DiffSuffixPipe,
@@ -93,11 +96,12 @@ const components = [
     AppLayoutModule,
     MessageModule,
     TooltipModule,
-    DialogModule,
-    ApiModule.forRoot(() => new Configuration({ basePath: '' }))
+    DialogModule
   ],
   providers: [
     { provide: LocationStrategy, useClass: HashLocationStrategy },
+    { provide: ApiConfiguration, useValue: { rootUrl: '' } },
+    Api,
     DialogService,
     PrimeDialogService,
     provideHttpClient()
