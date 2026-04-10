@@ -2,7 +2,7 @@ import { Component, OnInit, OnDestroy } from '@angular/core';
 import { Observable, Subject, interval, startWith, switchMap, takeUntil } from 'rxjs';
 import { SystemApiService } from 'src/app/services/system.service';
 import { LoadingService } from 'src/app/services/loading.service';
-import { SystemInfo as ISystemInfo } from 'src/app/generated';
+import { SystemInfo as ISystemInfo } from 'src/app/generated/models';
 
 interface DifficultyRow {
   difficulty: number;
