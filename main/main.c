@@ -24,6 +24,7 @@
 #include "task_monitor.h"
 #include "filesystem.h"
 #include "input.h"
+#include "log_buffer.h"
 
 static GlobalState GLOBAL_STATE;
 
@@ -31,6 +32,11 @@ static const char * TAG = "bitaxe";
 
 void app_main(void)
 {
+    if (esp_psram_is_initialized()) {
+        GLOBAL_STATE.psram_is_available = true;
+        log_buffer_init();
+    }
+
     ESP_LOGI(TAG, "Welcome to the bitaxe - FOSS || GTFO!");
 
     if (xTaskCreate(cpu_monitor_task, "cpu_monitor", 4096, (void *)&GLOBAL_STATE, 1, NULL) != pdPASS) {
@@ -44,9 +50,6 @@ void app_main(void)
   
     if (!esp_psram_is_initialized()) {
         ESP_LOGE(TAG, "No PSRAM available on ESP32 device!");
-        GLOBAL_STATE.psram_is_available = false;
-    } else {
-        GLOBAL_STATE.psram_is_available = true;
     }
 
     // Init I2C
