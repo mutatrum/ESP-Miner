@@ -86,11 +86,11 @@ void ASIC_result_task(void *pvParameters)
                     ESP_LOGW(TAG, "Unable to write share to socket (ret: %d, errno %d: %s)", ret, errno, strerror(errno));
                     // stratum_task recv loop will detect a broken connection on its next read and handle reconnection
                 }
-            }
 
-            float process_time = (sent_time_us - asic_result->timestamp_us) / 1000.0f;
-            GLOBAL_STATE->SYSTEM_MODULE.process_time = process_time;
-            ESP_LOGI(TAG, "Processing time: %0.1f ms", process_time);
+                float process_time = (sent_time_us - asic_result->timestamp_us) / 1000.0f;
+                GLOBAL_STATE->SYSTEM_MODULE.process_time = process_time;
+                ESP_LOGI(TAG, "Processing time: %0.1f ms", process_time);
+            }
         }
 
         //log the ASIC response
