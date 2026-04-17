@@ -263,7 +263,7 @@ uint8_t BM1366_init(void * pvParameters)
 
     do_frequency_transition(GLOBAL_STATE, BM1366_send_hash_frequency);
 
-    BM1366_set_nonce_space(1.0, frequency, asic_count, cores);
+    BM1366_set_nonce_space(1.0, BM1366_send_hash_frequency, asic_count, GLOBAL_STATE->DEVICE_CONFIG.family.asic.core_count);
 
     unsigned char init795[11] = {0x55, 0xAA, 0x51, 0x09, 0x00, 0xA4, 0x90, 0x00, 0xFF, 0xFF, 0x1C};
     _send_simple(init795, 11);

@@ -225,7 +225,7 @@ uint8_t BM1368_init(void * pvParameters)
 
     do_frequency_transition(GLOBAL_STATE, BM1368_send_hash_frequency);
 
-    BM1368_set_nonce_space(1.0, frequency, asic_count, cores);
+    BM1368_set_nonce_space(1.0, BM1368_send_hash_frequency, asic_count, GLOBAL_STATE->DEVICE_CONFIG.family.asic.core_count);
     BM1368_set_version_mask(STRATUM_DEFAULT_VERSION_MASK);
 
     return chip_counter;
