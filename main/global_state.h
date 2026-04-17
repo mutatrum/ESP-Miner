@@ -3,18 +3,17 @@
 
 #include <stdbool.h>
 #include <stdint.h>
-#include "asic_common.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/event_groups.h"
 #include "freertos/semphr.h"
+#include "freertos/portmacro.h"
 #include "power_management_task.h"
 #include "hashrate_monitor_task.h"
-#include "serial.h"
-#include "stratum_api.h"
 #include "coinbase_decoder.h"
 #include "work_queue.h"
 #include "device_config.h"
 #include "display.h"
+#include "scoreboard.h"
 #include "esp_transport.h"
 
 // WebSocket API event bits for live data notifications
@@ -81,6 +80,8 @@ typedef struct
     bool pool_decode_coinbase_tx;
     bool fallback_pool_decode_coinbase_tx;
     float response_time;
+    float process_time;
+    float cpu_usage;
     bool use_fallback_stratum;
     uint16_t pool_is_tls;
     uint16_t fallback_pool_is_tls;
@@ -98,9 +99,12 @@ typedef struct
     bool is_firmware_update;
     char firmware_update_filename[20];
     char firmware_update_status[20];
+    bool hardware_fault;
+    char hardware_fault_msg[64];
     char * asic_status;
     char * version;
     char * axeOSVersion;
+    Scoreboard scoreboard;
 } SystemModule;
 
 typedef struct
@@ -143,12 +147,13 @@ typedef struct
     uint8_t * valid_jobs;
     pthread_mutex_t valid_jobs_lock;
 
-    uint32_t pool_difficulty;
+    double pool_difficulty;
     bool new_set_mining_difficulty_msg;
     uint32_t version_mask;
     bool new_stratum_version_rolling_msg;
 
     esp_transport_handle_t transport;
+    portMUX_TYPE stratum_mux;
     
     // A message ID that must be unique per request that expects a response.
     // For requests not expecting a response (called notifications), this is null.

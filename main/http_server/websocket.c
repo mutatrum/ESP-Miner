@@ -8,6 +8,9 @@
 #include "websocket.h"
 #include "websocket_log.h"
 #include "http_server.h"
+#include "log_buffer.h"
+
+#define WS_LOG_SCRATCH_SIZE 2048
 
 static const char * TAG = "websocket";
 
@@ -20,11 +23,24 @@ static ws_client_t clients[MAX_WEBSOCKET_CLIENTS];
 static int type_counts[WS_TYPE_MAX] = {0};
 static SemaphoreHandle_t clients_mutex = NULL;
 static httpd_handle_t server_handle = NULL;
+static TaskHandle_t s_websocket_log_task_handle = NULL;
+
+void websocket_set_log_task_handle(TaskHandle_t task_handle)
+{
+    s_websocket_log_task_handle = task_handle;
+}
 
 int websocket_get_active_client_count(WebSocketClientType type)
 {
     if (type >= 0 && type < WS_TYPE_MAX) return type_counts[type];
     return 0;
+}
+
+void websocket_log_notify(void)
+{
+    if (s_websocket_log_task_handle != NULL && type_counts[WS_TYPE_LOGS] > 0) {
+        xTaskNotifyGive(s_websocket_log_task_handle);
+    }
 }
 
 esp_err_t websocket_add_client(int fd, WebSocketClientType type)
@@ -37,17 +53,15 @@ esp_err_t websocket_add_client(int fd, WebSocketClientType type)
     esp_err_t ret = ESP_FAIL;
     for (int i = 0; i < MAX_WEBSOCKET_CLIENTS; i++) {
         if (clients[i].fd == -1) {
-            if (type == WS_TYPE_LOGS && type_counts[WS_TYPE_LOGS] == 0) {
-                esp_log_set_vprintf(websocket_log_to_queue);
-            }
-
             clients[i].fd = fd;
             clients[i].type = type;
             if (type >= 0 && type < WS_TYPE_MAX) type_counts[type]++;
 
-            ESP_LOGI(TAG, "Added WebSocket %s client, fd: %d, slot: %d", WS_TYPE_LOGS ? "log" : "api", fd, i);
-
+            ESP_LOGI(TAG, "Added WebSocket %s client, fd: %d, slot: %d", type == WS_TYPE_LOGS ? "log" : "api", fd, i);
             ret = ESP_OK;
+            if (type == WS_TYPE_LOGS && s_websocket_log_task_handle) {
+                xTaskNotifyGive(s_websocket_log_task_handle);
+            }
             break;
         }
     }
@@ -73,12 +87,7 @@ void websocket_remove_client(int fd)
             clients[i].type = 0;
             if (type >= 0 && type < WS_TYPE_MAX) type_counts[type]--;
 
-            ESP_LOGI(TAG, "Removed WebSocket %s client, fd: %d, slot: %d", WS_TYPE_LOGS ? "log" : "api", fd, i);
-
-            // If no more log clients, disable log redirection
-            if (type == WS_TYPE_LOGS && type_counts[WS_TYPE_LOGS] == 0) {
-                esp_log_set_vprintf(vprintf);
-            }
+            ESP_LOGI(TAG, "Removed WebSocket %s client, fd: %d, slot: %d", type == WS_TYPE_LOGS ? "log" : "api", fd, i);
             break;
         }
     }

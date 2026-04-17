@@ -117,6 +117,7 @@ void SYSTEM_init_system(GlobalState * GLOBAL_STATE)
 
     // Initialize mutexes
     pthread_mutex_init(&GLOBAL_STATE->valid_jobs_lock, NULL);
+    GLOBAL_STATE->stratum_mux = (portMUX_TYPE)portMUX_INITIALIZER_UNLOCKED;
 
     // Create event group for WebSocket API notifications
     GLOBAL_STATE->ws_event_group = xEventGroupCreate();

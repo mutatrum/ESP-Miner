@@ -5,7 +5,8 @@ import { SystemApiService } from 'src/app/services/system.service';
 import { LiveDataService } from 'src/app/services/live-data.service';
 import { LayoutService } from './service/app.layout.service';
 import { SensitiveData } from 'src/app/services/sensitive-data.service';
-import { SystemInfo as ISystemInfo } from 'src/app/generated';
+import { DashboardEditService } from 'src/app/services/dashboard-edit.service';
+import { SystemInfo as ISystemInfo } from 'src/app/generated/models';
 import { MenuItem } from 'primeng/api';
 
 @Component({
@@ -30,6 +31,7 @@ export class AppTopBarComponent implements OnInit, OnDestroy {
     private liveDataService: LiveDataService,
     private toastr: ToastrService,
     private sensitiveData: SensitiveData,
+    public dashboardEdit: DashboardEditService,
   ) {
     this.info$ = this.liveDataService.info$;
   }
