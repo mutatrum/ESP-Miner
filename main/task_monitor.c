@@ -19,7 +19,7 @@ void task_monitor_task(void *pvParameters) {
     }
 
     while (1) {
-        uint32_t total_runtime1 = 0;
+        uint64_t total_runtime1 = 0;
         uint32_t num_tasks1 = uxTaskGetSystemState(task_array1, MAX_TASKS, &total_runtime1);
         if (num_tasks1 == 0) {
             ESP_LOGE(TAG, "Failed to get initial task state");
@@ -30,7 +30,7 @@ void task_monitor_task(void *pvParameters) {
         // Wait for the interval
         vTaskDelay(pdMS_TO_TICKS(INTERVAL_MS));
 
-        uint32_t total_runtime2 = 0;
+        uint64_t total_runtime2 = 0;
         uint32_t num_tasks2 = uxTaskGetSystemState(task_array2, MAX_TASKS, &total_runtime2);
         if (num_tasks2 == 0) {
             ESP_LOGE(TAG, "Failed to get second task state");

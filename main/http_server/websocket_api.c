@@ -40,8 +40,9 @@ typedef struct {
     uint64_t sharesRejected;
     uint64_t bestDiff;
     uint64_t bestSessionDiff;
-    uint32_t poolDifficulty;
+    double poolDifficulty;
     float responseTime;
+    float processTime;
     uint64_t uptimeSeconds;
 
     // Block Header
@@ -67,6 +68,12 @@ typedef struct {
     uint16_t fan_rpm;
     uint16_t fan2_rpm;
     uint16_t stats_frequency;
+    float cpuUsage;
+    bool miningPaused;
+    bool overheatMode;
+    bool hardwareFault;
+    char hardwareFaultMsg[64];
+    int screenPage;
 } ws_api_snapshot_t;
 
 static void take_snapshot(ws_api_snapshot_t *snapshot, GlobalState *g)
@@ -127,6 +134,15 @@ static void take_snapshot(ws_api_snapshot_t *snapshot, GlobalState *g)
     snapshot->wifi_status[sizeof(snapshot->wifi_status) - 1] = '\0';
 
     snapshot->stats_frequency = nvs_config_get_u16(NVS_CONFIG_STATISTICS_FREQUENCY);
+
+    snapshot->cpuUsage = g->SYSTEM_MODULE.cpu_usage;
+    snapshot->processTime = g->SYSTEM_MODULE.process_time;
+    snapshot->miningPaused = g->SYSTEM_MODULE.mining_paused;
+    snapshot->overheatMode = g->SYSTEM_MODULE.overheat_mode;
+    snapshot->hardwareFault = g->SYSTEM_MODULE.hardware_fault;
+    strncpy(snapshot->hardwareFaultMsg, g->SYSTEM_MODULE.hardware_fault_msg, sizeof(snapshot->hardwareFaultMsg) - 1);
+    snapshot->hardwareFaultMsg[sizeof(snapshot->hardwareFaultMsg) - 1] = '\0';
+    snapshot->screenPage = g->SYSTEM_MODULE.screen_page;
 }
 
 static void add_hashrate_monitor(cJSON *root, GlobalState *g) {
@@ -236,6 +252,7 @@ static cJSON* build_diff(ws_api_snapshot_t *old, ws_api_snapshot_t *new, uint32_
         if (old->bestSessionDiff != new->bestSessionDiff) { cJSON_AddNumberToObject(root, "bestSessionDiff", new->bestSessionDiff); changed = true; }
         if (old->poolDifficulty != new->poolDifficulty) { cJSON_AddNumberToObject(root, "poolDifficulty", new->poolDifficulty); changed = true; }
         if (old->responseTime != new->responseTime) { cJSON_AddFloatToObject(root, "responseTime", new->responseTime); changed = true; }
+        if (old->processTime != new->processTime) { cJSON_AddFloatToObject(root, "processTime", new->processTime); changed = true; }
         if (old->is_using_fallback != new->is_using_fallback) { cJSON_AddBoolToObject(root, "isUsingFallbackStratum", new->is_using_fallback); changed = true; }
         if (strcmp(old->pool_connection_info, new->pool_connection_info) != 0) { cJSON_AddStringToObject(root, "poolConnectionInfo", new->pool_connection_info); changed = true; }
         
@@ -259,6 +276,12 @@ static cJSON* build_diff(ws_api_snapshot_t *old, ws_api_snapshot_t *new, uint32_
     if (strcmp(old->wifi_status, new->wifi_status) != 0) { cJSON_AddStringToObject(root, "wifiStatus", new->wifi_status); changed = true; }
     if (old->uptimeSeconds != new->uptimeSeconds) { cJSON_AddNumberToObject(root, "uptimeSeconds", new->uptimeSeconds); changed = true; }
     if (old->stats_frequency != new->stats_frequency) { cJSON_AddNumberToObject(root, "statsFrequency", new->stats_frequency); changed = true; }
+    if (old->cpuUsage != new->cpuUsage) { cJSON_AddFloatToObject(root, "cpuUsage", new->cpuUsage); changed = true; }
+    if (old->miningPaused != new->miningPaused) { cJSON_AddBoolToObject(root, "miningPaused", new->miningPaused); changed = true; }
+    if (old->overheatMode != new->overheatMode) { cJSON_AddBoolToObject(root, "overheatMode", new->overheatMode); changed = true; }
+    if (old->hardwareFault != new->hardwareFault) { cJSON_AddBoolToObject(root, "hardwareFault", new->hardwareFault); changed = true; }
+    if (strcmp(old->hardwareFaultMsg, new->hardwareFaultMsg) != 0) { cJSON_AddStringToObject(root, "hardwareFaultMsg", new->hardwareFaultMsg); changed = true; }
+    if (old->screenPage != new->screenPage) { cJSON_AddNumberToObject(root, "screenPage", new->screenPage); changed = true; }
 
     if (!changed && cJSON_GetArraySize(root) == 0) {
         cJSON_Delete(root);

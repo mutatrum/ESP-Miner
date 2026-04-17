@@ -1,88 +1,60 @@
-#include <stdarg.h>
-#include <stdio.h>
-#include <stdlib.h>
+#include <stdint.h>
 #include <string.h>
-#include <unistd.h>
+#include <stdbool.h>
 #include "freertos/FreeRTOS.h"
-#include "freertos/queue.h"
 #include "freertos/task.h"
 #include "esp_log.h"
 #include "esp_http_server.h"
 #include "websocket.h"
 #include "websocket_log.h"
+#include "log_buffer.h"
 
 static const char *TAG = "websocket_log";
-static QueueHandle_t log_queue = NULL;
 
-int websocket_log_to_queue(const char *format, va_list args)
-{
-    va_list args_copy;
-    va_copy(args_copy, args);
-
-    // Calculate the required buffer size +1 for \n
-    int needed_size = vsnprintf(NULL, 0, format, args_copy) + 1;
-    va_end(args_copy);
-
-    // Allocate the buffer dynamically
-    char *log_buffer = (char *)calloc(needed_size, sizeof(char));
-    if (log_buffer == NULL) {
-        ESP_LOGE(TAG, "Failed to allocate memory for log buffer");
-        return 0;
-    }
-
-    // Format the string into the allocated buffer
-    va_copy(args_copy, args);
-    vsnprintf(log_buffer, needed_size, format, args_copy);
-    va_end(args_copy);
-
-    // Ensure the log message ends with a newline
-    size_t len = strlen(log_buffer);
-    if (len > 0 && log_buffer[len - 1] != '\n') {
-        log_buffer[len] = '\n';
-        log_buffer[len + 1] = '\0';
-    }
-
-    // Print to standard output
-    fputs(log_buffer, stdout);
-
-    // Send to queue for WebSocket broadcasting
-    if (log_queue != NULL) {
-        if (xQueueSendToBack(log_queue, &log_buffer, pdMS_TO_TICKS(100)) != pdPASS) {
-            ESP_LOGW(TAG, "Failed to send log to queue, freeing buffer");
-            free(log_buffer);
-        }
-    } else {
-        free(log_buffer);
-    }
-
-    return 0;
-}
+#define WS_LOG_CHUNK_SIZE 1024
 
 void websocket_log_task(void *pvParameters)
 {
     ESP_LOGI(TAG, "websocket_log_task starting");
 
-    log_queue = xQueueCreateWithCaps(MESSAGE_QUEUE_SIZE, sizeof(char*), MALLOC_CAP_SPIRAM);
-    if (log_queue == NULL) {
-        ESP_LOGE(TAG, "Error creating log queue");
+    // Initialize position to the current end of buffer to start with "live" logs
+    uint64_t last_read_abs = log_buffer_get_total_written();
+    char *scratch_buf = (char *)malloc(WS_LOG_CHUNK_SIZE);
+    if (!scratch_buf) {
+        ESP_LOGE(TAG, "Failed to allocate scratch buffer");
         vTaskDelete(NULL);
         return;
     }
 
     while (true) {
-        char *message;
-        if (xQueueReceive(log_queue, &message, pdMS_TO_TICKS(1000)) != pdPASS) {
+        // Wait for notification from log_buffer_vprintf or timeout
+        // Notification is sent whenever websocket_log_notify() is called
+        ulTaskNotifyTake(pdTRUE, pdMS_TO_TICKS(500));
+
+        // Only drain if we actually have clients interested
+        if (websocket_get_active_client_count(WS_TYPE_LOGS) == 0) {
+            // Keep up with current pointer so we don't dump everything when someone connects
+            last_read_abs = log_buffer_get_total_written();
             continue;
         }
 
-        httpd_ws_frame_t ws_pkt;
-        memset(&ws_pkt, 0, sizeof(httpd_ws_frame_t));
-        ws_pkt.payload = (uint8_t *)message;
-        ws_pkt.len = strlen(message);
-        ws_pkt.type = HTTPD_WS_TYPE_TEXT;
+        // Catch up with all new logs in the buffer
+        while (true) {
+            size_t read_len = log_buffer_read_absolute(&last_read_abs, scratch_buf, WS_LOG_CHUNK_SIZE);
+            if (read_len == 0) {
+                break;
+            }
 
-        websocket_broadcast(WS_TYPE_LOGS, &ws_pkt);
+            httpd_ws_frame_t ws_pkt;
+            memset(&ws_pkt, 0, sizeof(httpd_ws_frame_t));
+            ws_pkt.payload = (uint8_t *)scratch_buf;
+            ws_pkt.len = read_len;
+            ws_pkt.type = HTTPD_WS_TYPE_TEXT;
 
-        free(message);
+            websocket_broadcast(WS_TYPE_LOGS, &ws_pkt);
+        }
     }
+
+    free(scratch_buf);
+    vTaskDelete(NULL);
 }
