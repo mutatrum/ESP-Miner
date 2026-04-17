@@ -286,7 +286,10 @@ uint8_t BM1370_init(void * pvParameters)
     //ramp up the hash frequency
     do_frequency_transition(GLOBAL_STATE, BM1370_send_hash_frequency);
 
-    BM1370_set_nonce_space(1.0, BM1370_send_hash_frequency, asic_count, GLOBAL_STATE->DEVICE_CONFIG.family.asic.core_count);
+    float frequency = GLOBAL_STATE->POWER_MANAGEMENT_MODULE.frequency_value;
+    int cores = GLOBAL_STATE->DEVICE_CONFIG.family.asic.core_count;
+
+    BM1370_set_nonce_space(1.0, frequency, asic_count, cores);
 
     return chip_counter;
 }
