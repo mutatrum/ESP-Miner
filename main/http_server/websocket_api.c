@@ -86,6 +86,7 @@ typedef struct {
     // Versions
     char version[32];
     char axeOSVersion[32];
+    char idfVersion[32];
 } ws_api_snapshot_t;
 
 static void take_snapshot(ws_api_snapshot_t *snapshot, GlobalState *g)
@@ -173,6 +174,8 @@ static void take_snapshot(ws_api_snapshot_t *snapshot, GlobalState *g)
     snapshot->version[sizeof(snapshot->version) - 1] = '\0';
     strncpy(snapshot->axeOSVersion, g->SYSTEM_MODULE.axeOSVersion ? g->SYSTEM_MODULE.axeOSVersion : "Unknown", sizeof(snapshot->axeOSVersion) - 1);
     snapshot->axeOSVersion[sizeof(snapshot->axeOSVersion) - 1] = '\0';
+    strncpy(snapshot->idfVersion, esp_get_idf_version(), sizeof(snapshot->idfVersion) - 1);
+    snapshot->idfVersion[sizeof(snapshot->idfVersion) - 1] = '\0';
 }
 
 static void add_hashrate_monitor(cJSON *root, GlobalState *g) {
@@ -327,6 +330,7 @@ static cJSON* build_diff(ws_api_snapshot_t *old, ws_api_snapshot_t *new, uint32_
     // Versions
     if (force_all || strcmp(old->version, new->version) != 0) { cJSON_AddStringToObject(root, "version", new->version); changed = true; }
     if (force_all || strcmp(old->axeOSVersion, new->axeOSVersion) != 0) { cJSON_AddStringToObject(root, "axeOSVersion", new->axeOSVersion); changed = true; }
+    if (force_all || strcmp(old->idfVersion, new->idfVersion) != 0) { cJSON_AddStringToObject(root, "idfVersion", new->idfVersion); changed = true; }
 
     if (!changed && cJSON_GetArraySize(root) == 0) {
         cJSON_Delete(root);
