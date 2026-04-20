@@ -12,16 +12,16 @@
 #include "http_server.h"
 #include "global_state.h"
 #include "connect.h"
-#include "nvs_config.h"
+#include "power.h"
+#include "system_api_json.h"
 
 #define WEBSOCKET_API_RATE_LIMIT_MS 500
 
 static const char *TAG = "websocket_api";
 static GlobalState *GLOBAL_STATE = NULL;
 
-// Snapshot of dynamic values for diff comparison
+// Snapshot of high-frequency dynamic values for diff comparison
 typedef struct {
-    // Power management
     float power;
     float voltage;
     float current;
@@ -35,7 +35,6 @@ typedef struct {
     float errorPercentage;
     float expectedHashrate;
 
-    // Shares and Difficulty
     uint64_t sharesAccepted;
     uint64_t sharesRejected;
     uint64_t bestDiff;
@@ -45,299 +44,123 @@ typedef struct {
     float processTime;
     uint64_t uptimeSeconds;
 
-    // Block Header
-    int blockHeight;
-    uint64_t networkDifficulty;
-    char scriptsig[128];
-    uint64_t coinbaseValueTotalSatoshis;
-    uint64_t coinbaseValueUserSatoshis;
-    int blockFound;
-    bool showNewBlock;
-
-    // System
-    uint16_t power_fault;
     uint32_t free_heap;
+    uint32_t freeHeapInternal;
+    uint32_t freeHeapSpiram;
     int8_t wifi_rssi;
-    char wifi_status[256];
-    char pool_connection_info[64];
-    bool is_using_fallback;
-    float core_voltage;
-    float frequency_value;
-    float actual_frequency;
-    float fan_perc;
-    uint16_t fan_rpm;
-    uint16_t fan2_rpm;
-    uint16_t stats_frequency;
     float cpuUsage;
     bool miningPaused;
-    bool overheatMode;
-    bool hardwareFault;
-    char hardwareFaultMsg[64];
-    int screenPage;
-
-    // Pool details
-    char stratumURL[128];
-    char fallbackStratumURL[128];
-    char stratumUser[64];
-    char fallbackStratumUser[64];
-    uint16_t stratumPort;
-    uint16_t fallbackStratumPort;
-
-    // Versions
-    char version[32];
-    char axeOSVersion[32];
-    char idfVersion[32];
 } ws_api_snapshot_t;
 
 static void take_snapshot(ws_api_snapshot_t *snapshot, GlobalState *g)
 {
-    // Power management
+    // Power & Temps
     snapshot->power = g->POWER_MANAGEMENT_MODULE.power;
     snapshot->voltage = g->POWER_MANAGEMENT_MODULE.voltage;
     snapshot->current = g->POWER_MANAGEMENT_MODULE.current;
     snapshot->temp = g->POWER_MANAGEMENT_MODULE.chip_temp_avg;
     snapshot->temp2 = g->POWER_MANAGEMENT_MODULE.chip_temp2_avg;
     snapshot->vrTemp = g->POWER_MANAGEMENT_MODULE.vr_temp;
-    snapshot->core_voltage = g->POWER_MANAGEMENT_MODULE.core_voltage;
-    snapshot->frequency_value = g->POWER_MANAGEMENT_MODULE.frequency_value;
-    snapshot->actual_frequency = g->POWER_MANAGEMENT_MODULE.actual_frequency;
     snapshot->expectedHashrate = g->POWER_MANAGEMENT_MODULE.expected_hashrate;
-    snapshot->fan_perc = g->POWER_MANAGEMENT_MODULE.fan_perc;
-    snapshot->fan_rpm = g->POWER_MANAGEMENT_MODULE.fan_rpm;
-    snapshot->fan2_rpm = g->POWER_MANAGEMENT_MODULE.fan2_rpm;
 
-    // Mining / hashrate
+    // Mining / Hashrate
     snapshot->hashRate = g->SYSTEM_MODULE.current_hashrate;
     snapshot->hashRate_1m = g->SYSTEM_MODULE.hashrate_1m;
     snapshot->hashRate_10m = g->SYSTEM_MODULE.hashrate_10m;
     snapshot->hashRate_1h = g->SYSTEM_MODULE.hashrate_1h;
     snapshot->errorPercentage = g->SYSTEM_MODULE.error_percentage;
 
-    // Shares and Difficulty
+    // Shares & Performance
     snapshot->sharesAccepted = g->SYSTEM_MODULE.shares_accepted;
     snapshot->sharesRejected = g->SYSTEM_MODULE.shares_rejected;
     snapshot->bestDiff = g->SYSTEM_MODULE.best_nonce_diff;
     snapshot->bestSessionDiff = g->SYSTEM_MODULE.best_session_nonce_diff;
     snapshot->poolDifficulty = g->pool_difficulty;
     snapshot->responseTime = g->SYSTEM_MODULE.response_time;
-    strncpy(snapshot->pool_connection_info, g->SYSTEM_MODULE.pool_connection_info, sizeof(snapshot->pool_connection_info) - 1);
-    snapshot->pool_connection_info[sizeof(snapshot->pool_connection_info) - 1] = '\0';
-    snapshot->is_using_fallback = g->SYSTEM_MODULE.is_using_fallback;
-
-    // Block Header
-    snapshot->blockHeight = g->block_height;
-    snapshot->networkDifficulty = g->network_nonce_diff;
-    strncpy(snapshot->scriptsig, g->scriptsig, sizeof(snapshot->scriptsig));
-    snapshot->scriptsig[sizeof(snapshot->scriptsig) - 1] = '\0';
-    snapshot->coinbaseValueTotalSatoshis = g->coinbase_value_total_satoshis;
-    snapshot->coinbaseValueUserSatoshis = g->coinbase_value_user_satoshis;
-    snapshot->blockFound = g->SYSTEM_MODULE.block_found;
-    snapshot->showNewBlock = g->SYSTEM_MODULE.show_new_block;
-
-    // System
-    snapshot->power_fault = g->SYSTEM_MODULE.power_fault;
+    snapshot->processTime = g->SYSTEM_MODULE.process_time;
     snapshot->uptimeSeconds = (uint32_t)((esp_timer_get_time() - g->SYSTEM_MODULE.start_time) / 1000000);
-    snapshot->free_heap = (uint32_t)esp_get_free_heap_size();
 
+    // Dynamic System Stats
+    snapshot->free_heap = esp_get_free_heap_size();
+    snapshot->freeHeapInternal = heap_caps_get_free_size(MALLOC_CAP_INTERNAL);
+    snapshot->freeHeapSpiram = heap_caps_get_free_size(MALLOC_CAP_SPIRAM);
+    
     int8_t rssi = -90;
     get_wifi_current_rssi(&rssi);
     snapshot->wifi_rssi = rssi;
-
-    strncpy(snapshot->wifi_status, g->SYSTEM_MODULE.wifi_status, sizeof(snapshot->wifi_status) - 1);
-    snapshot->wifi_status[sizeof(snapshot->wifi_status) - 1] = '\0';
-
-    snapshot->stats_frequency = nvs_config_get_u16(NVS_CONFIG_STATISTICS_FREQUENCY);
-
+    
     snapshot->cpuUsage = g->SYSTEM_MODULE.cpu_usage;
-    snapshot->processTime = g->SYSTEM_MODULE.process_time;
     snapshot->miningPaused = g->SYSTEM_MODULE.mining_paused;
-    snapshot->overheatMode = g->SYSTEM_MODULE.overheat_mode;
-    snapshot->hardwareFault = g->SYSTEM_MODULE.hardware_fault;
-    strncpy(snapshot->hardwareFaultMsg, g->SYSTEM_MODULE.hardware_fault_msg, sizeof(snapshot->hardwareFaultMsg) - 1);
-    snapshot->hardwareFaultMsg[sizeof(snapshot->hardwareFaultMsg) - 1] = '\0';
-    snapshot->screenPage = g->SYSTEM_MODULE.screen_page;
-
-    // Pool details
-    strncpy(snapshot->stratumURL, g->SYSTEM_MODULE.pool_url ? g->SYSTEM_MODULE.pool_url : "", sizeof(snapshot->stratumURL) - 1);
-    snapshot->stratumURL[sizeof(snapshot->stratumURL) - 1] = '\0';
-    strncpy(snapshot->fallbackStratumURL, g->SYSTEM_MODULE.fallback_pool_url ? g->SYSTEM_MODULE.fallback_pool_url : "", sizeof(snapshot->fallbackStratumURL) - 1);
-    snapshot->fallbackStratumURL[sizeof(snapshot->fallbackStratumURL) - 1] = '\0';
-    strncpy(snapshot->stratumUser, g->SYSTEM_MODULE.pool_user ? g->SYSTEM_MODULE.pool_user : "", sizeof(snapshot->stratumUser) - 1);
-    snapshot->stratumUser[sizeof(snapshot->stratumUser) - 1] = '\0';
-    strncpy(snapshot->fallbackStratumUser, g->SYSTEM_MODULE.fallback_pool_user ? g->SYSTEM_MODULE.fallback_pool_user : "", sizeof(snapshot->fallbackStratumUser) - 1);
-    snapshot->fallbackStratumUser[sizeof(snapshot->fallbackStratumUser) - 1] = '\0';
-    snapshot->stratumPort = g->SYSTEM_MODULE.pool_port;
-    snapshot->fallbackStratumPort = g->SYSTEM_MODULE.fallback_pool_port;
-
-    // Versions
-    strncpy(snapshot->version, g->SYSTEM_MODULE.version ? g->SYSTEM_MODULE.version : "Unknown", sizeof(snapshot->version) - 1);
-    snapshot->version[sizeof(snapshot->version) - 1] = '\0';
-    strncpy(snapshot->axeOSVersion, g->SYSTEM_MODULE.axeOSVersion ? g->SYSTEM_MODULE.axeOSVersion : "Unknown", sizeof(snapshot->axeOSVersion) - 1);
-    snapshot->axeOSVersion[sizeof(snapshot->axeOSVersion) - 1] = '\0';
-    strncpy(snapshot->idfVersion, esp_get_idf_version(), sizeof(snapshot->idfVersion) - 1);
-    snapshot->idfVersion[sizeof(snapshot->idfVersion) - 1] = '\0';
-}
-
-static void add_hashrate_monitor(cJSON *root, GlobalState *g) {
-    if (!g->HASHRATE_MONITOR_MODULE.is_initialized) return;
-
-    cJSON *hashrate_monitor = cJSON_CreateObject();
-    cJSON_AddItemToObject(root, "hashrateMonitor", hashrate_monitor);
-    
-    cJSON *asics_array = cJSON_CreateArray();
-    cJSON_AddItemToObject(hashrate_monitor, "asics", asics_array);
-
-    for (int asic_nr = 0; asic_nr < g->DEVICE_CONFIG.family.asic_count; asic_nr++) {
-        cJSON *asic = cJSON_CreateObject();
-        cJSON_AddItemToArray(asics_array, asic);
-        cJSON_AddFloatToObject(asic, "total", g->HASHRATE_MONITOR_MODULE.total_measurement[asic_nr].hashrate);
-
-        int hash_domains = g->DEVICE_CONFIG.family.asic.hash_domains;
-        cJSON* hash_domain_array = cJSON_CreateArray();
-        for (int domain_nr = 0; domain_nr < hash_domains; domain_nr++) {
-            cJSON_AddItemToArray(hash_domain_array, cJSON_CreateFloat(g->HASHRATE_MONITOR_MODULE.domain_measurements[asic_nr][domain_nr].hashrate));
-        }
-        cJSON_AddItemToObject(asic, "domains", hash_domain_array);
-        cJSON_AddNumberToObject(asic, "errorCount", g->HASHRATE_MONITOR_MODULE.error_measurement[asic_nr].value);
-    }
-}
-
-static void add_block_header_arrays(cJSON *root, GlobalState *g) {
-    if (g->block_height <= 0) return;
-
-    cJSON *block_signals_array = cJSON_CreateArray();
-    for (int i = 0; i < g->block_signals_count; i++) {
-        cJSON_AddItemToArray(block_signals_array, cJSON_CreateString(g->block_signals[i]));
-    }
-    cJSON_AddItemToObject(root, "blockSignals", block_signals_array);
-
-    cJSON *outputs_array = cJSON_CreateArray();
-    for (int i = 0; i < g->coinbase_output_count; i++) {
-        cJSON *output_obj = cJSON_CreateObject();
-        cJSON_AddNumberToObject(output_obj, "value", g->coinbase_outputs[i].value_satoshis);
-        cJSON_AddStringToObject(output_obj, "address", g->coinbase_outputs[i].address);
-        cJSON_AddItemToArray(outputs_array, output_obj);
-    }
-    cJSON_AddItemToObject(root, "coinbaseOutputs", outputs_array);
-}
-
-static void add_rejected_reasons(cJSON *root, GlobalState *g) {
-    cJSON *error_array = cJSON_CreateArray();
-    cJSON_AddItemToObject(root, "sharesRejectedReasons", error_array);
-    
-    for (int i = 0; i < g->SYSTEM_MODULE.rejected_reason_stats_count; i++) {
-        cJSON *error_obj = cJSON_CreateObject();
-        cJSON_AddStringToObject(error_obj, "message", g->SYSTEM_MODULE.rejected_reason_stats[i].message);
-        cJSON_AddNumberToObject(error_obj, "count", g->SYSTEM_MODULE.rejected_reason_stats[i].count);
-        cJSON_AddItemToArray(error_array, error_obj);
-    }
 }
 
 static cJSON* build_diff(ws_api_snapshot_t *old, ws_api_snapshot_t *new, uint32_t bits, GlobalState *g) {
-    cJSON *root = cJSON_CreateObject();
-    bool changed = false;
     bool force_all = (old == NULL);
-
-    // Snapshot of bitaxe values (initial state if old == NULL)
     
-    // Power Group
-    if (force_all || (bits & WS_EVENT_POWER_UPDATED)) {
-        if (force_all || old->power != new->power) { cJSON_AddFloatToObject(root, "power", new->power); changed = true; }
-        if (force_all || old->voltage != new->voltage) { cJSON_AddFloatToObject(root, "voltage", new->voltage); changed = true; }
-        if (force_all || old->current != new->current) { cJSON_AddFloatToObject(root, "current", new->current); changed = true; }
-        if (force_all || old->temp != new->temp) { cJSON_AddFloatToObject(root, "temp", new->temp); changed = true; }
-        if (force_all || old->temp2 != new->temp2) { cJSON_AddFloatToObject(root, "temp2", new->temp2); changed = true; }
-        if (force_all || old->vrTemp != new->vrTemp) { cJSON_AddFloatToObject(root, "vrTemp", new->vrTemp); changed = true; }
-        if (force_all || old->core_voltage != new->core_voltage) { cJSON_AddFloatToObject(root, "coreVoltageActual", new->core_voltage); changed = true; }
-        if (force_all || old->frequency_value != new->frequency_value) { cJSON_AddFloatToObject(root, "frequency", new->frequency_value); changed = true; }
-        if (force_all || old->actual_frequency != new->actual_frequency) { cJSON_AddFloatToObject(root, "actualFrequency", new->actual_frequency); changed = true; }
-        if (force_all || old->expectedHashrate != new->expectedHashrate) { cJSON_AddFloatToObject(root, "expectedHashrate", new->expectedHashrate); changed = true; }
-        if (force_all || old->power_fault != new->power_fault) { cJSON_AddNumberToObject(root, "power_fault", new->power_fault); changed = true; }
+    // If full state requested (on connect), use the shared system API helper
+    if (force_all) {
+        return system_api_get_full_json(g);
     }
 
-    // Fan Group
-    if (force_all || (bits & WS_EVENT_FAN_UPDATED)) {
-        if (force_all || old->fan_perc != new->fan_perc) { cJSON_AddFloatToObject(root, "fanspeed", new->fan_perc); changed = true; }
-        if (force_all || old->fan_rpm != new->fan_rpm) { cJSON_AddNumberToObject(root, "fanrpm", new->fan_rpm); changed = true; }
-        if (force_all || old->fan2_rpm != new->fan2_rpm) { cJSON_AddNumberToObject(root, "fan2rpm", new->fan2_rpm); changed = true; }
+    cJSON *data = cJSON_CreateObject();
+    bool changed = false;
+
+    // Telemetry Diffing
+    if (bits & WS_EVENT_POWER_UPDATED) {
+        if (old->power != new->power) { cJSON_AddFloatToObject(data, "power", new->power); changed = true; }
+        if (old->voltage != new->voltage) { cJSON_AddFloatToObject(data, "voltage", new->voltage); changed = true; }
+        if (old->current != new->current) { cJSON_AddFloatToObject(data, "current", new->current); changed = true; }
+        if (old->temp != new->temp) { cJSON_AddFloatToObject(data, "temp", new->temp); changed = true; }
+        if (old->temp2 != new->temp2) { cJSON_AddFloatToObject(data, "temp2", new->temp2); changed = true; }
+        if (old->vrTemp != new->vrTemp) { cJSON_AddFloatToObject(data, "vrTemp", new->vrTemp); changed = true; }
+        if (old->expectedHashrate != new->expectedHashrate) { cJSON_AddFloatToObject(data, "expectedHashrate", new->expectedHashrate); changed = true; }
     }
 
-    // Hashrate Group
-    if (force_all || (bits & (WS_EVENT_HASHRATE_UPDATED | WS_EVENT_STRATUM_UPDATED))) {
-        if (force_all || old->hashRate != new->hashRate) { cJSON_AddFloatToObject(root, "hashRate", new->hashRate); changed = true; }
-        if (force_all || old->hashRate_1m != new->hashRate_1m) { cJSON_AddFloatToObject(root, "hashRate_1m", new->hashRate_1m); changed = true; }
-        if (force_all || old->hashRate_10m != new->hashRate_10m) { cJSON_AddFloatToObject(root, "hashRate_10m", new->hashRate_10m); changed = true; }
-        if (force_all || old->hashRate_1h != new->hashRate_1h) { cJSON_AddFloatToObject(root, "hashRate_1h", new->hashRate_1h); changed = true; }
-        if (force_all || old->errorPercentage != new->errorPercentage) { cJSON_AddFloatToObject(root, "errorPercentage", new->errorPercentage); changed = true; }
+    if (bits & (WS_EVENT_HASHRATE_UPDATED | WS_EVENT_STRATUM_UPDATED)) {
+        if (old->hashRate != new->hashRate) { cJSON_AddFloatToObject(data, "hashRate", new->hashRate); changed = true; }
+        if (old->hashRate_1m != new->hashRate_1m) { cJSON_AddFloatToObject(data, "hashRate_1m", new->hashRate_1m); changed = true; }
+        if (old->hashRate_10m != new->hashRate_10m) { cJSON_AddFloatToObject(data, "hashRate_10m", new->hashRate_10m); changed = true; }
+        if (old->hashRate_1h != new->hashRate_1h) { cJSON_AddFloatToObject(data, "hashRate_1h", new->hashRate_1h); changed = true; }
+        if (old->errorPercentage != new->errorPercentage) { cJSON_AddFloatToObject(data, "errorPercentage", new->errorPercentage); changed = true; }
         
-        if (force_all || (bits & WS_EVENT_HASHRATE_UPDATED)) {
-            add_hashrate_monitor(root, g);
+        if (bits & WS_EVENT_HASHRATE_UPDATED) {
+            system_api_add_telemetry(data, g); // Re-sync common telemetry bits
             changed = true;
         }
     }
 
-    // Stratum/Shares Group
-    if (force_all || (bits & WS_EVENT_STRATUM_UPDATED)) {
-        if (force_all || old->sharesAccepted != new->sharesAccepted) { cJSON_AddNumberToObject(root, "sharesAccepted", new->sharesAccepted); changed = true; }
-        if (force_all || old->sharesRejected != new->sharesRejected) { 
-            cJSON_AddNumberToObject(root, "sharesRejected", new->sharesRejected); 
-            add_rejected_reasons(root, g);
-            changed = true; 
-        }
-        if (force_all || old->bestDiff != new->bestDiff) { cJSON_AddNumberToObject(root, "bestDiff", new->bestDiff); changed = true; }
-        if (force_all || old->bestSessionDiff != new->bestSessionDiff) { cJSON_AddNumberToObject(root, "bestSessionDiff", new->bestSessionDiff); changed = true; }
-        if (force_all || old->poolDifficulty != new->poolDifficulty) { cJSON_AddNumberToObject(root, "poolDifficulty", new->poolDifficulty); changed = true; }
-        if (force_all || old->responseTime != new->responseTime) { cJSON_AddFloatToObject(root, "responseTime", new->responseTime); changed = true; }
-        if (force_all || old->processTime != new->processTime) { cJSON_AddFloatToObject(root, "processTime", new->processTime); changed = true; }
-        
-        // Block Header
-        if (force_all || old->blockHeight != new->blockHeight) { 
-            cJSON_AddNumberToObject(root, "blockHeight", new->blockHeight); 
-            add_block_header_arrays(root, g);
-            changed = true; 
-        }
-        if (force_all || old->networkDifficulty != new->networkDifficulty) { cJSON_AddNumberToObject(root, "networkDifficulty", new->networkDifficulty); changed = true; }
-        if (force_all || strcmp(old->scriptsig, new->scriptsig) != 0) { cJSON_AddStringToObject(root, "scriptsig", new->scriptsig); changed = true; }
-        if (force_all || old->coinbaseValueTotalSatoshis != new->coinbaseValueTotalSatoshis) { cJSON_AddNumberToObject(root, "coinbaseValueTotalSatoshis", new->coinbaseValueTotalSatoshis); changed = true; }
-        if (force_all || old->coinbaseValueUserSatoshis != new->coinbaseValueUserSatoshis) { cJSON_AddNumberToObject(root, "coinbaseValueUserSatoshis", new->coinbaseValueUserSatoshis); changed = true; }
-        if (force_all || old->blockFound != new->blockFound) { cJSON_AddNumberToObject(root, "blockFound", new->blockFound); changed = true; }
-        if (force_all || old->showNewBlock != new->showNewBlock) { cJSON_AddBoolToObject(root, "showNewBlock", new->showNewBlock); changed = true; }
+    if (bits & WS_EVENT_STRATUM_UPDATED) {
+        if (old->sharesAccepted != new->sharesAccepted) { cJSON_AddNumberToObject(data, "sharesAccepted", new->sharesAccepted); changed = true; }
+        if (old->sharesRejected != new->sharesRejected) { cJSON_AddNumberToObject(data, "sharesRejected", new->sharesRejected); changed = true; }
+        if (old->bestDiff != new->bestDiff) { cJSON_AddNumberToObject(data, "bestDiff", new->bestDiff); changed = true; }
+        if (old->bestSessionDiff != new->bestSessionDiff) { cJSON_AddNumberToObject(data, "bestSessionDiff", new->bestSessionDiff); changed = true; }
+        if (old->poolDifficulty != new->poolDifficulty) { cJSON_AddNumberToObject(data, "poolDifficulty", new->poolDifficulty); changed = true; }
+        if (old->responseTime != new->responseTime) { cJSON_AddFloatToObject(data, "responseTime", new->responseTime); changed = true; }
+        if (old->processTime != new->processTime) { cJSON_AddFloatToObject(data, "processTime", new->processTime); changed = true; }
     }
 
-    // System Group - always include system metrics when sending any update
-    if (force_all || old->free_heap != new->free_heap) { cJSON_AddNumberToObject(root, "freeHeap", new->free_heap); changed = true; }
-    if (force_all || old->wifi_rssi != new->wifi_rssi) { cJSON_AddNumberToObject(root, "wifiRSSI", new->wifi_rssi); changed = true; }
-    if (force_all || strcmp(old->wifi_status, new->wifi_status) != 0) { cJSON_AddStringToObject(root, "wifiStatus", new->wifi_status); changed = true; }
-    if (force_all || old->uptimeSeconds != new->uptimeSeconds) { cJSON_AddNumberToObject(root, "uptimeSeconds", new->uptimeSeconds); changed = true; }
-    if (force_all || old->stats_frequency != new->stats_frequency) { cJSON_AddNumberToObject(root, "statsFrequency", new->stats_frequency); changed = true; }
-    if (force_all || old->cpuUsage != new->cpuUsage) { cJSON_AddFloatToObject(root, "cpuUsage", new->cpuUsage); changed = true; }
-    if (force_all || old->miningPaused != new->miningPaused) { cJSON_AddBoolToObject(root, "miningPaused", new->miningPaused); changed = true; }
-    if (force_all || old->overheatMode != new->overheatMode) { cJSON_AddBoolToObject(root, "overheatMode", new->overheatMode); changed = true; }
-    if (force_all || old->hardwareFault != new->hardwareFault) { cJSON_AddBoolToObject(root, "hardwareFault", new->hardwareFault); changed = true; }
-    if (force_all || strcmp(old->hardwareFaultMsg, new->hardwareFaultMsg) != 0) { cJSON_AddStringToObject(root, "hardwareFaultMsg", new->hardwareFaultMsg); changed = true; }
-    if (force_all || old->screenPage != new->screenPage) { cJSON_AddNumberToObject(root, "screenPage", new->screenPage); changed = true; }
+    // Settings / Config Group Relay (No per-field diffing for rarely changed items)
+    if (bits & (WS_EVENT_SYSTEM_UPDATED | WS_EVENT_STRATUM_UPDATED)) {
+        system_api_add_config(data, g);
+        changed = true;
+    }
 
-    // Pool Status & Failover (Always check for changes)
-    if (force_all || old->is_using_fallback != new->is_using_fallback) { cJSON_AddBoolToObject(root, "isUsingFallbackStratum", new->is_using_fallback); changed = true; }
-    if (force_all || strcmp(old->pool_connection_info, new->pool_connection_info) != 0) { cJSON_AddStringToObject(root, "poolConnectionInfo", new->pool_connection_info); changed = true; }
-    if (force_all || strcmp(old->stratumURL, new->stratumURL) != 0) { cJSON_AddStringToObject(root, "stratumURL", new->stratumURL); changed = true; }
-    if (force_all || strcmp(old->fallbackStratumURL, new->fallbackStratumURL) != 0) { cJSON_AddStringToObject(root, "fallbackStratumURL", new->fallbackStratumURL); changed = true; }
-    if (force_all || strcmp(old->stratumUser, new->stratumUser) != 0) { cJSON_AddStringToObject(root, "stratumUser", new->stratumUser); changed = true; }
-    if (force_all || strcmp(old->fallbackStratumUser, new->fallbackStratumUser) != 0) { cJSON_AddStringToObject(root, "fallbackStratumUser", new->fallbackStratumUser); changed = true; }
-    if (force_all || old->stratumPort != new->stratumPort) { cJSON_AddNumberToObject(root, "stratumPort", new->stratumPort); changed = true; }
-    if (force_all || old->fallbackStratumPort != new->fallbackStratumPort) { cJSON_AddNumberToObject(root, "fallbackStratumPort", new->fallbackStratumPort); changed = true; }
+    // Dynamic System Stats Diffing
+    if (bits & WS_EVENT_SYSTEM_UPDATED) {
+        if (old->free_heap != new->free_heap) { cJSON_AddNumberToObject(data, "freeHeap", new->free_heap); changed = true; }
+        if (old->freeHeapInternal != new->freeHeapInternal) { cJSON_AddNumberToObject(data, "freeHeapInternal", new->freeHeapInternal); changed = true; }
+        if (old->freeHeapSpiram != new->freeHeapSpiram) { cJSON_AddNumberToObject(data, "freeHeapSpiram", new->freeHeapSpiram); changed = true; }
+        if (old->wifi_rssi != new->wifi_rssi) { cJSON_AddNumberToObject(data, "wifiRSSI", new->wifi_rssi); changed = true; }
+        if (old->uptimeSeconds != new->uptimeSeconds) { cJSON_AddNumberToObject(data, "uptimeSeconds", new->uptimeSeconds); changed = true; }
+        if (old->cpuUsage != new->cpuUsage) { cJSON_AddFloatToObject(data, "cpuUsage", new->cpuUsage); changed = true; }
+        if (old->miningPaused != new->miningPaused) { cJSON_AddBoolToObject(data, "miningPaused", new->miningPaused); changed = true; }
+    }
 
-    // Versions
-    if (force_all || strcmp(old->version, new->version) != 0) { cJSON_AddStringToObject(root, "version", new->version); changed = true; }
-    if (force_all || strcmp(old->axeOSVersion, new->axeOSVersion) != 0) { cJSON_AddStringToObject(root, "axeOSVersion", new->axeOSVersion); changed = true; }
-    if (force_all || strcmp(old->idfVersion, new->idfVersion) != 0) { cJSON_AddStringToObject(root, "idfVersion", new->idfVersion); changed = true; }
-
-    if (!changed && cJSON_GetArraySize(root) == 0) {
-        cJSON_Delete(root);
+    if (!changed) {
+        cJSON_Delete(data);
         return NULL;
     }
 
-    return root;
+    return data;
 }
 
 static void send_api_msg(cJSON *root, int fd)
