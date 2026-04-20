@@ -23,6 +23,7 @@ typedef enum {
 esp_err_t websocket_add_client(int fd, WebSocketClientType type);
 void websocket_remove_client(int fd);
 void websocket_broadcast(WebSocketClientType type, httpd_ws_frame_t *pkt);
+void websocket_send_to_client(int fd, httpd_ws_frame_t *pkt);
 int websocket_get_active_client_count(WebSocketClientType type);
 void websocket_init(httpd_handle_t server);
 esp_err_t websocket_handler(httpd_req_t *req);

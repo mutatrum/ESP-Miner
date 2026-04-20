@@ -7,6 +7,7 @@
 #include "esp_http_server.h"
 #include "websocket.h"
 #include "websocket_log.h"
+#include "websocket_api.h"
 #include "http_server.h"
 #include "log_buffer.h"
 
@@ -95,15 +96,21 @@ void websocket_remove_client(int fd)
     xSemaphoreGive(clients_mutex);
 }
 
+void websocket_send_to_client(int fd, httpd_ws_frame_t *pkt)
+{
+    if (server_handle == NULL || fd == -1) return;
+    if (httpd_ws_send_frame_async(server_handle, fd, pkt) != ESP_OK) {
+        ESP_LOGW(TAG, "Failed to send WebSocket frame to fd: %d", fd);
+    }
+}
+
 void websocket_broadcast(WebSocketClientType type, httpd_ws_frame_t *pkt)
 {
     if (server_handle == NULL) return;
 
     for (int i = 0; i < MAX_WEBSOCKET_CLIENTS; i++) {
         if (clients[i].fd != -1 && (clients[i].type == type)) {
-            if (httpd_ws_send_frame_async(server_handle, clients[i].fd, pkt) != ESP_OK) {
-                ESP_LOGW(TAG, "Failed to send WebSocket frame to fd: %d", clients[i].fd);
-            }
+            websocket_send_to_client(clients[i].fd, pkt);
         }
     }
 }
@@ -151,6 +158,11 @@ esp_err_t websocket_handler(httpd_req_t *req)
             ESP_LOGE(TAG, "Unexpected failure adding client, fd: %d", fd);
             return ESP_FAIL;
         }
+
+        if (type == WS_TYPE_API) {
+            websocket_api_on_connect(fd);
+        }
+
         return ESP_OK;
     }
 
