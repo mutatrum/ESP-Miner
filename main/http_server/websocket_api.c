@@ -163,41 +163,39 @@ static cJSON* build_diff(ws_api_snapshot_t *old, ws_api_snapshot_t *new, uint32_
     return data;
 }
 
-static void send_api_msg(cJSON *root, int fd)
-{
-    char *json_str = cJSON_PrintUnformatted(root);
-    if (json_str == NULL) {
-        ESP_LOGE(TAG, "Failed to print JSON");
-        return;
-    }
-
-    httpd_ws_frame_t ws_pkt;
-    memset(&ws_pkt, 0, sizeof(httpd_ws_frame_t));
-    ws_pkt.payload = (uint8_t *)json_str;
-    ws_pkt.len = strlen(json_str);
-    ws_pkt.type = HTTPD_WS_TYPE_TEXT;
-
-    if (fd == -1) {
-        websocket_broadcast(WS_TYPE_API, &ws_pkt);
-    } else {
-        websocket_send_to_client(fd, &ws_pkt);
-    }
-
-    free(json_str);
-}
-
 static void send_api_update(ws_api_snapshot_t *old, ws_api_snapshot_t *new, uint32_t bits, int fd)
 {
     cJSON *data = build_diff(old, new, bits, GLOBAL_STATE);
     if (data == NULL) return;
 
     cJSON *msg = cJSON_CreateObject();
-    if (msg != NULL) {
-        cJSON_AddStringToObject(msg, "event", "update");
-        cJSON_AddItemToObject(msg, "data", data);
-        send_api_msg(msg, fd);
-        cJSON_Delete(msg);
+    if (msg == NULL) {
+        cJSON_Delete(data);
+        return;
     }
+
+    cJSON_AddStringToObject(msg, "event", "update");
+    cJSON_AddItemToObject(msg, "data", data);
+
+    char *json_str = cJSON_PrintUnformatted(msg);
+    if (json_str != NULL) {
+        httpd_ws_frame_t ws_pkt;
+        memset(&ws_pkt, 0, sizeof(httpd_ws_frame_t));
+        ws_pkt.payload = (uint8_t *)json_str;
+        ws_pkt.len = strlen(json_str);
+        ws_pkt.type = HTTPD_WS_TYPE_TEXT;
+
+        if (fd == -1) {
+            websocket_broadcast(WS_TYPE_API, &ws_pkt);
+        } else {
+            websocket_send_to_client(fd, &ws_pkt);
+        }
+        free(json_str);
+    } else {
+        ESP_LOGE(TAG, "Failed to print JSON update");
+    }
+
+    cJSON_Delete(msg);
 }
 
 void websocket_api_on_connect(int fd)
