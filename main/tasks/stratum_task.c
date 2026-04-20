@@ -350,6 +350,9 @@ void stratum_primary_heartbeat(void * pvParameters)
         if (strstr(recv_buffer, "mining.notify") != NULL && !GLOBAL_STATE->SYSTEM_MODULE.use_fallback_stratum) {
             ESP_LOGI(TAG, "Heartbeat successful and in fallback mode. Switching back to primary.");
             GLOBAL_STATE->SYSTEM_MODULE.is_using_fallback = false;
+            if (GLOBAL_STATE->ws_event_group != NULL) {
+                xEventGroupSetBits(GLOBAL_STATE->ws_event_group, WS_EVENT_STRATUM_UPDATED);
+            }
             stratum_close_connection(GLOBAL_STATE);
             continue;
         }
@@ -492,6 +495,9 @@ void stratum_task(void * pvParameters)
             }
 
             GLOBAL_STATE->SYSTEM_MODULE.is_using_fallback = !GLOBAL_STATE->SYSTEM_MODULE.is_using_fallback;
+            if (GLOBAL_STATE->ws_event_group != NULL) {
+                xEventGroupSetBits(GLOBAL_STATE->ws_event_group, WS_EVENT_STRATUM_UPDATED);
+            }
             
             // Reset share stats at failover
             for (int i = 0; i < GLOBAL_STATE->SYSTEM_MODULE.rejected_reason_stats_count; i++) {

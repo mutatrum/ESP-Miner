@@ -74,6 +74,14 @@ typedef struct {
     bool hardwareFault;
     char hardwareFaultMsg[64];
     int screenPage;
+
+    // Pool details
+    char stratumURL[128];
+    char fallbackStratumURL[128];
+    char stratumUser[64];
+    char fallbackStratumUser[64];
+    uint16_t stratumPort;
+    uint16_t fallbackStratumPort;
 } ws_api_snapshot_t;
 
 static void take_snapshot(ws_api_snapshot_t *snapshot, GlobalState *g)
@@ -143,6 +151,18 @@ static void take_snapshot(ws_api_snapshot_t *snapshot, GlobalState *g)
     strncpy(snapshot->hardwareFaultMsg, g->SYSTEM_MODULE.hardware_fault_msg, sizeof(snapshot->hardwareFaultMsg) - 1);
     snapshot->hardwareFaultMsg[sizeof(snapshot->hardwareFaultMsg) - 1] = '\0';
     snapshot->screenPage = g->SYSTEM_MODULE.screen_page;
+
+    // Pool details
+    strncpy(snapshot->stratumURL, g->SYSTEM_MODULE.pool_url ? g->SYSTEM_MODULE.pool_url : "", sizeof(snapshot->stratumURL) - 1);
+    snapshot->stratumURL[sizeof(snapshot->stratumURL) - 1] = '\0';
+    strncpy(snapshot->fallbackStratumURL, g->SYSTEM_MODULE.fallback_pool_url ? g->SYSTEM_MODULE.fallback_pool_url : "", sizeof(snapshot->fallbackStratumURL) - 1);
+    snapshot->fallbackStratumURL[sizeof(snapshot->fallbackStratumURL) - 1] = '\0';
+    strncpy(snapshot->stratumUser, g->SYSTEM_MODULE.pool_user ? g->SYSTEM_MODULE.pool_user : "", sizeof(snapshot->stratumUser) - 1);
+    snapshot->stratumUser[sizeof(snapshot->stratumUser) - 1] = '\0';
+    strncpy(snapshot->fallbackStratumUser, g->SYSTEM_MODULE.fallback_pool_user ? g->SYSTEM_MODULE.fallback_pool_user : "", sizeof(snapshot->fallbackStratumUser) - 1);
+    snapshot->fallbackStratumUser[sizeof(snapshot->fallbackStratumUser) - 1] = '\0';
+    snapshot->stratumPort = g->SYSTEM_MODULE.pool_port;
+    snapshot->fallbackStratumPort = g->SYSTEM_MODULE.fallback_pool_port;
 }
 
 static void add_hashrate_monitor(cJSON *root, GlobalState *g) {
@@ -253,8 +273,6 @@ static cJSON* build_diff(ws_api_snapshot_t *old, ws_api_snapshot_t *new, uint32_
         if (old->poolDifficulty != new->poolDifficulty) { cJSON_AddNumberToObject(root, "poolDifficulty", new->poolDifficulty); changed = true; }
         if (old->responseTime != new->responseTime) { cJSON_AddFloatToObject(root, "responseTime", new->responseTime); changed = true; }
         if (old->processTime != new->processTime) { cJSON_AddFloatToObject(root, "processTime", new->processTime); changed = true; }
-        if (old->is_using_fallback != new->is_using_fallback) { cJSON_AddBoolToObject(root, "isUsingFallbackStratum", new->is_using_fallback); changed = true; }
-        if (strcmp(old->pool_connection_info, new->pool_connection_info) != 0) { cJSON_AddStringToObject(root, "poolConnectionInfo", new->pool_connection_info); changed = true; }
         
         // Block Header
         if (old->blockHeight != new->blockHeight) { 
@@ -282,6 +300,16 @@ static cJSON* build_diff(ws_api_snapshot_t *old, ws_api_snapshot_t *new, uint32_
     if (old->hardwareFault != new->hardwareFault) { cJSON_AddBoolToObject(root, "hardwareFault", new->hardwareFault); changed = true; }
     if (strcmp(old->hardwareFaultMsg, new->hardwareFaultMsg) != 0) { cJSON_AddStringToObject(root, "hardwareFaultMsg", new->hardwareFaultMsg); changed = true; }
     if (old->screenPage != new->screenPage) { cJSON_AddNumberToObject(root, "screenPage", new->screenPage); changed = true; }
+
+    // Pool Status & Failover (Always check for changes)
+    if (old->is_using_fallback != new->is_using_fallback) { cJSON_AddBoolToObject(root, "isUsingFallbackStratum", new->is_using_fallback); changed = true; }
+    if (strcmp(old->pool_connection_info, new->pool_connection_info) != 0) { cJSON_AddStringToObject(root, "poolConnectionInfo", new->pool_connection_info); changed = true; }
+    if (strcmp(old->stratumURL, new->stratumURL) != 0) { cJSON_AddStringToObject(root, "stratumURL", new->stratumURL); changed = true; }
+    if (strcmp(old->fallbackStratumURL, new->fallbackStratumURL) != 0) { cJSON_AddStringToObject(root, "fallbackStratumURL", new->fallbackStratumURL); changed = true; }
+    if (strcmp(old->stratumUser, new->stratumUser) != 0) { cJSON_AddStringToObject(root, "stratumUser", new->stratumUser); changed = true; }
+    if (strcmp(old->fallbackStratumUser, new->fallbackStratumUser) != 0) { cJSON_AddStringToObject(root, "fallbackStratumUser", new->fallbackStratumUser); changed = true; }
+    if (old->stratumPort != new->stratumPort) { cJSON_AddNumberToObject(root, "stratumPort", new->stratumPort); changed = true; }
+    if (old->fallbackStratumPort != new->fallbackStratumPort) { cJSON_AddNumberToObject(root, "fallbackStratumPort", new->fallbackStratumPort); changed = true; }
 
     if (!changed && cJSON_GetArraySize(root) == 0) {
         cJSON_Delete(root);
