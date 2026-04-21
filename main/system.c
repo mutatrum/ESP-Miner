@@ -317,6 +317,9 @@ void SYSTEM_notify_found_nonce(GlobalState * GLOBAL_STATE, double diff, uint8_t 
         ESP_LOGI(TAG, "FOUND BLOCK!!!!!!!!!!!!!!!!!!!!!! %f >= %f (count: %d)", diff, network_diff, module->block_found);
     }
 
+    if ((uint64_t) diff <= module->best_nonce_diff) {
+        return;
+    }
     module->best_nonce_diff = (uint64_t) diff;
 
     nvs_config_set_u64(NVS_CONFIG_BEST_DIFF, module->best_nonce_diff);

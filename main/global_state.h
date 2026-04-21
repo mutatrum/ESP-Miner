@@ -15,9 +15,6 @@
 #include "scoreboard.h"
 #include "esp_transport.h"
 
-// WebSocket API update frequency
-#define WEBSOCKET_API_UPDATE_MS 1000
-
 #define STRATUM_USER CONFIG_STRATUM_USER
 #define FALLBACK_STRATUM_USER CONFIG_FALLBACK_STRATUM_USER
 
@@ -156,8 +153,6 @@ typedef struct
     bool ASIC_initalized;
     bool psram_is_available;
     bool filesystem_is_available;
-
-
 
     int block_height;
     char scriptsig[128];
