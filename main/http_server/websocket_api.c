@@ -124,6 +124,7 @@ static cJSON* build_diff(ws_api_snapshot_t *old, ws_api_snapshot_t *new, uint32_
         
         if (bits & WS_EVENT_HASHRATE_UPDATED) {
             system_api_add_telemetry(data, g); // Re-sync common telemetry bits
+            system_api_add_hashrate_monitor(data, g); // Restore live heatmap
             changed = true;
         }
     }

@@ -12,6 +12,7 @@
 #include "vcore.h"
 #include "power.h"
 #include "connect.h"
+#include "hashrate_monitor_task.h"
 
 static const double FACTOR = 10000000.0;
 
@@ -97,7 +98,9 @@ void system_api_add_telemetry(cJSON *root, GlobalState *g) {
     cJSON_AddNumberToObject(root, "uptimeSeconds", (uint32_t)((esp_timer_get_time() - g->SYSTEM_MODULE.start_time) / 1000000));
     cJSON_AddFloatToObject(root, "cpuUsage", g->SYSTEM_MODULE.cpu_usage);
     cJSON_AddBoolToObject(root, "miningPaused", g->SYSTEM_MODULE.mining_paused);
+    cJSON_AddBoolToObject(root, "overheat_mode", g->SYSTEM_MODULE.overheat_mode);
     cJSON_AddStringToObject(root, "wifiStatus", g->SYSTEM_MODULE.wifi_status);
+
     int8_t rssi = -90;
     get_wifi_current_rssi(&rssi);
     cJSON_AddNumberToObject(root, "wifiRSSI", rssi);
@@ -201,6 +204,34 @@ void system_api_add_config(cJSON *root, GlobalState *g) {
     cJSON_AddNumberToObject(root, "statsFrequency", nvs_config_get_u16(NVS_CONFIG_STATISTICS_FREQUENCY));
 }
 
+void system_api_add_hashrate_monitor(cJSON *root, GlobalState *g) {
+    if (!root || !g || !g->HASHRATE_MONITOR_MODULE.is_initialized) return;
+
+    cJSON *monitor = cJSON_CreateObject();
+    cJSON_AddItemToObject(root, "hashrateMonitor", monitor);
+    
+    cJSON *asics = cJSON_CreateArray();
+    cJSON_AddItemToObject(monitor, "asics", asics);
+
+    int asic_count = g->DEVICE_CONFIG.family.asic_count;
+    int hash_domains = g->DEVICE_CONFIG.family.asic.hash_domains;
+
+    for (int i = 0; i < asic_count; i++) {
+        cJSON *asic = cJSON_CreateObject();
+        cJSON_AddItemToArray(asics, asic);
+        
+        cJSON_AddNumberToObject(asic, "total", g->HASHRATE_MONITOR_MODULE.total_measurement[i].hashrate);
+        cJSON_AddNumberToObject(asic, "errorCount", (double)g->HASHRATE_MONITOR_MODULE.error_measurement[i].hashrate);
+        
+        cJSON *domains = cJSON_CreateArray();
+        cJSON_AddItemToObject(asic, "domains", domains);
+        for (int j = 0; j < hash_domains; j++) {
+            cJSON_AddItemToArray(domains, cJSON_CreateNumber(g->HASHRATE_MONITOR_MODULE.domain_measurements[i][j].hashrate));
+        }
+    }
+}
+
+
 cJSON* system_api_get_full_json(GlobalState *g) {
     if (!g) return NULL;
     cJSON *root = cJSON_CreateObject();
@@ -208,6 +239,7 @@ cJSON* system_api_get_full_json(GlobalState *g) {
 
     system_api_add_telemetry(root, g);
     system_api_add_config(root, g);
+    system_api_add_hashrate_monitor(root, g);
 
     // Arrays that involve global state loops (not simple addition)
     // Rejected reasons

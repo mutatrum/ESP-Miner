@@ -25,6 +25,11 @@ void system_api_add_telemetry(cJSON *root, GlobalState *g);
 void system_api_add_config(cJSON *root, GlobalState *g);
 
 /**
+ * @brief Adds hashrate register monitoring data to an existing JSON object.
+ */
+void system_api_add_hashrate_monitor(cJSON *root, GlobalState *g);
+
+/**
  * @brief Custom helper to add a float to a JSON object with fixed decimal precision.
  */
 cJSON* cJSON_AddFloatToObject(cJSON * const object, const char * const name, const float number);
