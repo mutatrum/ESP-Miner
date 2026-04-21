@@ -56,17 +56,17 @@ export class LiveDataService {
       fallbackPolling$
     );
 
-    this.info$ = this.systemService.getInfo().pipe(
+    const initialInfo$ = this.systemService.getInfo().pipe(
       catchError(err => {
         console.error('Initial info fetch failed', err);
         return EMPTY;
-      }),
-      switchMap(initial => 
-        updates$.pipe(
-          startWith(initial),
-          scan((acc: ISystemInfo, curr: Partial<ISystemInfo>) => ({ ...acc, ...curr } as ISystemInfo), {} as ISystemInfo)
-        )
-      ),
+      })
+    );
+
+    this.info$ = merge(initialInfo$, updates$).pipe(
+      scan((acc: ISystemInfo, curr: Partial<ISystemInfo>) => ({ ...acc, ...curr } as ISystemInfo), {} as ISystemInfo),
+      // Ensure we have at least once received a message with a recognizable field before emitting
+      filter(info => !!info.version || !!info.uptimeSeconds),
       shareReplay(1)
     );
   }

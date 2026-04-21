@@ -2,8 +2,9 @@ import { HttpErrorResponse } from '@angular/common/http';
 import { Component, Input, OnInit, OnDestroy, OnChanges, SimpleChanges } from '@angular/core';
 import { FormBuilder, FormGroup, FormControl, Validators } from '@angular/forms';
 import { ToastrService } from 'ngx-toastr';
-import { forkJoin, startWith, Subject, takeUntil, pairwise, BehaviorSubject, Observable } from 'rxjs';
+import { forkJoin, startWith, Subject, takeUntil, pairwise, BehaviorSubject, Observable, first } from 'rxjs';
 import { LoadingService } from 'src/app/services/loading.service';
+import { LiveDataService } from 'src/app/services/live-data.service';
 import { SystemApiService } from 'src/app/services/system.service';
 import { ActivatedRoute } from '@angular/router';
 
@@ -47,6 +48,7 @@ export class EditComponent implements OnInit, OnDestroy, OnChanges {
   constructor(
     private fb: FormBuilder,
     private systemService: SystemApiService,
+    private liveDataService: LiveDataService,
     private toastr: ToastrService,
     private loadingService: LoadingService,
     private route: ActivatedRoute,
@@ -124,9 +126,9 @@ export class EditComponent implements OnInit, OnDestroy, OnChanges {
     const deviceUri = this.uri || '';
 
 
-    // Fetch both system info and ASIC settings in parallel
+    // Fetch both system info (from live stream) and ASIC settings in parallel
     forkJoin({
-      info: this.systemService.getInfo(deviceUri),
+      info: this.liveDataService.info$.pipe(first()),
       asic: this.systemService.getAsicSettings(deviceUri)
     })
     .pipe(
