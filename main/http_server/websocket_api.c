@@ -100,12 +100,18 @@ void websocket_api_task(void *pvParameters)
     while (true) {
         vTaskDelay(pdMS_TO_TICKS(WEBSOCKET_API_RATE_LIMIT_MS));
 
-        // Heartbeat or event triggered
+        // If no clients are connected, hibernate to save CPU/Memory churn
         if (websocket_get_active_client_count(WS_TYPE_API) == 0) {
-            // No clients, just keep the baseline updated to avoid massive first-diff later
-            cJSON_Delete(last_full_json);
-            last_full_json = system_api_get_full_json(GLOBAL_STATE);
+            if (last_full_json) {
+                cJSON_Delete(last_full_json);
+                last_full_json = NULL;
+            }
             continue;
+        }
+
+        // We have clients. If we were hibernating, initialize the baseline now
+        if (last_full_json == NULL) {
+            last_full_json = system_api_get_full_json(GLOBAL_STATE);
         }
 
         // Process diff and rotate state
