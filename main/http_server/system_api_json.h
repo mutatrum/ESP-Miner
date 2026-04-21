@@ -15,26 +15,6 @@
 cJSON* system_api_get_full_json(GlobalState *g);
 
 /**
- * @brief Adds high-frequency telemetry data to an existing JSON object.
- */
-void system_api_add_telemetry(cJSON *root, GlobalState *g);
-
-/**
- * @brief Adds system configuration and hardware details to an existing JSON object.
- */
-void system_api_add_config(cJSON *root, GlobalState *g);
-
-/**
- * @brief Adds hashrate register monitoring data to an existing JSON object.
- */
-void system_api_add_hashrate_monitor(cJSON *root, GlobalState *g);
-
-/**
- * @brief Custom helper to add a float to a JSON object with fixed decimal precision.
- */
-cJSON* cJSON_AddFloatToObject(cJSON * const object, const char * const name, const float number);
-
-/**
  * @brief Custom helper to create a JSON number from a float with fixed decimal precision.
  */
 cJSON* cJSON_CreateFloat(float number);

@@ -16,7 +16,7 @@
 
 static const double FACTOR = 10000000.0;
 
-cJSON* cJSON_AddFloatToObject(cJSON * const object, const char * const name, const float number) {
+static cJSON* cJSON_AddFloatToObject(cJSON * const object, const char * const name, const float number) {
     double d_value = round((double)number * FACTOR) / FACTOR;
     return cJSON_AddNumberToObject(object, name, d_value);
 }
@@ -49,7 +49,7 @@ static const char *get_reset_reason_str(esp_reset_reason_t reason)
     }
 }
 
-void system_api_add_telemetry(cJSON *root, GlobalState *g) {
+static void system_api_add_telemetry(cJSON *root, GlobalState *g) {
     if (!root || !g) return;
 
     // Power Group
@@ -114,7 +114,7 @@ void system_api_add_telemetry(cJSON *root, GlobalState *g) {
     }
 }
 
-void system_api_add_config(cJSON *root, GlobalState *g) {
+static void system_api_add_config(cJSON *root, GlobalState *g) {
     if (!root || !g) return;
 
     // Versions
@@ -204,7 +204,7 @@ void system_api_add_config(cJSON *root, GlobalState *g) {
     cJSON_AddNumberToObject(root, "statsFrequency", nvs_config_get_u16(NVS_CONFIG_STATISTICS_FREQUENCY));
 }
 
-void system_api_add_hashrate_monitor(cJSON *root, GlobalState *g) {
+static void system_api_add_hashrate_monitor(cJSON *root, GlobalState *g) {
     if (!root || !g || !g->HASHRATE_MONITOR_MODULE.is_initialized) return;
 
     cJSON *monitor = cJSON_CreateObject();
@@ -231,18 +231,8 @@ void system_api_add_hashrate_monitor(cJSON *root, GlobalState *g) {
     }
 }
 
-
-cJSON* system_api_get_full_json(GlobalState *g) {
-    if (!g) return NULL;
-    cJSON *root = cJSON_CreateObject();
-    if (root == NULL) return NULL;
-
-    system_api_add_telemetry(root, g);
-    system_api_add_config(root, g);
-    system_api_add_hashrate_monitor(root, g);
-
-    // Arrays that involve global state loops (not simple addition)
-    // Rejected reasons
+static void system_api_add_rejected_reasons(cJSON *root, GlobalState *g) {
+    if (!root || !g) return;
     cJSON *rejected_reasons = cJSON_CreateArray();
     if (rejected_reasons) {
         cJSON_AddItemToObject(root, "sharesRejectedReasons", rejected_reasons);
@@ -255,29 +245,45 @@ cJSON* system_api_get_full_json(GlobalState *g) {
             }
         }
     }
+}
 
-    if (g->block_height > 0) {
-        cJSON *signals = cJSON_CreateArray();
-        if (signals) {
-            for (int i = 0; i < g->block_signals_count; i++) {
-                cJSON_AddItemToArray(signals, cJSON_CreateString(g->block_signals[i]));
-            }
-            cJSON_AddItemToObject(root, "blockSignals", signals);
-        }
+static void system_api_add_block_info(cJSON *root, GlobalState *g) {
+    if (!root || !g || g->block_height <= 0) return;
 
-        cJSON *outputs = cJSON_CreateArray();
-        if (outputs) {
-            for (int i = 0; i < g->coinbase_output_count; i++) {
-                cJSON *obj = cJSON_CreateObject();
-                if (obj) {
-                    cJSON_AddNumberToObject(obj, "value", g->coinbase_outputs[i].value_satoshis);
-                    cJSON_AddStringToObject(obj, "address", g->coinbase_outputs[i].address);
-                    cJSON_AddItemToArray(outputs, obj);
-                }
-            }
-            cJSON_AddItemToObject(root, "coinbaseOutputs", outputs);
+    cJSON *signals = cJSON_CreateArray();
+    if (signals) {
+        for (int i = 0; i < g->block_signals_count; i++) {
+            cJSON_AddItemToArray(signals, cJSON_CreateString(g->block_signals[i]));
         }
+        cJSON_AddItemToObject(root, "blockSignals", signals);
     }
+
+    cJSON *outputs = cJSON_CreateArray();
+    if (outputs) {
+        for (int i = 0; i < g->coinbase_output_count; i++) {
+            cJSON *obj = cJSON_CreateObject();
+            if (obj) {
+                cJSON_AddNumberToObject(obj, "value", g->coinbase_outputs[i].value_satoshis);
+                cJSON_AddStringToObject(obj, "address", g->coinbase_outputs[i].address);
+                cJSON_AddItemToArray(outputs, obj);
+            }
+        }
+        cJSON_AddItemToObject(root, "coinbaseOutputs", outputs);
+    }
+}
+
+cJSON* system_api_get_full_json(GlobalState *g) {
+    if (!g) return NULL;
+    cJSON *root = cJSON_CreateObject();
+    if (root == NULL) return NULL;
+
+    system_api_add_telemetry(root, g);
+    system_api_add_config(root, g);
+    system_api_add_hashrate_monitor(root, g);
+
+    // Arrays that involve global state loops (not simple addition)
+    system_api_add_rejected_reasons(root, g);
+    system_api_add_block_info(root, g);
 
     return root;
 }
