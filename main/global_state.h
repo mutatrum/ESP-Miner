@@ -16,13 +16,8 @@
 #include "scoreboard.h"
 #include "esp_transport.h"
 
-// WebSocket API event bits for live data notifications
-#define WS_EVENT_POWER_UPDATED    BIT0
-#define WS_EVENT_FAN_UPDATED      BIT1
-#define WS_EVENT_HASHRATE_UPDATED BIT2
-#define WS_EVENT_STRATUM_UPDATED  BIT3
-#define WS_EVENT_SYSTEM_UPDATED   BIT4
-#define WS_EVENT_ALL              (WS_EVENT_POWER_UPDATED | WS_EVENT_FAN_UPDATED | WS_EVENT_HASHRATE_UPDATED | WS_EVENT_STRATUM_UPDATED | WS_EVENT_SYSTEM_UPDATED)
+// WebSocket API update frequency
+#define WEBSOCKET_API_UPDATE_MS 1000
 
 #define STRATUM_USER CONFIG_STRATUM_USER
 #define FALLBACK_STRATUM_USER CONFIG_FALLBACK_STRATUM_USER
@@ -163,7 +158,7 @@ typedef struct
     bool psram_is_available;
     bool filesystem_is_available;
 
-    EventGroupHandle_t ws_event_group;
+
 
     int block_height;
     char scriptsig[128];

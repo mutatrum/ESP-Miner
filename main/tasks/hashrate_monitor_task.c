@@ -187,10 +187,6 @@ void hashrate_monitor_task(void *pvParameters)
             SYSTEM_MODULE->current_hashrate = 0;
         }
 
-        if (GLOBAL_STATE->ws_event_group) {
-            xEventGroupSetBits(GLOBAL_STATE->ws_event_group, WS_EVENT_HASHRATE_UPDATED);
-        }
-
         vTaskDelayUntil(&taskWakeTime, POLL_RATE / portTICK_PERIOD_MS);
     }
 }

@@ -350,9 +350,6 @@ void stratum_primary_heartbeat(void * pvParameters)
         if (strstr(recv_buffer, "mining.notify") != NULL && !GLOBAL_STATE->SYSTEM_MODULE.use_fallback_stratum) {
             ESP_LOGI(TAG, "Heartbeat successful and in fallback mode. Switching back to primary.");
             GLOBAL_STATE->SYSTEM_MODULE.is_using_fallback = false;
-            if (GLOBAL_STATE->ws_event_group != NULL) {
-                xEventGroupSetBits(GLOBAL_STATE->ws_event_group, WS_EVENT_STRATUM_UPDATED);
-            }
             stratum_close_connection(GLOBAL_STATE);
             continue;
         }
@@ -448,11 +445,6 @@ static void decode_mining_notification(GlobalState * GLOBAL_STATE, const mining_
     }
 
     free(result);
-
-    // Notify WebSocket API that block/mining data has been updated
-    if (GLOBAL_STATE->ws_event_group != NULL) {
-        xEventGroupSetBits(GLOBAL_STATE->ws_event_group, WS_EVENT_STRATUM_UPDATED);
-    }
 }
 
 void stratum_task(void * pvParameters)
@@ -495,9 +487,6 @@ void stratum_task(void * pvParameters)
             }
 
             GLOBAL_STATE->SYSTEM_MODULE.is_using_fallback = !GLOBAL_STATE->SYSTEM_MODULE.is_using_fallback;
-            if (GLOBAL_STATE->ws_event_group != NULL) {
-                xEventGroupSetBits(GLOBAL_STATE->ws_event_group, WS_EVENT_STRATUM_UPDATED);
-            }
             
             // Reset share stats at failover
             for (int i = 0; i < GLOBAL_STATE->SYSTEM_MODULE.rejected_reason_stats_count; i++) {
@@ -634,10 +623,6 @@ void stratum_task(void * pvParameters)
                 ESP_LOGI(TAG, "Set pool difficulty: %.2f", stratum_api_v1_message.new_difficulty);
                 GLOBAL_STATE->pool_difficulty = stratum_api_v1_message.new_difficulty;
                 GLOBAL_STATE->new_set_mining_difficulty_msg = true;
-                // Notify WebSocket API
-                if (GLOBAL_STATE->ws_event_group != NULL) {
-                    xEventGroupSetBits(GLOBAL_STATE->ws_event_group, WS_EVENT_STRATUM_UPDATED);
-                }
             } else if (stratum_api_v1_message.method == MINING_SET_VERSION_MASK ||
                     stratum_api_v1_message.method == STRATUM_RESULT_VERSION_MASK) {
                 ESP_LOGI(TAG, "Set version mask: %08lx", stratum_api_v1_message.version_mask);

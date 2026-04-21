@@ -118,12 +118,6 @@ void SYSTEM_init_system(GlobalState * GLOBAL_STATE)
     // Initialize mutexes
     pthread_mutex_init(&GLOBAL_STATE->valid_jobs_lock, NULL);
     GLOBAL_STATE->stratum_mux = (portMUX_TYPE)portMUX_INITIALIZER_UNLOCKED;
-
-    // Create event group for WebSocket API notifications
-    GLOBAL_STATE->ws_event_group = xEventGroupCreate();
-    if (GLOBAL_STATE->ws_event_group == NULL) {
-        ESP_LOGE(TAG, "Failed to create WebSocket event group");
-    }
 }
 
 void SYSTEM_init_versions(GlobalState * GLOBAL_STATE) {
@@ -255,11 +249,6 @@ void SYSTEM_notify_accepted_share(GlobalState * GLOBAL_STATE)
     SystemModule * module = &GLOBAL_STATE->SYSTEM_MODULE;
 
     module->shares_accepted++;
-
-    // Notify WebSocket API
-    if (GLOBAL_STATE->ws_event_group != NULL) {
-        xEventGroupSetBits(GLOBAL_STATE->ws_event_group, WS_EVENT_STRATUM_UPDATED);
-    }
 }
 
 static int compare_rejected_reason_stats(const void *a, const void *b) {
@@ -273,11 +262,6 @@ void SYSTEM_notify_rejected_share(GlobalState * GLOBAL_STATE, char * error_msg)
     SystemModule * module = &GLOBAL_STATE->SYSTEM_MODULE;
 
     module->shares_rejected++;
-
-    // Notify WebSocket API
-    if (GLOBAL_STATE->ws_event_group != NULL) {
-        xEventGroupSetBits(GLOBAL_STATE->ws_event_group, WS_EVENT_STRATUM_UPDATED);
-    }
 
     for (int i = 0; i < module->rejected_reason_stats_count; i++) {
         if (strncmp(module->rejected_reason_stats[i].message, error_msg, sizeof(module->rejected_reason_stats[i].message) - 1) == 0) {
@@ -333,13 +317,6 @@ void SYSTEM_notify_found_nonce(GlobalState * GLOBAL_STATE, double diff, uint8_t 
         ESP_LOGI(TAG, "FOUND BLOCK!!!!!!!!!!!!!!!!!!!!!! %f >= %f (count: %d)", diff, network_diff, module->block_found);
     }
 
-    if ((uint64_t) diff <= module->best_nonce_diff) {
-        // Notify WebSocket API (session diff or block may have changed)
-        if (GLOBAL_STATE->ws_event_group != NULL) {
-            xEventGroupSetBits(GLOBAL_STATE->ws_event_group, WS_EVENT_STRATUM_UPDATED);
-        }
-        return;
-    }
     module->best_nonce_diff = (uint64_t) diff;
 
     nvs_config_set_u64(NVS_CONFIG_BEST_DIFF, module->best_nonce_diff);
@@ -348,11 +325,6 @@ void SYSTEM_notify_found_nonce(GlobalState * GLOBAL_STATE, double diff, uint8_t 
     suffixString((uint64_t) diff, module->best_diff_string, DIFF_STRING_SIZE, 0);
 
     ESP_LOGI(TAG, "New best difficulty: %s", module->best_diff_string);
-
-    // Notify WebSocket API
-    if (GLOBAL_STATE->ws_event_group != NULL) {
-        xEventGroupSetBits(GLOBAL_STATE->ws_event_group, WS_EVENT_STRATUM_UPDATED);
-    }
 }
 
 static esp_err_t ensure_overheat_mode_config() {

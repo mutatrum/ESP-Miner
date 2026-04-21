@@ -98,10 +98,8 @@ void websocket_api_task(void *pvParameters)
     cJSON *last_full_json = system_api_get_full_json(GLOBAL_STATE);
 
     while (true) {
-        // Wait for notification from producer tasks
-        uint32_t bits = xEventGroupWaitBits(GLOBAL_STATE->ws_event_group, WS_EVENT_ALL, pdTRUE, pdFALSE, pdMS_TO_TICKS(1000));
-        (void)bits; // We diff the full JSON regardless of which specific event triggered
-        
+        vTaskDelay(pdMS_TO_TICKS(WEBSOCKET_API_RATE_LIMIT_MS));
+
         // Heartbeat or event triggered
         if (websocket_get_active_client_count(WS_TYPE_API) == 0) {
             // No clients, just keep the baseline updated to avoid massive first-diff later
@@ -117,8 +115,5 @@ void websocket_api_task(void *pvParameters)
             cJSON_Delete(last_full_json);
             last_full_json = new_full_json;
         }
-
-        // Rate limit
-        vTaskDelay(pdMS_TO_TICKS(WEBSOCKET_API_RATE_LIMIT_MS));
     }
 }

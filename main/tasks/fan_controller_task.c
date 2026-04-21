@@ -132,11 +132,6 @@ void FAN_CONTROLLER_task(void * pvParameters)
         power_management->fan_rpm = Thermal_get_fan_speed(&GLOBAL_STATE->DEVICE_CONFIG);
         power_management->fan2_rpm = Thermal_get_fan2_speed(&GLOBAL_STATE->DEVICE_CONFIG);
 
-        // Notify WebSocket API that fan data has been updated
-        if (GLOBAL_STATE->ws_event_group != NULL) {
-            xEventGroupSetBits(GLOBAL_STATE->ws_event_group, WS_EVENT_FAN_UPDATED);
-        }
-
         vTaskDelayUntil(&taskWakeTime, POLL_TIME_MS / portTICK_PERIOD_MS);
     }
 }
