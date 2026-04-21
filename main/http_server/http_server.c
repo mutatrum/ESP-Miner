@@ -6,6 +6,7 @@
 #include <sys/stat.h>
 #include <esp_heap_caps.h>
 
+#include "esp_err.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "esp_http_server.h"
@@ -60,6 +61,7 @@ static const char * STATS_LABEL_WIFI_RSSI = "wifiRssi";
 static const char * STATS_LABEL_FREE_HEAP = "freeHeap";
 static const char * STATS_LABEL_RESPONSE_TIME = "responseTime";
 
+static int system_info_prebuffer_len = 256;
 static int system_statistics_prebuffer_len = 256;
 static int system_wifi_scan_prebuffer_len = 256;
 static int api_common_prebuffer_len = 256;
@@ -145,12 +147,15 @@ static httpd_handle_t server = NULL;
 
 esp_err_t HTTP_send_json(httpd_req_t * req, const cJSON * item, int * prebuffer_len)
 {
-    const char * response = cJSON_PrintBuffered(item, *prebuffer_len, true);
-    int len = strlen(response);
-    esp_err_t res = httpd_resp_send(req, response, len);
-    if (len > *prebuffer_len) *prebuffer_len = len * 1.2;
-    free((void *)response);
-    return res;
+    const char * response = cJSON_PrintBuffered(item, *prebuffer_len, false);
+    if (response != NULL) {
+        int len = strlen(response);
+        esp_err_t res = httpd_resp_send(req, response, len);
+        if (len > *prebuffer_len) *prebuffer_len = len * 1.2;
+        free((void *)response);
+        return res;
+    }
+    return ESP_ERR_NO_MEM;
 }
 
 /* Handler for WiFi scan endpoint */
@@ -839,23 +844,13 @@ static esp_err_t GET_system_info(httpd_req_t * req)
         return ESP_OK;
     }
 
-    if (GLOBAL_STATE == NULL) {
-        httpd_resp_send_500(req);
-        return ESP_OK;
-    }
-
     cJSON * root = system_api_get_full_json(GLOBAL_STATE);
-    if (root == NULL) {
-        httpd_resp_send_500(req);
-        return ESP_OK;
-    }
 
-    char * out = cJSON_PrintUnformatted(root);
-    httpd_resp_send(req, out, strlen(out));
-    free(out);
+    esp_err_t res = HTTP_send_json(req, root, &system_info_prebuffer_len);
+
     cJSON_Delete(root);
 
-    return ESP_OK;
+    return res;
 }
 
 static esp_err_t GET_system_statistics(httpd_req_t * req)

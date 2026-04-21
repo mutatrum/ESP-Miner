@@ -16,6 +16,8 @@
 static const char *TAG = "websocket_api";
 static GlobalState *GLOBAL_STATE = NULL;
 
+static int prebuffer_len = 256;
+
 /**
  * @brief Builds the JSON update message and broadcasts it.
  * 
@@ -47,8 +49,11 @@ static cJSON* process_and_send_update(cJSON *last_state, int fd)
             cJSON_AddStringToObject(msg, "event", "update");
             cJSON_AddItemToObject(msg, "data", diff);
 
-            char *json_str = cJSON_PrintUnformatted(msg);
+            const char * json_str = cJSON_PrintBuffered(msg, prebuffer_len, false);
             if (json_str != NULL) {
+                int len = strlen(json_str);
+                if (len > prebuffer_len) prebuffer_len = len * 1.2;
+
                 httpd_ws_frame_t ws_pkt;
                 memset(&ws_pkt, 0, sizeof(httpd_ws_frame_t));
                 ws_pkt.payload = (uint8_t *)json_str;
@@ -60,7 +65,7 @@ static cJSON* process_and_send_update(cJSON *last_state, int fd)
                 } else {
                     websocket_send_to_client(fd, &ws_pkt);
                 }
-                free(json_str);
+                free((void *)json_str);
             }
             cJSON_Delete(msg);
         } else {
