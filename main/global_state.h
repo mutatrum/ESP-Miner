@@ -4,7 +4,6 @@
 #include <stdbool.h>
 #include <stdint.h>
 #include "freertos/FreeRTOS.h"
-#include "freertos/event_groups.h"
 #include "freertos/semphr.h"
 #include "freertos/portmacro.h"
 #include "power_management_task.h"

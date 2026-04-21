@@ -2,49 +2,34 @@
 #include <fcntl.h>
 #include <string.h>
 #include <limits.h>
-#include <math.h>
 #include <sys/param.h>
 #include <sys/stat.h>
 #include <esp_heap_caps.h>
 
 #include "freertos/FreeRTOS.h"
-#include "freertos/event_groups.h"
 #include "freertos/task.h"
-#include "esp_chip_info.h"
 #include "esp_http_server.h"
 #include "esp_log.h"
-#include "esp_random.h"
-#include "esp_spiffs.h"
 #include "esp_system.h"
 #include "esp_timer.h"
 #include "esp_wifi.h"
 #include "esp_vfs.h"
 
 #include "dns_server.h"
-#include "esp_mac.h"
-#include "esp_netif.h"
 #include "esp_ota_ops.h"
 #include "esp_wifi.h"
-#include "lwip/err.h"
 #include "lwip/inet.h"
-#include "lwip/lwip_napt.h"
-#include "lwip/netdb.h"
 #include "lwip/sockets.h"
-#include "lwip/sys.h"
 
 #include "cJSON.h"
 #include "global_state.h"
 #include "nvs_config.h"
-#include "vcore.h"
 #include "connect.h"
-#include "asic.h"
-#include "TPS546.h"
 #include "statistics_task.h"
-#include "theme_api.h"  // Add theme API include
+#include "theme_api.h"
 #include "axe-os/api/system/asic_settings.h"
 #include "display.h"
 #include "http_server.h"
-#include "system.h"
 #include "websocket.h"
 #include "websocket_log.h"
 #include "websocket_api.h"
