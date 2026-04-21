@@ -36,6 +36,7 @@
 #include "system_api_json.h"
 #include "nvs_config.h"
 #include "log_buffer.h"
+#include "cjson_utils.h"
 
 static const char * TAG = "http_server";
 static const char * CORS_TAG = "CORS";
@@ -151,8 +152,6 @@ esp_err_t HTTP_send_json(httpd_req_t * req, const cJSON * item, int * prebuffer_
     free((void *)response);
     return res;
 }
-
-
 
 /* Handler for WiFi scan endpoint */
 static esp_err_t GET_wifi_scan(httpd_req_t *req)

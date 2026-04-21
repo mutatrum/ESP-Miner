@@ -1,6 +1,18 @@
-#include <string.h>
+#include <math.h>
 #include <stdbool.h>
 #include "cjson_utils.h"
+
+static const double FACTOR = 10000000.0;
+
+cJSON* cJSON_AddFloatToObject(cJSON * const object, const char * const name, const float number) {
+    double d_value = round((double)number * FACTOR) / FACTOR;
+    return cJSON_AddNumberToObject(object, name, d_value);
+}
+
+cJSON* cJSON_CreateFloat(float number) {
+    double d_value = round((double)number * FACTOR) / FACTOR;
+    return cJSON_CreateNumber(d_value);
+}
 
 cJSON* cJSON_GetDiff(const cJSON *old_json, const cJSON *new_json) {
     if (new_json == NULL) return NULL;

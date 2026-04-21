@@ -3,6 +3,10 @@
 
 #include "cJSON.h"
 
+cJSON* cJSON_AddFloatToObject(cJSON * const object, const char * const name, const float number);
+
+cJSON* cJSON_CreateFloat(float number);
+
 /**
  * @brief Recursively compares two JSON objects and returns a new object containing only the differences.
  * 

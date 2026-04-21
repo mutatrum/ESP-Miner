@@ -1,7 +1,4 @@
-#include <string.h>
 #include <stdio.h>
-#include <math.h>
-#include "esp_log.h"
 #include "esp_wifi.h"
 #include "esp_ota_ops.h"
 #include "esp_system.h"
@@ -10,21 +7,9 @@
 #include "system_api_json.h"
 #include "nvs_config.h"
 #include "vcore.h"
-#include "power.h"
 #include "connect.h"
 #include "hashrate_monitor_task.h"
-
-static const double FACTOR = 10000000.0;
-
-static cJSON* cJSON_AddFloatToObject(cJSON * const object, const char * const name, const float number) {
-    double d_value = round((double)number * FACTOR) / FACTOR;
-    return cJSON_AddNumberToObject(object, name, d_value);
-}
-
-cJSON* cJSON_CreateFloat(float number) {
-    double d_value = round((double)number * FACTOR) / FACTOR;
-    return cJSON_CreateNumber(d_value);
-}
+#include "cjson_utils.h"
 
 static const char *get_reset_reason_str(esp_reset_reason_t reason)
 {
