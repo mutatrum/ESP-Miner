@@ -167,6 +167,8 @@ export class HomeComponent implements OnInit, OnDestroy {
 
   private destroy$ = new Subject<void>();
   private infoSubscription?: Subscription;
+  private statsSubscription?: Subscription;
+  private latestInfo?: ISystemInfo;
   private liveDataStarted = false;
   private resizeTimer: any;
   public form!: FormGroup;
@@ -245,7 +247,7 @@ export class HomeComponent implements OnInit, OnDestroy {
 
     this.form.valueChanges.subscribe(() => {
       this.storageService.setItem(HOME_CHART_DATA_SOURCES, JSON.stringify(this.form.getRawValue()));
-      this.infoSubscription?.unsubscribe();
+      this.isStatsLoaded = false;
       this.clearDataPoints();
       this.loadPreviousData();
     })
@@ -645,80 +647,85 @@ export class HomeComponent implements OnInit, OnDestroy {
     this.stats$ = this.systemService.getStatistics(chartY1DataLabel, chartY2DataLabel)
       .pipe(shareReplay({ refCount: true, bufferSize: 1 }));
 
-    this.stats$
+    this.statsSubscription?.unsubscribe();
+    this.statsSubscription = this.stats$
       .pipe(takeUntil(this.destroy$))
-      .subscribe(stats => {
-        let idxHashrate = -1;
-        let idxPower = -1;
-        let idxChartY1Data = -1;
-        let idxChartY2Data = -1;
-        let idxTimestamp = -1;
+      .subscribe({
+        next: stats => {
+          let idxHashrate = -1;
+          let idxPower = -1;
+          let idxChartY1Data = -1;
+          let idxChartY2Data = -1;
+          let idxTimestamp = -1;
 
-        // map label to index
-        for (let i = 0; i < stats.labels.length; i++) {
-          if (stats.labels[i] === chartLabelKey(eChartLabel.hashrate)) { idxHashrate = i; }
-          if (stats.labels[i] === chartLabelKey(eChartLabel.power))    { idxPower = i; }
-          if (stats.labels[i] === chartY1DataLabel)                    { idxChartY1Data = i; }
-          if (stats.labels[i] === chartY2DataLabel)                    { idxChartY2Data = i; }
-          if (stats.labels[i] === 'timestamp')                         { idxTimestamp = i; }
-        }
-
-        stats.statistics.forEach((element: number[]) => {
-          switch (chartLabelValue(chartY1DataLabel)) {
-            case eChartLabel.asicVoltage:
-            case eChartLabel.voltage:
-            case eChartLabel.current:
-              element[idxChartY1Data] = element[idxChartY1Data] / 1000;
-              break;
-            default:
-              break;
-          }
-          switch (chartLabelValue(chartY2DataLabel)) {
-            case eChartLabel.asicVoltage:
-            case eChartLabel.voltage:
-            case eChartLabel.current:
-              element[idxChartY2Data] = element[idxChartY2Data] / 1000;
-              break;
-            default:
-              break;
+          // map label to index
+          for (let i = 0; i < stats.labels.length; i++) {
+            if (stats.labels[i] === chartLabelKey(eChartLabel.hashrate)) { idxHashrate = i; }
+            if (stats.labels[i] === chartLabelKey(eChartLabel.power))    { idxPower = i; }
+            if (stats.labels[i] === chartY1DataLabel)                    { idxChartY1Data = i; }
+            if (stats.labels[i] === chartY2DataLabel)                    { idxChartY2Data = i; }
+            if (stats.labels[i] === 'timestamp')                         { idxTimestamp = i; }
           }
 
-          this.dataLabel.push(new Date().getTime() - stats.currentTimestamp + element[idxTimestamp]);
-          this.hashrateData.push(element[idxHashrate]);
-          this.powerData.push(element[idxPower]);
-          if (-1 != idxChartY1Data) {
-            this.chartY1Data.push(element[idxChartY1Data]);
-          } else {
-            this.chartY1Data.push(0.0);
+          stats.statistics.forEach((element: number[]) => {
+            switch (chartLabelValue(chartY1DataLabel)) {
+              case eChartLabel.asicVoltage:
+              case eChartLabel.voltage:
+              case eChartLabel.current:
+                element[idxChartY1Data] = element[idxChartY1Data] / 1000;
+                break;
+              default:
+                break;
+            }
+            switch (chartLabelValue(chartY2DataLabel)) {
+              case eChartLabel.asicVoltage:
+              case eChartLabel.voltage:
+              case eChartLabel.current:
+                element[idxChartY2Data] = element[idxChartY2Data] / 1000;
+                break;
+              default:
+                break;
+            }
+
+            this.dataLabel.push(new Date().getTime() - stats.currentTimestamp + element[idxTimestamp]);
+            this.hashrateData.push(element[idxHashrate]);
+            this.powerData.push(element[idxPower]);
+            if (-1 != idxChartY1Data) {
+              this.chartY1Data.push(element[idxChartY1Data]);
+            } else {
+              this.chartY1Data.push(0.0);
+            }
+            if (-1 != idxChartY2Data) {
+              this.chartY2Data.push(element[idxChartY2Data]);
+            } else {
+              this.chartY2Data.push(0.0);
+            }
+          });
+
+          let statsFrequency = 0;
+          if (stats.statistics.length >= 2 && idxTimestamp !== -1) {
+            const totalDurationMs = stats.statistics[stats.statistics.length - 1][idxTimestamp] - stats.statistics[0][idxTimestamp];
+            statsFrequency = Math.floor(totalDurationMs / (stats.statistics.length - 1) / 1000);
           }
-          if (-1 != idxChartY2Data) {
-            this.chartY2Data.push(element[idxChartY2Data]);
-          } else {
-            this.chartY2Data.push(0.0);
+
+          this.limitDataPoints(statsFrequency);
+          this.updateChart(undefined, true);
+          this.isStatsLoaded = true;
+
+          if (!this.liveDataStarted) {
+            this.liveDataStarted = true;
+            this.startGetLiveData();
           }
-        });
-
-        let statsFrequency = 0;
-        if (stats.statistics.length >= 2 && idxTimestamp !== -1) {
-          const totalDurationMs = stats.statistics[stats.statistics.length - 1][idxTimestamp] - stats.statistics[0][idxTimestamp];
-          statsFrequency = Math.floor(totalDurationMs / (stats.statistics.length - 1) / 1000);
-        }
-
-        this.limitDataPoints(statsFrequency);
-        this.updateAdaptiveTicks();
-        this.isStatsLoaded = true;
-        
-        if (this.chart) this.chart.refresh();
-
-        if (!this.liveDataStarted) {
-          this.liveDataStarted = true;
-          this.startGetLiveData();
+        },
+        error: () => {
+          this.updateChart(undefined, true);
         }
       });
   }
 
-  private isHashrateAxis(label: eChartLabel | undefined) {
-    return label == eChartLabel.hashrate || label == eChartLabel.hashrate_1m || label == eChartLabel.hashrate_10m || label == eChartLabel.hashrate_1h;
+  static isSameAxisUnit(label1: eChartLabel | undefined, label2: eChartLabel | undefined) {
+    if (!label1 || !label2) return false;
+    return this.getSettingsForLabel(label1).suffix == this.getSettingsForLabel(label2).suffix;
   }
 
   private startGetLiveData() {
@@ -733,15 +740,13 @@ export class HomeComponent implements OnInit, OnDestroy {
         return processed;
       }),
       tap(info => {
+        this.latestInfo = info;
         this.lastMessageTime = new Date().getTime();
         // Clear error indicators if data is flowing
         const systemInfoError = this.systemInfoError$.value;
         if (!!systemInfoError.duration) {
           this.systemInfoError$.next({ duration: 0, startTime: null });
         }
-
-        const chartY1DataLabel = chartLabelValue(this.form.get('chartY1Data')?.value);
-        const chartY2DataLabel = chartLabelValue(this.form.get('chartY2Data')?.value);
 
         this.maxPower = Math.max(info.maxPower || 0, info.power || 0);
         this.nominalVoltage = info.nominalVoltage || 5;
@@ -754,43 +759,15 @@ export class HomeComponent implements OnInit, OnDestroy {
         const now = new Date().getTime();
         if (!info.power_fault && this.isStatsLoaded && (now - this.lastChartUpdate >= 1000)) {
           this.lastChartUpdate = now;
-          const statsFrequency = info.statsFrequency || 0;
-          const currentBucket = statsFrequency > 0 ? Math.floor(info.uptimeSeconds / statsFrequency) : info.uptimeSeconds;
 
           this.dataLabel.push(now);
           this.hashrateData.push(info.hashRate || 0);
           this.powerData.push(info.power || 0);
-          this.chartY1Data.push(HomeComponent.getDataForLabel(chartY1DataLabel, info));
-          this.chartY2Data.push(HomeComponent.getDataForLabel(chartY2DataLabel, info));
+          this.chartY1Data.push(HomeComponent.getDataForLabel(chartLabelValue(this.form.get('chartY1Data')?.value), info));
+          this.chartY2Data.push(HomeComponent.getDataForLabel(chartLabelValue(this.form.get('chartY2Data')?.value), info));
 
           this.limitDataPoints(info.statsFrequency);
-          this.updateAdaptiveTicks();
-
-          this.chartData.datasets[0].label = chartY1DataLabel;
-          this.chartData.datasets[1].label = chartY2DataLabel;
-
-          this.chartData.datasets[0].hidden = (chartY1DataLabel === eChartLabel.none);
-          this.chartData.datasets[1].hidden = (chartY2DataLabel === eChartLabel.none);
-
-          // Update scales only when the historical bucket changes or on initialization
-          // This keeps the UI stable while live data is being added
-          if (currentBucket !== this.lastBucket) {
-            // Align both axis if they're hashrates.
-            if (this.isHashrateAxis(chartY1DataLabel) && this.isHashrateAxis(chartY2DataLabel)) {
-              this.chartOptions.scales.y.suggestedMin = this.chartOptions.scales.y2.suggestedMin = Math.min(...this.chartY1Data, ...this.chartY2Data);
-              this.chartOptions.scales.y.suggestedMax = this.chartOptions.scales.y2.suggestedMax = Math.max(...this.chartY1Data, ...this.chartY2Data);
-            } else {
-              this.chartOptions.scales.y.suggestedMin = undefined;
-              this.chartOptions.scales.y2.suggestedMin = undefined;
-              this.chartOptions.scales.y.suggestedMax = this.getSuggestedMaxForLabel(chartY1DataLabel, info);
-              this.chartOptions.scales.y2.suggestedMax = this.getSuggestedMaxForLabel(chartY2DataLabel, info);
-            }
-            this.lastBucket = currentBucket;
-          }
-
-          this.chartOptions.scales.y.display = (chartY1DataLabel != eChartLabel.none);
-          this.chartOptions.scales.y2.display = (chartY2DataLabel != eChartLabel.none);
-          this.chart?.refresh();
+          this.updateChart(info);
         }
 
         const isFallbackPool = !!info.isUsingFallbackStratum;
@@ -1072,11 +1049,49 @@ export class HomeComponent implements OnInit, OnDestroy {
   }
 
   public clearDataPoints() {
+    this.isStatsLoaded = false;
     this.dataLabel.length = 0;
     this.hashrateData.length = 0;
     this.powerData.length = 0;
     this.chartY1Data.length = 0;
     this.chartY2Data.length = 0;
+  }
+
+  private updateChart(info?: ISystemInfo, forceScaleUpdate: boolean = false) {
+    const chartY1DataLabel = chartLabelValue(this.form.get('chartY1Data')?.value);
+    const chartY2DataLabel = chartLabelValue(this.form.get('chartY2Data')?.value);
+
+    this.chartData.datasets[0].label = chartY1DataLabel;
+    this.chartData.datasets[1].label = chartY2DataLabel;
+
+    this.chartData.datasets[0].hidden = (chartY1DataLabel === eChartLabel.none);
+    this.chartData.datasets[1].hidden = (chartY2DataLabel === eChartLabel.none);
+
+    this.chartOptions.scales.y.display = (chartY1DataLabel !== eChartLabel.none);
+    this.chartOptions.scales.y2.display = (chartY2DataLabel !== eChartLabel.none);
+
+    // Scaling logic
+    const currentInfo = info || this.latestInfo;
+    if (currentInfo) {
+      const statsFrequency = currentInfo.statsFrequency || 0;
+      const currentBucket = statsFrequency > 0 ? Math.floor(currentInfo.uptimeSeconds / statsFrequency) : currentInfo.uptimeSeconds;
+
+      if (forceScaleUpdate || currentBucket !== this.lastBucket) {
+        if (HomeComponent.isSameAxisUnit(chartY1DataLabel, chartY2DataLabel)) {
+          this.chartOptions.scales.y.suggestedMin = this.chartOptions.scales.y2.suggestedMin = Math.min(...this.chartY1Data, ...this.chartY2Data);
+          this.chartOptions.scales.y.suggestedMax = this.chartOptions.scales.y2.suggestedMax = Math.max(...this.chartY1Data, ...this.chartY2Data);
+        } else {
+          this.chartOptions.scales.y.suggestedMin = undefined;
+          this.chartOptions.scales.y2.suggestedMin = undefined;
+          this.chartOptions.scales.y.suggestedMax = this.getSuggestedMaxForLabel(chartY1DataLabel, currentInfo);
+          this.chartOptions.scales.y2.suggestedMax = this.getSuggestedMaxForLabel(chartY2DataLabel, currentInfo);
+        }
+        this.lastBucket = currentBucket;
+      }
+    }
+
+    this.updateAdaptiveTicks();
+    this.chart?.refresh();
   }
 
   public limitDataPoints(statsFrequency: number = 0) {
