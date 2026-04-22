@@ -1,5 +1,7 @@
 #include <stdint.h>
 #include <pthread.h>
+#include <math.h>
+#include <string.h>
 #include "esp_log.h"
 #include "esp_timer.h"
 #include <esp_heap_caps.h>
@@ -9,14 +11,12 @@
 #include "global_state.h"
 #include "nvs_config.h"
 #include "connect.h"
-#include "bm1370.h"
 
 #define DEFAULT_POLL_RATE 1000
 
 static const char * TAG = "statistics_task";
 
 static StatisticsDataPtr statisticsBuffer;
-static uint16_t statisticsDataStart;
 static uint16_t statisticsDataSize;
 static pthread_mutex_t statisticsDataLock = PTHREAD_MUTEX_INITIALIZER;
 
@@ -47,7 +47,6 @@ void removeStatisticsBuffer()
             heap_caps_free(statisticsBuffer);
 
             statisticsBuffer = NULL;
-            statisticsDataStart = 0;
             statisticsDataSize = 0;
         }
 
@@ -55,7 +54,7 @@ void removeStatisticsBuffer()
     }
 }
 
-bool addStatisticData(StatisticsDataPtr data)
+bool addStatisticData(StatisticsDataPtr data, uint16_t statsFrequency)
 {
     bool result = false;
 
@@ -68,17 +67,50 @@ bool addStatisticData(StatisticsDataPtr data)
     pthread_mutex_lock(&statisticsDataLock);
 
     if (NULL != statisticsBuffer) {
-        statisticsDataSize++;
+        if (statisticsDataSize < maxDataCount) {
+            statisticsBuffer[statisticsDataSize] = *data;
+            statisticsDataSize++;
+            result = true;
+        } else {
+            // Buffer is full. Determine indexToRemove using Triangle Area thinning logic.
+            uint16_t indexToRemove = 0;
+            const uint64_t currentSpan = statisticsBuffer[maxDataCount - 1].timestamp - statisticsBuffer[0].timestamp;
+            const uint64_t targetDuration = (uint64_t)maxDataCount * (uint64_t)statsFrequency * 1000;
 
-        if (maxDataCount < statisticsDataSize) {
-            statisticsDataSize = maxDataCount;
-            statisticsDataStart++;
-            statisticsDataStart = statisticsDataStart % maxDataCount;
+            if (currentSpan < targetDuration) {
+                float minScore = INFINITY;
+                for (uint16_t i = 0; i < maxDataCount - 1; i++) {
+                    uint64_t gapRight = statisticsBuffer[i + 1].timestamp - statisticsBuffer[i].timestamp;
+                    bool hasGapLeft = (i > 0);
+                    uint64_t gapLeft = hasGapLeft ? (statisticsBuffer[i].timestamp - statisticsBuffer[i - 1].timestamp) : 0xFFFFFFFFFFFFFFFFULL;
+
+                    // Thin if current point is "close" to its neighbors relative to statsFrequency
+                    if (gapLeft <= (uint64_t)statsFrequency * 1000 || gapRight <= (uint64_t)statsFrequency * 1000) {
+                        const double t1 = (double)(hasGapLeft ? statisticsBuffer[i - 1].timestamp : (statisticsBuffer[i].timestamp - gapRight));
+                        const double t2 = (double)statisticsBuffer[i].timestamp;
+                        const double t3 = (double)statisticsBuffer[i + 1].timestamp;
+
+                        const float v1 = hasGapLeft ? statisticsBuffer[i - 1].hashrate : statisticsBuffer[i].hashrate;
+                        const float v2 = statisticsBuffer[i].hashrate;
+                        const float v3 = statisticsBuffer[i + 1].hashrate;
+
+                        // Triangle area formula: |t1(v2-v3) + t2(v3-v1) + t3(v1-v2)|
+                        const float score = (float)fabs(t1 * (v2 - v3) + t2 * (v3 - v1) + t3 * (v1 - v2));
+                        if (score < minScore) {
+                            minScore = score;
+                            indexToRemove = i;
+                        }
+                    }
+                }
+            }
+
+            // Shift and append (Standard linear array shift)
+            if (indexToRemove < maxDataCount - 1) {
+                memmove(&statisticsBuffer[indexToRemove], &statisticsBuffer[indexToRemove + 1], (maxDataCount - indexToRemove - 1) * sizeof(struct StatisticsData));
+            }
+            statisticsBuffer[maxDataCount - 1] = *data;
+            result = true;
         }
-
-        const uint16_t last = (statisticsDataStart + statisticsDataSize - 1) % maxDataCount;
-        statisticsBuffer[last] = *data;
-        result = true;
     }
 
     pthread_mutex_unlock(&statisticsDataLock);
@@ -97,7 +129,6 @@ bool getStatisticData(uint16_t index, StatisticsDataPtr dataOut)
     pthread_mutex_lock(&statisticsDataLock);
 
     if ((NULL != statisticsBuffer) && (index < statisticsDataSize)) {
-        index = (statisticsDataStart + index) % maxDataCount;
         *dataOut = statisticsBuffer[index];
         result = true;
     }
@@ -121,12 +152,10 @@ void statistics_task(void * pvParameters)
     while (1) {
         const uint64_t currentTime = esp_timer_get_time() / 1000;
         const uint16_t configStatsFrequency = nvs_config_get_u16(NVS_CONFIG_STATISTICS_FREQUENCY);
-        const uint64_t statsFrequency = (uint64_t)configStatsFrequency * 1000;
 
-        if (0 != statsFrequency) {
-            const uint64_t waitingTime = statsData.timestamp + statsFrequency - (DEFAULT_POLL_RATE / 2);
-
-            if (currentTime > waitingTime) {
+        if (0 != configStatsFrequency) {
+            // Record every second (DEFAULT_POLL_RATE is 1000ms)
+            if (currentTime >= statsData.timestamp + 1000) {
                 int8_t wifiRSSI = -90;
                 get_wifi_current_rssi(&wifiRSSI);
 
@@ -149,7 +178,7 @@ void statistics_task(void * pvParameters)
                 statsData.freeHeap = esp_get_free_heap_size();
                 statsData.responseTime = sys_module->response_time;
 
-                addStatisticData(&statsData);
+                addStatisticData(&statsData, configStatsFrequency);
             }
         } else {
             removeStatisticsBuffer();
