@@ -177,6 +177,8 @@ export class HomeComponent implements OnInit, OnDestroy {
   private lastMessageTime: number = 0;
   private isStatsLoaded: boolean = false;
   private lastStatsFrequency: number = 30;
+  private lastHiddenTime: number = 0;
+  private statsLimit: number = 720;
 
   @Input() uri = '';
 
@@ -257,14 +259,24 @@ export class HomeComponent implements OnInit, OnDestroy {
   }
 
   @HostListener('document:visibilitychange')
+  @HostListener('window:focus')
   public onVisibilityChange() {
+    if (document.visibilityState === 'hidden') {
+      if (!this.lastHiddenTime) {
+        this.lastHiddenTime = Date.now();
+      }
+      return;
+    }
+
     if (document.visibilityState === 'visible') {
       const lastPoint = this.dataLabel[this.dataLabel.length - 1];
-      const threshold = Math.max(30000, this.lastStatsFrequency * 1000 * 1.5);
+      const threshold = Math.max(15000, this.lastStatsFrequency * 1000 * 1.5);
+      const awayTime = this.lastHiddenTime ? (Date.now() - this.lastHiddenTime) : 0;
 
-      if (!lastPoint || (Date.now() - lastPoint > threshold)) {
+      if (awayTime > threshold || !lastPoint || (Date.now() - lastPoint > threshold)) {
         this.loadPreviousData();
       }
+      this.lastHiddenTime = 0;
     }
   }
 
@@ -730,6 +742,11 @@ export class HomeComponent implements OnInit, OnDestroy {
         },
         error: () => {
           this.updateChart(undefined, true);
+          this.isStatsLoaded = true;
+          if (!this.liveDataStarted) {
+            this.liveDataStarted = true;
+            this.startGetLiveData();
+          }
         }
       });
   }
@@ -764,6 +781,7 @@ export class HomeComponent implements OnInit, OnDestroy {
         this.maxTemp = Math.max(75, info.temp || 0);
         this.maxRpm = Math.max(7000, info.fanrpm || 0, info.fan2rpm || 0);
         this.maxFrequency = Math.max(800, info.actualFrequency || info.frequency || 0);
+        this.statsLimit = info.statsLimit || 720;
 
         // Only collect and update chart data if there's no power fault
         // and at most once every second, AND after stats are loaded to maintain order
@@ -1106,7 +1124,7 @@ export class HomeComponent implements OnInit, OnDestroy {
   }
 
   public limitDataPoints(statsFrequency: number = 0) {
-    const limit = 720;
+    const limit = this.statsLimit;
     if (this.dataLabel.length <= limit) return;
 
     const statsFrequencyMs = (statsFrequency || 30) * 1000;
@@ -1114,38 +1132,52 @@ export class HomeComponent implements OnInit, OnDestroy {
 
     while (this.dataLabel.length > limit) {
       const currentSpan = this.dataLabel[this.dataLabel.length - 1] - this.dataLabel[0];
-      let indexToRemove = 0;
 
-      // If the window is not full, thin based on significance (Triangle Area)
-      if (currentSpan < windowDurationMs) {
-        let minScore = Infinity;
-
-        for (let i = 0; i < this.dataLabel.length - 1; i++) {
-          const gapLeft = i > 0 ? this.dataLabel[i] - this.dataLabel[i - 1] : Infinity;
-          const gapRight = this.dataLabel[i + 1] - this.dataLabel[i];
-
-          if (gapLeft <= statsFrequencyMs || gapRight <= statsFrequencyMs) {
-            const t1 = i > 0 ? this.dataLabel[i - 1] : this.dataLabel[i] - gapRight;
-            const t2 = this.dataLabel[i];
-            const t3 = this.dataLabel[i + 1];
-            const v1 = i > 0 ? this.hashrateData[i - 1] : this.hashrateData[i];
-            const v2 = this.hashrateData[i];
-            const v3 = this.hashrateData[i + 1];
-
-            const score = Math.abs(t1 * (v2 - v3) + t2 * (v3 - v1) + t3 * (v1 - v2));
-            if (score < minScore) {
-              minScore = score;
-              indexToRemove = i;
+      if (currentSpan >= windowDurationMs) {
+        // Option A: Chart is at max capacity in time. Prune oldest to slide the window.
+        this.dataLabel.shift();
+        this.hashrateData.shift();
+        this.powerData.shift();
+        this.chartY1Data.shift();
+        this.chartY2Data.shift();
+      } else {
+        // Option B: Chart is crowded. Binary search for the densest region.
+        let low = 0;
+        let high = this.dataLabel.length - 1;
+        while (high - low > 1) {
+          const midTime = (this.dataLabel[low] + this.dataLabel[high]) / 2;
+          
+          let split = low;
+          for (let i = low; i <= high; i++) {
+            if (this.dataLabel[i] >= midTime) {
+              split = i;
+              break;
             }
           }
-        }
-      }
 
-      this.dataLabel.splice(indexToRemove, 1);
-      this.hashrateData.splice(indexToRemove, 1);
-      this.powerData.splice(indexToRemove, 1);
-      this.chartY1Data.splice(indexToRemove, 1);
-      this.chartY2Data.splice(indexToRemove, 1);
+          // Ensure we make progress even if multiple points have the same timestamp
+          if (split === low) split++;
+          if (split > high) split = high;
+
+          const leftCount = split - low;
+          const rightCount = high - split + 1;
+
+          if (leftCount > rightCount) {
+             high = split - 1;
+          } else {
+             low = split;
+          }
+        }
+        
+        // Remove point at index 'low'. 
+        // If low is 0, we at least kept the newest point. 
+        // If high was size-1, we at least kept the oldest point.
+        this.dataLabel.splice(low, 1);
+        this.hashrateData.splice(low, 1);
+        this.powerData.splice(low, 1);
+        this.chartY1Data.splice(low, 1);
+        this.chartY2Data.splice(low, 1);
+      }
     }
 
     if (this.chartData) {

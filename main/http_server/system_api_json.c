@@ -10,6 +10,7 @@
 #include "connect.h"
 #include "hashrate_monitor_task.h"
 #include "cjson_utils.h"
+#include "statistics_task.h"
 
 static const char *get_reset_reason_str(esp_reset_reason_t reason)
 {
@@ -187,6 +188,7 @@ static void system_api_add_config(cJSON *root, GlobalState *g) {
     cJSON_AddNumberToObject(root, "coreVoltage", nvs_config_get_u16(NVS_CONFIG_ASIC_VOLTAGE));
     cJSON_AddFloatToObject(root, "frequency", nvs_config_get_float(NVS_CONFIG_ASIC_FREQUENCY));
     cJSON_AddNumberToObject(root, "statsFrequency", nvs_config_get_u16(NVS_CONFIG_STATISTICS_FREQUENCY));
+    cJSON_AddNumberToObject(root, "statsLimit", MAX_STATISTICS_COUNT);
 }
 
 static void system_api_add_hashrate_monitor(cJSON *root, GlobalState *g) {

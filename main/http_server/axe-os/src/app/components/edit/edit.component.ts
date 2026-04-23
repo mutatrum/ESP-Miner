@@ -44,6 +44,7 @@ export class EditComponent implements OnInit, OnDestroy, OnChanges {
   public rotations = [0, 90, 180, 270];
   public displayTimeoutControl: FormControl;
   public statsFrequencyControl: FormControl;
+  public statsLimit: number = 720;
 
   constructor(
     private fb: FormBuilder,
@@ -141,6 +142,7 @@ export class EditComponent implements OnInit, OnDestroy, OnChanges {
       this.frequencyOptions = asic.frequencyOptions;
       this.defaultVoltage = asic.defaultVoltage;
       this.voltageOptions = asic.voltageOptions;
+      this.statsLimit = info.statsLimit || 720;
 
       // Check if overclock is enabled in NVS
       if (info.overclockEnabled === 1) {

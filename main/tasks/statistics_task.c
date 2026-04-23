@@ -20,7 +20,7 @@ static StatisticsDataPtr statisticsBuffer;
 static uint16_t statisticsDataSize;
 static pthread_mutex_t statisticsDataLock = PTHREAD_MUTEX_INITIALIZER;
 
-static const uint16_t maxDataCount = 720;
+static const uint16_t maxDataCount = MAX_STATISTICS_COUNT;
 
 void createStatisticsBuffer()
 {
@@ -74,34 +74,44 @@ bool addStatisticData(StatisticsDataPtr data, uint16_t statsFrequency)
         } else {
             // Buffer is full. Determine indexToRemove using Triangle Area thinning logic.
             uint16_t indexToRemove = 0;
-            const uint64_t currentSpan = statisticsBuffer[maxDataCount - 1].timestamp - statisticsBuffer[0].timestamp;
+            const uint64_t currentSpan = data->timestamp - statisticsBuffer[0].timestamp;
             const uint64_t targetDuration = (uint64_t)maxDataCount * (uint64_t)statsFrequency * 1000;
 
-            if (currentSpan < targetDuration) {
-                float minScore = INFINITY;
-                for (uint16_t i = 0; i < maxDataCount - 1; i++) {
-                    uint64_t gapRight = statisticsBuffer[i + 1].timestamp - statisticsBuffer[i].timestamp;
-                    bool hasGapLeft = (i > 0);
-                    uint64_t gapLeft = hasGapLeft ? (statisticsBuffer[i].timestamp - statisticsBuffer[i - 1].timestamp) : 0xFFFFFFFFFFFFFFFFULL;
+            if (currentSpan >= targetDuration) {
+                indexToRemove = 0;
+            } else {
+                uint16_t low = 0;
+                uint16_t high = maxDataCount; // Virtual index for the new point
 
-                    // Thin if current point is "close" to its neighbors relative to statsFrequency
-                    if (gapLeft <= (uint64_t)statsFrequency * 1000 || gapRight <= (uint64_t)statsFrequency * 1000) {
-                        const double t1 = (double)(hasGapLeft ? statisticsBuffer[i - 1].timestamp : (statisticsBuffer[i].timestamp - gapRight));
-                        const double t2 = (double)statisticsBuffer[i].timestamp;
-                        const double t3 = (double)statisticsBuffer[i + 1].timestamp;
+                while (high - low > 1) {
+                    uint64_t lowTime = statisticsBuffer[low].timestamp;
+                    uint64_t highTime = (high == maxDataCount) ? data->timestamp : statisticsBuffer[high].timestamp;
+                    uint64_t midTime = (lowTime + highTime) / 2;
 
-                        const float v1 = hasGapLeft ? statisticsBuffer[i - 1].hashrate : statisticsBuffer[i].hashrate;
-                        const float v2 = statisticsBuffer[i].hashrate;
-                        const float v3 = statisticsBuffer[i + 1].hashrate;
-
-                        // Triangle area formula: |t1(v2-v3) + t2(v3-v1) + t3(v1-v2)|
-                        const float score = (float)fabs(t1 * (v2 - v3) + t2 * (v3 - v1) + t3 * (v1 - v2));
-                        if (score < minScore) {
-                            minScore = score;
-                            indexToRemove = i;
+                    uint16_t split = low;
+                    for (uint16_t i = low; i <= high; i++) {
+                        uint64_t t = (i == maxDataCount) ? data->timestamp : statisticsBuffer[i].timestamp;
+                        if (t >= midTime) {
+                            split = i;
+                            break;
                         }
                     }
+
+                    // Ensure progress
+                    if (split == low) split++;
+                    if (split > high) split = high;
+
+                    uint16_t leftCount = split - low;
+                    uint16_t rightCount = high - split + 1;
+
+                    if (leftCount > rightCount) {
+                        high = (split == 0) ? 0 : split - 1;
+                    } else {
+                        low = split;
+                    }
                 }
+                indexToRemove = low;
+                if (indexToRemove >= maxDataCount) indexToRemove = maxDataCount - 1;
             }
 
             // Shift and append (Standard linear array shift)
