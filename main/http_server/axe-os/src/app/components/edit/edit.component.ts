@@ -145,7 +145,7 @@ export class EditComponent implements OnInit, OnDestroy, OnChanges {
       this.statsLimit = info.statsLimit || 720;
 
       // Check if overclock is enabled in NVS
-      if (info.overclockEnabled === 1) {
+      if (info.overclockEnabled) {
         this.settingsUnlocked = true;
         console.log(
           '🎉 Overclock mode is enabled from NVS settings!\n' +

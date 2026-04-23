@@ -84,7 +84,7 @@ static void system_api_add_telemetry(cJSON *root, GlobalState *g) {
     cJSON_AddNumberToObject(root, "uptimeSeconds", (uint32_t)((esp_timer_get_time() - g->SYSTEM_MODULE.start_time) / 1000000));
     cJSON_AddFloatToObject(root, "cpuUsage", g->SYSTEM_MODULE.cpu_usage);
     cJSON_AddBoolToObject(root, "miningPaused", g->SYSTEM_MODULE.mining_paused);
-    cJSON_AddBoolToObject(root, "overheat_mode", g->SYSTEM_MODULE.overheat_mode);
+    cJSON_AddNumberToObject(root, "overheat_mode", g->SYSTEM_MODULE.overheat_mode ? 1 : 0);
     cJSON_AddStringToObject(root, "wifiStatus", g->SYSTEM_MODULE.wifi_status);
 
     int8_t rssi = -90;
@@ -114,7 +114,7 @@ static void system_api_add_config(cJSON *root, GlobalState *g) {
     cJSON_AddNumberToObject(root, "nominalVoltage", g->DEVICE_CONFIG.family.nominal_voltage);
     cJSON_AddNumberToObject(root, "smallCoreCount", g->DEVICE_CONFIG.family.asic.small_core_count);
     cJSON_AddStringToObject(root, "ASICModel", g->DEVICE_CONFIG.family.asic.name ? g->DEVICE_CONFIG.family.asic.name : "Unknown");
-    cJSON_AddBoolToObject(root, "isPSRAMAvailable", g->psram_is_available);
+    cJSON_AddNumberToObject(root, "isPSRAMAvailable", g->psram_is_available ? 1 : 0);
     cJSON_AddStringToObject(root, "resetReason", get_reset_reason_str(esp_reset_reason()));
     
     const esp_partition_t *running = esp_ota_get_running_partition();
@@ -137,11 +137,11 @@ static void system_api_add_config(cJSON *root, GlobalState *g) {
 
     cJSON_AddStringToObject(root, "ipv4", g->SYSTEM_MODULE.ip_addr_str);
     cJSON_AddStringToObject(root, "ipv6", g->SYSTEM_MODULE.ipv6_addr_str);
-    cJSON_AddBoolToObject(root, "apEnabled", g->SYSTEM_MODULE.ap_enabled);
+    cJSON_AddNumberToObject(root, "apEnabled", g->SYSTEM_MODULE.ap_enabled ? 1 : 0);
 
     // Pool Configuration
     cJSON_AddStringToObject(root, "poolConnectionInfo", g->SYSTEM_MODULE.pool_connection_info);
-    cJSON_AddBoolToObject(root, "isUsingFallbackStratum", g->SYSTEM_MODULE.is_using_fallback);
+    cJSON_AddNumberToObject(root, "isUsingFallbackStratum", g->SYSTEM_MODULE.is_using_fallback ? 1 : 0);
     
     char *s_url = nvs_config_get_string(NVS_CONFIG_STRATUM_URL);
     cJSON_AddStringToObject(root, "stratumURL", s_url ? s_url : "");
@@ -174,14 +174,14 @@ static void system_api_add_config(cJSON *root, GlobalState *g) {
     cJSON_AddBoolToObject(root, "fallbackStratumDecodeCoinbase", nvs_config_get_bool(NVS_CONFIG_FALLBACK_STRATUM_DECODE_COINBASE_TX));
 
     // User Preferences
-    cJSON_AddBoolToObject(root, "overclockEnabled", nvs_config_get_bool(NVS_CONFIG_OVERCLOCK_ENABLED));
+    cJSON_AddNumberToObject(root, "overclockEnabled", nvs_config_get_bool(NVS_CONFIG_OVERCLOCK_ENABLED) ? 1 : 0);
     char *disp_name = nvs_config_get_string(NVS_CONFIG_DISPLAY);
     cJSON_AddStringToObject(root, "display", disp_name ? disp_name : "");
     free(disp_name);
     cJSON_AddNumberToObject(root, "rotation", nvs_config_get_u16(NVS_CONFIG_ROTATION));
-    cJSON_AddBoolToObject(root, "invertscreen", nvs_config_get_bool(NVS_CONFIG_INVERT_SCREEN));
+    cJSON_AddNumberToObject(root, "invertscreen", nvs_config_get_bool(NVS_CONFIG_INVERT_SCREEN) ? 1 : 0);
     cJSON_AddNumberToObject(root, "displayTimeout", nvs_config_get_i32(NVS_CONFIG_DISPLAY_TIMEOUT));
-    cJSON_AddBoolToObject(root, "autofanspeed", nvs_config_get_bool(NVS_CONFIG_AUTO_FAN_SPEED));
+    cJSON_AddNumberToObject(root, "autofanspeed", nvs_config_get_bool(NVS_CONFIG_AUTO_FAN_SPEED) ? 1 : 0);
     cJSON_AddNumberToObject(root, "manualFanSpeed", nvs_config_get_u16(NVS_CONFIG_MANUAL_FAN_SPEED));
     cJSON_AddNumberToObject(root, "minFanSpeed", nvs_config_get_u16(NVS_CONFIG_MIN_FAN_SPEED));
     cJSON_AddNumberToObject(root, "temptarget", nvs_config_get_u16(NVS_CONFIG_TEMP_TARGET));
