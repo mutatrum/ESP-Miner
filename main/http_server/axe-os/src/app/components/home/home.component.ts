@@ -176,6 +176,7 @@ export class HomeComponent implements OnInit, OnDestroy {
   private staleCheckInterval: any;
   private lastMessageTime: number = 0;
   private isStatsLoaded: boolean = false;
+  private lastStatsFrequency: number = 30;
 
   @Input() uri = '';
 
@@ -247,14 +248,24 @@ export class HomeComponent implements OnInit, OnDestroy {
 
     this.form.valueChanges.subscribe(() => {
       this.storageService.setItem(HOME_CHART_DATA_SOURCES, JSON.stringify(this.form.getRawValue()));
-      this.isStatsLoaded = false;
-      this.clearDataPoints();
       this.loadPreviousData();
     })
 
     this.staleCheckInterval = setInterval(() => this.checkStaleData(), 1000);
 
     this.loadPreviousData();
+  }
+
+  @HostListener('document:visibilitychange')
+  public onVisibilityChange() {
+    if (document.visibilityState === 'visible') {
+      const lastPoint = this.dataLabel[this.dataLabel.length - 1];
+      const threshold = Math.max(30000, this.lastStatsFrequency * 1000 * 1.5);
+
+      if (!lastPoint || (Date.now() - lastPoint > threshold)) {
+        this.loadPreviousData();
+      }
+    }
   }
 
   @HostListener('window:resize')
@@ -453,8 +464,6 @@ export class HomeComponent implements OnInit, OnDestroy {
       .pipe(this.loadingService.lockUIUntilComplete())
       .subscribe({
         next: () => {
-          this.isStatsLoaded = false;
-          this.clearDataPoints();
           this.loadPreviousData();
         },
         error: (err: HttpErrorResponse) => {
@@ -640,6 +649,7 @@ export class HomeComponent implements OnInit, OnDestroy {
   }
 
   private loadPreviousData() {
+    this.isStatsLoaded = false;
     const chartY1DataLabel = this.form.get('chartY1Data')?.value;
     const chartY2DataLabel = this.form.get('chartY2Data')?.value;
 
@@ -652,6 +662,7 @@ export class HomeComponent implements OnInit, OnDestroy {
       .pipe(takeUntil(this.destroy$))
       .subscribe({
         next: stats => {
+          this.clearDataPoints();
           let idxHashrate = -1;
           let idxPower = -1;
           let idxChartY1Data = -1;
@@ -702,13 +713,13 @@ export class HomeComponent implements OnInit, OnDestroy {
             }
           });
 
-          let statsFrequency = 0;
+          this.lastStatsFrequency = 0;
           if (stats.statistics.length >= 2 && idxTimestamp !== -1) {
             const totalDurationMs = stats.statistics[stats.statistics.length - 1][idxTimestamp] - stats.statistics[0][idxTimestamp];
-            statsFrequency = Math.floor(totalDurationMs / (stats.statistics.length - 1) / 1000);
+            this.lastStatsFrequency = Math.floor(totalDurationMs / (stats.statistics.length - 1) / 1000);
           }
 
-          this.limitDataPoints(statsFrequency);
+          this.limitDataPoints(this.lastStatsFrequency);
           this.updateChart(undefined, true);
           this.isStatsLoaded = true;
 
