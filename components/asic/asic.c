@@ -123,6 +123,30 @@ void ASIC_set_frequency(GlobalState * GLOBAL_STATE)
     ESP_LOGE(TAG, "Unknown ASIC id %d — cannot set frequency", GLOBAL_STATE->DEVICE_CONFIG.family.asic.id);
 }
 
+void ASIC_set_nonce_space(GlobalState * GLOBAL_STATE)
+{
+    float nonce_percent = 1.0;
+    int cores = GLOBAL_STATE->DEVICE_CONFIG.family.asic.core_count;
+    int asic_count = GLOBAL_STATE->DEVICE_CONFIG.family.asic_count;
+    float frequency = GLOBAL_STATE->POWER_MANAGEMENT_MODULE.actual_frequency;
+    
+
+    switch (GLOBAL_STATE->DEVICE_CONFIG.family.asic.id) {
+        case BM1397:
+            return;
+        case BM1366:
+            BM1366_set_nonce_space(nonce_percent, frequency, asic_count, cores);
+            return;
+        case BM1368:
+            BM1368_set_nonce_space(nonce_percent, frequency, asic_count, cores);
+            return;
+        case BM1370:
+            BM1370_set_nonce_space(nonce_percent, frequency, asic_count, cores);
+            return;
+    }
+    ESP_LOGE(TAG, "Unknown ASIC id %d — cannot set nonce space", GLOBAL_STATE->DEVICE_CONFIG.family.asic.id);
+}
+
 double ASIC_get_asic_job_frequency_ms(GlobalState * GLOBAL_STATE)
 {
     float freq = GLOBAL_STATE->POWER_MANAGEMENT_MODULE.frequency_value;
