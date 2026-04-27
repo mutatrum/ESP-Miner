@@ -224,8 +224,11 @@ uint8_t BM1368_init(void * pvParameters)
     _send_BM1368((TYPE_CMD | GROUP_ALL | CMD_WRITE), difficulty_mask, 6, BM1368_SERIALTX_DEBUG);    
 
     do_frequency_transition(GLOBAL_STATE, BM1368_send_hash_frequency);
-    ASIC_set_nonce_space(GLOBAL_STATE);
 
+    float frequency = GLOBAL_STATE->POWER_MANAGEMENT_MODULE.frequency_value;
+    int cores = GLOBAL_STATE->DEVICE_CONFIG.family.asic.core_count;
+
+    BM1368_set_nonce_space(1.0, frequency, asic_count,cores);
     BM1368_set_version_mask(STRATUM_DEFAULT_VERSION_MASK);
 
     return chip_counter;
