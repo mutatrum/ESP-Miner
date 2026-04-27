@@ -29,5 +29,6 @@ int BM1368_set_default_baud(void);
 void BM1368_send_hash_frequency(float frequency);
 task_result * BM1368_process_work(void * GLOBAL_STATE);
 void BM1368_read_registers(void);
+void BM1368_set_nonce_space(void * GLOBAL_STATE);
 
 #endif /* BM1368_H_ */
