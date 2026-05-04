@@ -1254,6 +1254,10 @@ export class HomeComponent implements OnInit, OnDestroy {
 
   static getSettingsForLabel(label: eChartLabel): {suffix: string; precision: number} {
     switch (label) {
+      case eChartLabel.hashrate:
+      case eChartLabel.hashrate_1m:
+      case eChartLabel.hashrate_10m:
+      case eChartLabel.hashrate_1h:      return {suffix: ' H/s', precision: 0};
       case eChartLabel.errorPercentage:  return {suffix: ' %', precision: 2};
       case eChartLabel.asicTemp:
       case eChartLabel.asicTemp2:
@@ -1266,6 +1270,7 @@ export class HomeComponent implements OnInit, OnDestroy {
       case eChartLabel.fanRpm:
       case eChartLabel.fan2Rpm:          return {suffix: ' rpm', precision: 0};
       case eChartLabel.wifiRssi:         return {suffix: ' dBm', precision: 0};
+      case eChartLabel.freeHeap:         return {suffix: ' B', precision: 0};
       case eChartLabel.responseTime:     return {suffix: ' ms', precision: 1};
       default:                           return {suffix: '', precision: 0};
     }
