@@ -93,12 +93,12 @@
                             <div class="col-12 md:col-10">
                                 <div class="flex flex-wrap gap-3">
                                     <div *ngFor="let option of tlsOptions; trackBy: trackByFn" class="field-radiobutton mb-0">
-                                        <p-radioButton
+                                        <p-radiobutton
                                             [name]="pool + 'TLS'"
                                             [value]="option.value"
                                             [formControlName]="pool + 'TLS'"
                                             [inputId]="pool + 'TLS_' + option.value">
-                                        </p-radioButton>
+                                        </p-radiobutton>
                                         <label [for]="pool + 'TLS_' + option.value" class="ml-2 cursor-pointer">
                                             {{ option.label }}
                                         </label>

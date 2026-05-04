@@ -17,13 +17,14 @@ describe('LogsComponent', () => {
 
   beforeEach(async () => {
     await TestBed.configureTestingModule({
-      declarations: [LogsComponent, ANSIPipe],
+      declarations: [LogsComponent],
       imports: [
         CommonModule,
         ButtonModule,
         ReactiveFormsModule,
         TooltipModule,
-        InputTextModule
+        InputTextModule,
+        ANSIPipe
       ],
       providers: [
         provideRouter([]),

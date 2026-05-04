@@ -237,9 +237,9 @@
                         <h6 class="flex justify-content-between mb-1">
                             Power<span>{{info.power}} W</span>
                         </h6>
-                        <p-progressBar [value]="(info.power / info.maxPower) * 100" [styleClass]="'p-progressbar--thin'">
+                        <p-progressbar [value]="(info.power / info.maxPower) * 100" [styleClass]="'p-progressbar--thin'">
                             <ng-template pTemplate="content" let-value></ng-template>
-                        </p-progressBar>
+                        </p-progressbar>
                     </div>
 
                     <div class="mb-3">
@@ -247,10 +247,10 @@
                             Input Voltage<span>{{info.voltage}} V</span>
                         </h6>
                         <div class="relative">
-                            <p-progressBar [value]="(info.voltage / (info.nominalVoltage + .5)) * 100"
+                            <p-progressbar [value]="(info.voltage / (info.nominalVoltage + .5)) * 100"
                                 [styleClass]="'p-progressbar--thin'">
                                 <ng-template pTemplate="content" let-value></ng-template>
-                            </p-progressBar>
+                            </p-progressbar>
 
                             <!-- Conditional marker based on nominal voltage-->
                             <div class="absolute bg-white h-full top-0"
@@ -271,18 +271,18 @@
                     <h6 class="flex justify-content-between mb-1">
                         ASIC Frequency<span>{{info.actualFrequency | number: '1.0-4'}} MHz</span>
                     </h6>
-                    <p-progressBar [value]="(info.actualFrequency / maxFrequency) * 100" [styleClass]="'p-progressbar--thin'">
+                    <p-progressbar [value]="(info.actualFrequency / maxFrequency) * 100" [styleClass]="'p-progressbar--thin'">
                         <ng-template pTemplate="content" let-value></ng-template>
-                    </p-progressBar>
+                    </p-progressbar>
                 </div>
 
                     <div>
                         <h6 class="flex justify-content-between mb-1">
                             Measured ASIC Voltage<span>{{info.coreVoltageActual}} V</span>
                         </h6>
-                        <p-progressBar [value]="(info.coreVoltageActual / 1.8) * 100" [styleClass]="'p-progressbar--thin'">
+                        <p-progressbar [value]="(info.coreVoltageActual / 1.8) * 100" [styleClass]="'p-progressbar--thin'">
                             <ng-template pTemplate="content" let-value></ng-template>
-                        </p-progressBar>
+                        </p-progressbar>
                     </div>
                 </div>
             </div>
@@ -308,9 +308,9 @@
                                 </ng-container>
                             </span>
                         </h6>
-                        <p-progressBar [value]="(info.temp / maxTemp) * 100" [styleClass]="'p-progressbar--thin'">
+                        <p-progressbar [value]="(info.temp / maxTemp) * 100" [styleClass]="'p-progressbar--thin'">
                             <ng-template pTemplate="content" let-value></ng-template>
-                        </p-progressBar>
+                        </p-progressbar>
 
                         <strong class="text-red-500" *ngIf="info.temp >= 70">
                             Danger: High Temperature
@@ -324,9 +324,9 @@
                                 {{info.temp2}} &deg;C
                             </span>
                         </h6>
-                        <p-progressBar [value]="(info.temp2 / maxTemp) * 100" [styleClass]="'p-progressbar--thin'">
+                        <p-progressbar [value]="(info.temp2 / maxTemp) * 100" [styleClass]="'p-progressbar--thin'">
                             <ng-template pTemplate="content" let-value></ng-template>
-                        </p-progressBar>
+                        </p-progressbar>
 
                         <strong class="text-red-500" *ngIf="info.temp2 >= 70">
                             Danger: High Temperature
@@ -337,9 +337,9 @@
                         <h6 class="flex justify-content-between mb-1">
                             Voltage Regulator Temperature<span>{{info.vrTemp}} &deg;C</span>
                         </h6>
-                        <p-progressBar [value]="(info.vrTemp / 120) * 100" [styleClass]="'p-progressbar--thin'">
+                        <p-progressbar [value]="(info.vrTemp / 120) * 100" [styleClass]="'p-progressbar--thin'">
                             <ng-template pTemplate="content" let-value></ng-template>
-                        </p-progressBar>
+                        </p-progressbar>
 
                         <strong class="text-red-500" *ngIf="info.vrTemp >= 105">
                             Danger: High Temperature
@@ -368,9 +368,9 @@
 
                             <span>{{info.fanspeed.toFixed(1)}} %</span>
                         </h6>
-                        <p-progressBar [value]="info.fanspeed" [styleClass]="'p-progressbar--thin'">
+                        <p-progressbar [value]="info.fanspeed" [styleClass]="'p-progressbar--thin'">
                             <ng-template pTemplate="content" let-value></ng-template>
-                        </p-progressBar>
+                        </p-progressbar>
                     </div>
                 </div>
             </div>
