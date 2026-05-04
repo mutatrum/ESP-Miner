@@ -11,7 +11,7 @@
 
 static const char *TAG = "websocket_log";
 
-#define WS_LOG_CHUNK_SIZE 1024
+#define WS_LOG_CHUNK_SIZE 4096
 
 void websocket_log_task(void *pvParameters)
 {
