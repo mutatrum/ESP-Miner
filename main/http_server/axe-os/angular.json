@@ -18,7 +18,8 @@
           "builder": "@angular-devkit/build-angular:application",
           "options": {
             "allowedCommonJsDependencies": [
-              "moment"
+              "moment",
+              "gridstack"
             ],
             "outputPath": {
               "base": "dist/axe-os",
@@ -37,7 +38,8 @@
             ],
             "styles": [
               "src/styles.scss",
-              "node_modules/ngx-toastr/toastr.css"
+              "node_modules/ngx-toastr/toastr.css",
+              "node_modules/gridstack/dist/gridstack.min.css"
             ],
             "scripts": [],
             "browser": "src/main.ts",
@@ -104,6 +106,7 @@
               "zone.js/testing"
             ],
             "tsConfig": "tsconfig.spec.json",
+            "karmaConfig": "karma.conf.js",
             "inlineStyleLanguage": "scss",
             "assets": [
               "src/favicon.ico",

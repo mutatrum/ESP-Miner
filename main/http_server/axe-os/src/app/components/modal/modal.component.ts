@@ -10,6 +10,7 @@ export class ModalComponent {
   public isVisible = false;
 
   @Input() headline: string = '';
+  @Input() closable: boolean = true;
 
   constructor() {}
 }

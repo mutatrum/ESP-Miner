@@ -1,4 +1,5 @@
 import { Component } from '@angular/core';
+import { LayoutService } from './layout/service/app.layout.service';
 
 @Component({
     selector: 'app-root',
@@ -7,12 +8,5 @@ import { Component } from '@angular/core';
     standalone: false
 })
 export class AppComponent {
-  constructor(
-
-  ) {
-
-
-  }
-
-
+  constructor(public layoutService: LayoutService) { }
 }
