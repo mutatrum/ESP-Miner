@@ -849,7 +849,7 @@ export class HomeComponent implements OnInit, OnDestroy {
         this.setTitle(info, systemInfoError);
       });
 
-    this.info$.pipe(first()).subscribe(() => {
+    this.info$.pipe(first(), takeUntil(this.destroy$)).subscribe(() => {
       this.loadingService.loading$.next(false);
     });
 
