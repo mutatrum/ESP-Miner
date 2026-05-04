@@ -6,9 +6,7 @@
     font-style: normal;
 }
 
-* {
-    font-family: 'Nippo-Regular';
-}
+
 
 @import "app/layout/styles/layout/layout.scss";
 
@@ -88,6 +86,10 @@
 
 /* You can add global styles to this file, and also import other style files */
 @layer axe-os {
+
+    * {
+        font-family: 'Nippo-Regular';
+    }
 
     /* Compatibility aliases for PrimeNG 19 renames */
     .p-select { @extend .p-dropdown !optional; }
