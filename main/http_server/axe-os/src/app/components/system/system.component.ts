@@ -54,13 +54,9 @@ export class SystemComponent implements OnInit, OnDestroy {
   }
 
   ngOnInit() {
-    this.loadingService.loading$.next(true);
-
     this.combinedData$
-      .pipe(first(), takeUntil(this.destroy$))
-      .subscribe({
-        next: () => this.loadingService.loading$.next(false)
-      });
+      .pipe(first(), this.loadingService.lockUIUntilComplete(), takeUntil(this.destroy$))
+      .subscribe();
   }
 
   ngOnDestroy() {
