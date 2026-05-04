@@ -17,24 +17,77 @@
 @import "../node_modules/primeflex/primeflex.min.css";
 
 
+:root {
+    /* Layout shell variables */
+    --topbar-height: 5.5rem;
+    --sidebar-width: 12rem;
+
+    /* PrimeNG component sizing overrides */
+    --p-button-padding-y: 0.5rem;
+    --p-button-padding-x: 1rem;
+    --p-select-padding-y: 0.2rem;
+    --p-select-padding-x: 0.5rem;
+    --p-inputtext-padding-y: 0.2rem;
+    --p-inputtext-padding-x: 0.5rem;
+    --p-checkbox-width: 18px;
+    --p-checkbox-height: 18px;
+    --p-slider-track-size: 4px;
+    --p-slider-handle-width: 10px;
+    --p-slider-handle-height: 10px;
+    --p-progressbar-background: rgba(255, 255, 255, 0.2);
+    --p-progressbar-value-background: var(--primary-color);
+
+    /* Alias legacy layout variable names → Aura design tokens */
+    --primary-color: var(--p-primary-color);
+    --primary-color-text: var(--p-primary-contrast-color);
+    --primary-400: var(--p-primary-400);
+    --text-color: var(--p-text-color);
+    --text-color-secondary: var(--p-text-muted-color);
+    --font-family: var(--p-font-family);
+    --border-radius: var(--p-border-radius);
+    --surface-ground: var(--p-surface-0);
+    --surface-card: var(--p-surface-50);
+    --surface-overlay: var(--p-surface-0);
+    --surface-border: var(--p-surface-200);
+    --surface-hover: var(--p-surface-100);
+    --surface-900: #ffffff;
+    --surface-d: var(--p-surface-200);
+    --maskbg: var(--p-mask-background);
+    --focus-ring: var(--p-focus-ring-shadow);
+    --transition-duration: 0.2s;
+    --card-shadow: 0 2px 1px -1px rgba(0, 0, 0, 0.2),
+                   0 1px 1px 0 rgba(0, 0, 0, 0.14),
+                   0 1px 3px 0 rgba(0, 0, 0, 0.12);
+
+    /* PrimeNG message component overrides (restore Vela-era colours) */
+    --p-message-warn-background: #ffecb3;
+    --p-message-warn-color: #614a00;
+    --p-message-warn-border-color: #ffe082;
+    --p-message-error-background: #ffcdd2;
+    --p-message-error-color: #73000c;
+    --p-message-error-border-color: #ef9a9a;
+    --p-message-info-background: #b3e5fc;
+    --p-message-info-color: #003352;
+    --p-message-info-border-color: #81d4fa;
+    --p-message-success-background: #c8e6c9;
+    --p-message-success-color: #1b3e1f;
+    --p-message-success-border-color: #a5d6a7;
+
+    /* PrimeFlex color variable aliases */
+    --green-500: var(--p-green-500);
+    --red-500: var(--p-red-500);
+    --yellow-500: var(--p-yellow-500);
+    --blue-500: var(--p-blue-500);
+    --orange-500: var(--p-orange-500);
+    --cyan-500: var(--p-cyan-500);
+    --pink-500: var(--p-pink-500);
+    --indigo-500: var(--p-indigo-500);
+    --teal-500: var(--p-teal-500);
+}
+
+
 /* You can add global styles to this file, and also import other style files */
 @layer axe-os {
-    :root {
-        --topbar-height: 5rem;
-        --p-button-padding-y: 0.65rem;
-        --p-button-padding-x: 1.25rem;
-        --p-select-padding-y: 0.6rem;
-        --p-select-padding-x: 0.85rem;
-        --p-inputtext-padding-y: 0.6rem;
-        --p-inputtext-padding-x: 0.85rem;
-        --p-checkbox-width: 22px;
-        --p-checkbox-height: 22px;
-        --p-slider-track-size: 6px;
-        --p-slider-handle-width: 14px;
-        --p-slider-handle-height: 14px;
-        --p-progressbar-background: rgba(255, 255, 255, 0.1);
-        --p-progressbar-value-background: var(--primary-color);
-    }
 
     /* Compatibility aliases for PrimeNG 19 renames */
     .p-select { @extend .p-dropdown !optional; }
@@ -197,6 +250,8 @@
         box-shadow: none !important;
         outline: none !important;
         padding: var(--p-select-padding-y) var(--p-select-padding-x);
+        color: var(--text-color) !important;
+        border: 1px solid var(--surface-border) !important;
 
         &:hover,
         &:focus,
