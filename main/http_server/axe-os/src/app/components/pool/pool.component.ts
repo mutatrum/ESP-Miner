@@ -47,10 +47,7 @@ export class PoolComponent implements OnInit {
 
   ngOnInit(): void {
     this.liveDataService.info$
-      .pipe(
-        first(),
-        this.loadingService.lockUIUntilComplete()
-      )
+      .pipe(first(), this.loadingService.lockUIUntilComplete())
       .subscribe(info => {
         this.form = this.fb.group({
           stratumURL: [info.stratumURL, [
