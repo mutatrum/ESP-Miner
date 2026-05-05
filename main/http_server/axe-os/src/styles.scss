@@ -1,4 +1,4 @@
-@layer primeng, axe-os;
+@layer layout, primeng, axe-os;
 
 @font-face {
     font-family: 'Nippo-Regular';
@@ -8,66 +8,72 @@
     font-style: normal;
 }
 
-@import "app/layout/styles/layout/layout.scss";
+@import "app/layout/styles/layout/layout.scss" layer(layout);
+@import "app/layout/styles/modules/primeicons.css" layer(layout);
+@import "../node_modules/primeflex/primeflex.min.css" layer(layout);
 
-@import "app/layout/styles/modules/primeicons.css";
-
-@import "../node_modules/primeflex/primeflex.min.css";
-
-/* PrimeNG component token overrides (must be unlayered to override PrimeNG defaults) */
 /* PrimeNG component token overrides (must be unlayered to override PrimeNG defaults) */
 :root {
-    /* Layout shell variables */
+    /* Branding Source Variables (Reactive via JS) */
+    --primary-color: #F80421;
+    --primary-color-text: #ffffff;
+    --button-bg: #F80421;
+    --button-hover-bg: #e63c2e;
+    --checkbox-bg: #F80421;
+    --checkbox-border: #F80421;
+    --checkbox-hover-bg: #e63c2e;
+    --slider-range-bg: #F80421;
+    --slider-handle-bg: #F80421;
+    --togglebutton-bg: #F80421;
+    --togglebutton-hover-bg: #e63c2e;
+    
+    --surface-ground: #070D17;
+    --surface-card: #0B1219;
+    --surface-border: #304562;
+    --text-color: rgba(255, 255, 255, 0.87);
+    --text-color-secondary: rgba(255, 255, 255, 0.6);
+    --maskbg: rgba(0, 0, 0, 0.4);
+
+    /* Layout & Sizing */
+    font-size: 14px;
     --topbar-height: 5.5rem;
     --sidebar-width: 12rem;
     --transition-duration: 0.2s;
     --card-shadow: 0 2px 1px -1px rgba(0, 0, 0, 0.2), 0 1px 1px 0 rgba(0, 0, 0, 0.14), 0 1px 3px 0 rgba(0, 0, 0, 0.12);
 
-    --p-content-background: #070D17;
-    --p-content-border-color: #1a2632;
-    --p-card-background: #0b1219;
-
-    /* PrimeNG component sizing overrides */
-    --p-button-padding-y: 0.5rem;
-    --p-button-padding-x: 1rem;
-    --p-select-padding-y: 0.5rem;
-    --p-select-padding-x: 0.75rem;
-    --p-select-border-radius: 2px;
-    --p-inputtext-padding-y: 0.5rem;
-    --p-inputtext-padding-x: 0.75rem;
-    --p-checkbox-width: 18px;
-    --p-checkbox-height: 18px;
-    --p-slider-track-size: 4px;
-    --p-slider-handle-width: 16px;
-    --p-slider-handle-height: 16px;
-
-    /* Semantic Bridge: Map Aura tokens to our dynamic theme variables */
-    /* This allows ThemeConfigComponent to drive Aura components automatically */
+    /* Aura Token Overrides (Point to reactive variables) */
     --p-primary-color: var(--primary-color);
     --p-primary-500: var(--primary-color);
     --p-primary-hover-color: var(--button-hover-bg);
     --p-primary-contrast-color: var(--primary-color-text);
     
-    --p-inputtext-background: transparent;
-    --p-inputtext-border-color: var(--surface-border);
-    --p-inputtext-hover-border-color: var(--p-primary-color);
-    --p-inputtext-focus-border-color: var(--p-primary-color);
-    --p-inputtext-color: var(--text-color);
+    --p-content-background: var(--surface-ground);
+    --p-card-background: var(--surface-card);
+    --p-content-border-color: var(--surface-border);
+    --p-text-color: var(--text-color);
+    --p-text-muted-color: var(--text-color-secondary);
+
+    --p-select-hover-border-color: var(--primary-color);
+    --p-dropdown-hover-border-color: var(--primary-color);
+
+    /* Dropdown/Select Option (List Items) */
+    --p-select-option-focus-background: rgba(255, 255, 255, 0.05);
+    --p-select-option-selected-background: var(--primary-color);
+    --p-select-option-selected-focus-background: var(--primary-color);
+    --p-select-option-focus-color: #ffffff;
+    --p-select-option-selected-color: #ffffff;
     
-    --p-select-background: transparent;
-    --p-select-border-color: var(--surface-border);
-    --p-select-hover-border-color: var(--p-primary-color);
-    --p-select-focus-border-color: var(--p-primary-color);
-    --p-select-color: var(--text-color);
-    
+    --p-select-list-background: var(--p-card-background);
+    --p-select-list-border-color: var(--surface-border);
+
     --p-checkbox-background: transparent;
-    --p-checkbox-border-color: var(--surface-border);
+    --p-checkbox-border-color: var(--p-content-border-color);
     --p-checkbox-hover-border-color: var(--checkbox-hover-bg);
     --p-checkbox-highlight-background: var(--checkbox-bg);
     --p-checkbox-highlight-border-color: var(--checkbox-border);
     
     --p-radiobutton-background: transparent;
-    --p-radiobutton-border-color: var(--surface-border);
+    --p-radiobutton-border-color: var(--p-content-border-color);
     --p-radiobutton-hover-border-color: var(--checkbox-hover-bg);
     --p-radiobutton-highlight-background: var(--checkbox-bg);
     --p-radiobutton-highlight-border-color: var(--checkbox-border);
@@ -85,9 +91,25 @@
     --p-slider-handle-background: var(--slider-handle-bg);
     --p-slider-handle-content-background: var(--slider-handle-bg);
     --p-slider-handle-border-color: var(--slider-handle-bg);
+    --p-slider-handle-hover-background: var(--slider-handle-bg);
+    --p-slider-handle-hover-border-color: var(--slider-handle-bg);
 
-    --p-progressbar-background: var(--progressbar-bg, rgba(128, 128, 128, 0.2));
+    --p-progressbar-background: var(--progressbar-bg, #dee2e6);
     --p-progressbar-value-background: var(--progressbar-value-bg, var(--primary-color));
+
+    /* Component sizing */
+    --p-button-padding-y: 0.5rem;
+    --p-button-padding-x: 1rem;
+    --p-select-padding-y: 0.5rem;
+    --p-select-padding-x: 0.75rem;
+    --p-select-border-radius: 2px;
+    --p-inputtext-padding-y: 0.5rem;
+    --p-inputtext-padding-x: 0.75rem;
+    --p-checkbox-width: 18px;
+    --p-checkbox-height: 18px;
+    --p-slider-track-size: 4px;
+    --p-slider-handle-width: 16px;
+    --p-slider-handle-height: 16px;
 
     /* PrimeNG message component overrides (restore Vela-era colours) */
     --p-message-warn-background: #ffecb3;
@@ -97,19 +119,15 @@
     --p-message-error-color: #73000c;
     --p-message-error-border-color: #ef9a9a;
     --p-message-info-background: #b3e5fc;
-    --p-message-info-color: #003352;
+    --p-message-info-color: #01579b;
     --p-message-info-border-color: #81d4fa;
     --p-message-success-background: #c8e6c9;
-    --p-message-success-color: #1b3e1f;
+    --p-message-success-color: #256029;
     --p-message-success-border-color: #a5d6a7;
 }
 
-/* You can add global styles to this file, and also import other style files */
 @layer axe-os {
-
     :root {
-        /* Bridge semantic variables to Aura design tokens */
-        /* This handles the internal mappings for components and layouts */
         --primary-color: var(--p-primary-color);
         --primary-color-text: var(--p-primary-contrast-color);
         
@@ -119,13 +137,16 @@
         --border-radius: var(--p-border-radius);
 
         /* Semantic surface aliases for PrimeFlex layout classes */
-        --surface-ground: var(--p-content-background);
-        --surface-section: var(--p-content-background);
-        --surface-card: var(--p-card-background);
-        --surface-overlay: var(--p-content-background);
-        --surface-border: var(--p-content-border-color);
-        --surface-hover: var(--p-content-hover-background);
-        --surface-d: var(--p-content-hover-background);
+        /* These point to the Aura tokens which in turn point to the JS source variables */
+        --surface-a: var(--p-card-background);
+        --surface-b: var(--p-content-background);
+        --surface-c: rgba(255, 255, 255, 0.03);
+        --surface-d: var(--p-content-border-color);
+        --surface-e: var(--p-card-background);
+        --surface-f: var(--p-card-background);
+        
+        --surface-overlay: var(--p-card-background);
+        --surface-hover: rgba(255, 255, 255, 0.03);
         
         --maskbg: var(--p-mask-background);
         --focus-ring: var(--p-focus-ring-shadow);
@@ -155,12 +176,6 @@
         min-height: 40vh;
     }
 
-    .card {
-        &.chart {
-            padding: 10px;
-        }
-    }
-
     .p-inputtext {
         width: 100%;
         transition: none;
@@ -175,25 +190,65 @@
         }
     }
 
-    /* Dropdown/Select Theme */
-    .p-dropdown, .p-select {
+    /* Dropdown & Select - Base Reset */
+    .p-dropdown, .p-select,
+    .p-select-panel, .p-dropdown-panel, .p-select-overlay {
         transition: none;
         box-shadow: none;
         outline: none;
 
-        .p-dropdown-panel, .p-select-panel {
-            .p-dropdown-items, .p-select-items {
-                padding: 0;
-            }
+        .p-dropdown-label, .p-select-label {
+            overflow: visible !important;
         }
+    }
 
-        &--small {
-            .p-dropdown-label, .p-select-label,
-            .p-dropdown-item, .p-select-item {
-                font-size: small;
+    /* Small Variant Modifier */
+    .p-dropdown--small {
+        font-size: small !important;
+
+        .p-dropdown-label, .p-select-label,
+        .p-dropdown-input, .p-select-input,
+        .p-dropdown-item, .p-select-option {
+            font-size: small !important;
+            padding: 0.25rem 0.5rem !important;
+        }
+    }
+
+    /* Panel & Overlay Logic */
+    .p-select-panel, .p-dropdown-panel, .p-select-overlay {
+        background-color: var(--p-card-background) !important;
+        border: 1px solid var(--surface-border) !important;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.5) !important;
+        width: max-content !important;
+        min-width: 100%;
+        z-index: 20000 !important;
+
+        .p-select-list, .p-dropdown-items {
+            padding: 0.25rem 0;
+            background: var(--p-card-background);
+        }
+            
+        .p-select-option, .p-dropdown-item {
+            padding: 0.5rem 1rem;
+            color: var(--text-color);
+            transition: background-color 0.1s;
+            border: 0 none;
+            margin: 0;
+            border-radius: 0;
+            white-space: nowrap !important;
+
+            &:hover, &.p-focus, &.p-select-option-focused {
+                background-color: color-mix(in srgb, var(--primary-color), black 40%) !important;
+                color: #ffffff !important;
             }
-            .p-dropdown-label, .p-select-label {
-                padding: 0.3rem 0 0.3rem 0.7rem;
+
+            &.p-highlight, &.p-select-option-selected {
+                background-color: var(--primary-color) !important;
+                color: #ffffff !important;
+            }
+
+            &.p-highlight:hover {
+                background-color: color-mix(in srgb, var(--primary-color), black 50%) !important;
             }
         }
     }
@@ -209,7 +264,7 @@
     }
 
     .p-dialog {
-        @extend .card;
+        @extend .card !optional;
         margin: 1rem;
 
         &-header,
@@ -232,7 +287,7 @@
         }
 
         &-title {
-            @extend h2;
+            @extend h2 !optional;
             margin: 0;
         }
     }
