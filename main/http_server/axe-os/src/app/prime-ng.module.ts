@@ -10,7 +10,7 @@ import { InputGroupAddonModule } from 'primeng/inputgroupaddon';
 import { InputTextModule } from 'primeng/inputtext';
 import { SidebarModule } from 'primeng/sidebar';
 import { SliderModule } from 'primeng/slider';
-import { InputTextarea } from 'primeng/inputtextarea';
+import { TextareaModule } from 'primeng/textarea';
 import { OverlayPanelModule } from 'primeng/overlaypanel';
 import { ProgressBarModule } from 'primeng/progressbar';
 import { IconFieldModule } from 'primeng/iconfield';
@@ -28,7 +28,7 @@ const primeNgModules = [
     InputGroupModule,
     InputGroupAddonModule,
     RadioButtonModule,
-    InputTextarea,
+    TextareaModule,
     OverlayPanelModule,
     ProgressBarModule,
     IconFieldModule,
