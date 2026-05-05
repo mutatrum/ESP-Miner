@@ -44,6 +44,7 @@
             "scripts": [],
             "browser": "src/main.ts",
             "stylePreprocessorOptions": {
+              "includePaths": ["src"],
               "sass": {
                 "silenceDeprecations": ["import", "global-builtin"]
               }
@@ -115,7 +116,13 @@
             "styles": [
               "src/styles.scss"
             ],
-            "scripts": []
+            "scripts": [],
+            "stylePreprocessorOptions": {
+              "includePaths": [
+                "src",
+                "src/app/layout/styles/layout"
+              ]
+            }
           }
         }
       }
