@@ -23,13 +23,18 @@
     --transition-duration: 0.2s;
     --card-shadow: 0 2px 1px -1px rgba(0, 0, 0, 0.2), 0 1px 1px 0 rgba(0, 0, 0, 0.14), 0 1px 3px 0 rgba(0, 0, 0, 0.12);
 
+    --p-content-background: #070D17;
+    --p-content-border-color: #1a2632;
+    --p-card-background: #0b1219;
+
     /* PrimeNG component sizing overrides */
     --p-button-padding-y: 0.5rem;
     --p-button-padding-x: 1rem;
-    --p-select-padding-y: 0.2rem;
-    --p-select-padding-x: 0.5rem;
-    --p-inputtext-padding-y: 0.2rem;
-    --p-inputtext-padding-x: 0.5rem;
+    --p-select-padding-y: 0.5rem;
+    --p-select-padding-x: 0.75rem;
+    --p-select-border-radius: 2px;
+    --p-inputtext-padding-y: 0.5rem;
+    --p-inputtext-padding-x: 0.75rem;
     --p-checkbox-width: 18px;
     --p-checkbox-height: 18px;
     --p-slider-track-size: 4px;
@@ -40,18 +45,19 @@
     /* This allows ThemeConfigComponent to drive Aura components automatically */
     --p-primary-color: var(--primary-color);
     --p-primary-500: var(--primary-color);
+    --p-primary-hover-color: var(--button-hover-bg);
     --p-primary-contrast-color: var(--primary-color-text);
     
     --p-inputtext-background: transparent;
     --p-inputtext-border-color: var(--surface-border);
-    --p-inputtext-hover-border-color: var(--togglebutton-hover-bg);
-    --p-inputtext-focus-border-color: var(--togglebutton-hover-bg);
+    --p-inputtext-hover-border-color: var(--p-primary-color);
+    --p-inputtext-focus-border-color: var(--p-primary-color);
     --p-inputtext-color: var(--text-color);
     
     --p-select-background: transparent;
     --p-select-border-color: var(--surface-border);
-    --p-select-hover-border-color: var(--togglebutton-hover-bg);
-    --p-select-focus-border-color: var(--togglebutton-hover-bg);
+    --p-select-hover-border-color: var(--p-primary-color);
+    --p-select-focus-border-color: var(--p-primary-color);
     --p-select-color: var(--text-color);
     
     --p-checkbox-background: transparent;
@@ -98,8 +104,6 @@
     --p-message-success-border-color: #a5d6a7;
 }
 
-
-
 /* You can add global styles to this file, and also import other style files */
 @layer axe-os {
 
@@ -108,7 +112,6 @@
         /* This handles the internal mappings for components and layouts */
         --primary-color: var(--p-primary-color);
         --primary-color-text: var(--p-primary-contrast-color);
-        --primary-400: var(--p-primary-400);
         
         --text-color: var(--p-text-color);
         --text-color-secondary: var(--p-text-muted-color);
@@ -118,7 +121,7 @@
         /* Semantic surface aliases for PrimeFlex layout classes */
         --surface-ground: var(--p-content-background);
         --surface-section: var(--p-content-background);
-        --surface-card: var(--p-content-background);
+        --surface-card: var(--p-card-background);
         --surface-overlay: var(--p-content-background);
         --surface-border: var(--p-content-border-color);
         --surface-hover: var(--p-content-hover-background);
@@ -174,7 +177,6 @@
 
     /* Dropdown/Select Theme */
     .p-dropdown, .p-select {
-        width: 100%;
         transition: none;
         box-shadow: none;
         outline: none;
@@ -193,6 +195,12 @@
             .p-dropdown-label, .p-select-label {
                 padding: 0.3rem 0 0.3rem 0.7rem;
             }
+        }
+    }
+
+    .p-fluid {
+        .p-dropdown, .p-select {
+            width: 100%;
         }
     }
 
