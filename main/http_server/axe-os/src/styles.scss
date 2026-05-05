@@ -15,6 +15,36 @@
 @import "../node_modules/primeflex/primeflex.min.css";
 
 
+/* PrimeNG component token overrides (must be unlayered to override PrimeNG defaults) */
+:root {
+    /* PrimeNG component sizing overrides */
+    --p-button-padding-y: 0.5rem;
+    --p-button-padding-x: 1rem;
+    --p-select-padding-y: 0.2rem;
+    --p-select-padding-x: 0.5rem;
+    --p-inputtext-padding-y: 0.2rem;
+    --p-inputtext-padding-x: 0.5rem;
+    --p-checkbox-width: 18px;
+    --p-checkbox-height: 18px;
+    --p-slider-track-size: 4px;
+    --p-slider-handle-width: 10px;
+    --p-slider-handle-height: 10px;
+
+    /* PrimeNG message component overrides (restore Vela-era colours) */
+    --p-message-warn-background: #ffecb3;
+    --p-message-warn-color: #614a00;
+    --p-message-warn-border-color: #ffe082;
+    --p-message-error-background: #ffcdd2;
+    --p-message-error-color: #73000c;
+    --p-message-error-border-color: #ef9a9a;
+    --p-message-info-background: #b3e5fc;
+    --p-message-info-color: #003352;
+    --p-message-info-border-color: #81d4fa;
+    --p-message-success-background: #c8e6c9;
+    --p-message-success-color: #1b3e1f;
+    --p-message-success-border-color: #a5d6a7;
+}
+
 /* You can add global styles to this file, and also import other style files */
 @layer axe-os {
 
@@ -42,8 +72,7 @@
         --maskbg: var(--p-mask-background);
         --focus-ring: var(--p-focus-ring-shadow);
 
-        /* Explicit Progress Bar override */
-        --p-progressbar-background: rgba(128, 128, 128, 0.2);
+
     }
 
     :root {
@@ -51,37 +80,10 @@
         --topbar-height: 5.5rem;
         --sidebar-width: 12rem;
 
-        /* PrimeNG component sizing overrides */
-        --p-button-padding-y: 0.5rem;
-        --p-button-padding-x: 1rem;
-        --p-select-padding-y: 0.2rem;
-        --p-select-padding-x: 0.5rem;
-        --p-inputtext-padding-y: 0.2rem;
-        --p-inputtext-padding-x: 0.5rem;
-        --p-checkbox-width: 18px;
-        --p-checkbox-height: 18px;
-        --p-slider-track-size: 4px;
-        --p-slider-handle-width: 10px;
-        --p-slider-handle-height: 10px;
-
         --transition-duration: 0.2s;
         --card-shadow: 0 2px 1px -1px rgba(0, 0, 0, 0.2),
                        0 1px 1px 0 rgba(0, 0, 0, 0.14),
                        0 1px 3px 0 rgba(0, 0, 0, 0.12);
-
-        /* PrimeNG message component overrides (restore Vela-era colours) */
-        --p-message-warn-background: #ffecb3;
-        --p-message-warn-color: #614a00;
-        --p-message-warn-border-color: #ffe082;
-        --p-message-error-background: #ffcdd2;
-        --p-message-error-color: #73000c;
-        --p-message-error-border-color: #ef9a9a;
-        --p-message-info-background: #b3e5fc;
-        --p-message-info-color: #003352;
-        --p-message-info-border-color: #81d4fa;
-        --p-message-success-background: #c8e6c9;
-        --p-message-success-color: #1b3e1f;
-        --p-message-success-border-color: #a5d6a7;
 
         /* PrimeFlex color variable aliases */
         --green-500: var(--p-green-500);
@@ -242,10 +244,10 @@
 
     /* Progress Bar Theme Override */
     .p-progressbar {
-        background: var(--p-progressbar-background);
+        background: var(--progressbar-bg, rgba(128, 128, 128, 0.2));
 
         .p-progressbar-value {
-            background: var(--p-progressbar-value-background);
+            background: var(--progressbar-value-bg, var(--primary-color));
         }
 
         &--thin {
