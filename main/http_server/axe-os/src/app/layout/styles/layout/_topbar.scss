@@ -6,7 +6,7 @@
     top: 0;
     width: 100%;
     padding: 0.5rem 2rem 0;
-    background-color: var(--surface-card);
+    background-color: var(--p-content-background);
     transition: left $transitionDuration;
     display: flex;
     align-items: center;
@@ -45,7 +45,7 @@
 
         &:hover {
             color: var(--text-color);
-            background-color: var(--surface-hover);
+            background-color: var(--p-content-hover-background);
         }
 
         &:focus {

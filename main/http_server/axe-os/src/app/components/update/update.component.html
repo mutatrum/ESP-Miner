@@ -47,7 +47,7 @@
                             </div>
                         </div>
 
-                        <a class="text-500 underline block mt-3 cursor-pointer" (click)="releaseNotesModal.isVisible = true">
+                        <a class="text-color-secondary underline block mt-3 cursor-pointer" (click)="releaseNotesModal.isVisible = true">
                             Release Notes
                         </a>
 
@@ -93,7 +93,7 @@
                 Applying update...
             </div>
             <p-progressbar class="w-full" [styleClass]="'instant-progress'" [showValue]="false" [value]="updateTarget === 'AxeOS' ? websiteUpdateProgress : firmwareUpdateProgress" [style]="{'height': '1.5rem', 'width': '100%'}"></p-progressbar>
-            <div class="text-center mt-3 text-500">
+            <div class="text-center mt-3 text-color-secondary">
                 Please do not disconnect the power.
             </div>
         </ng-container>
