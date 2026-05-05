@@ -1,3 +1,5 @@
+@layer primeng, axe-os;
+
 @font-face {
     font-family: 'Nippo-Regular';
     src: url(/assets/fonts/Nippo-Regular.woff2) format('woff2');
@@ -12,9 +14,15 @@
 
 @import "../node_modules/primeflex/primeflex.min.css";
 
-
+/* PrimeNG component token overrides (must be unlayered to override PrimeNG defaults) */
 /* PrimeNG component token overrides (must be unlayered to override PrimeNG defaults) */
 :root {
+    /* Layout shell variables */
+    --topbar-height: 5.5rem;
+    --sidebar-width: 12rem;
+    --transition-duration: 0.2s;
+    --card-shadow: 0 2px 1px -1px rgba(0, 0, 0, 0.2), 0 1px 1px 0 rgba(0, 0, 0, 0.14), 0 1px 3px 0 rgba(0, 0, 0, 0.12);
+
     /* PrimeNG component sizing overrides */
     --p-button-padding-y: 0.5rem;
     --p-button-padding-x: 1rem;
@@ -25,8 +33,55 @@
     --p-checkbox-width: 18px;
     --p-checkbox-height: 18px;
     --p-slider-track-size: 4px;
-    --p-slider-handle-width: 10px;
-    --p-slider-handle-height: 10px;
+    --p-slider-handle-width: 16px;
+    --p-slider-handle-height: 16px;
+
+    /* Semantic Bridge: Map Aura tokens to our dynamic theme variables */
+    /* This allows ThemeConfigComponent to drive Aura components automatically */
+    --p-primary-color: var(--primary-color);
+    --p-primary-500: var(--primary-color);
+    --p-primary-contrast-color: var(--primary-color-text);
+    
+    --p-inputtext-background: transparent;
+    --p-inputtext-border-color: var(--surface-border);
+    --p-inputtext-hover-border-color: var(--togglebutton-hover-bg);
+    --p-inputtext-focus-border-color: var(--togglebutton-hover-bg);
+    --p-inputtext-color: var(--text-color);
+    
+    --p-select-background: transparent;
+    --p-select-border-color: var(--surface-border);
+    --p-select-hover-border-color: var(--togglebutton-hover-bg);
+    --p-select-focus-border-color: var(--togglebutton-hover-bg);
+    --p-select-color: var(--text-color);
+    
+    --p-checkbox-background: transparent;
+    --p-checkbox-border-color: var(--surface-border);
+    --p-checkbox-hover-border-color: var(--checkbox-hover-bg);
+    --p-checkbox-highlight-background: var(--checkbox-bg);
+    --p-checkbox-highlight-border-color: var(--checkbox-border);
+    
+    --p-radiobutton-background: transparent;
+    --p-radiobutton-border-color: var(--surface-border);
+    --p-radiobutton-hover-border-color: var(--checkbox-hover-bg);
+    --p-radiobutton-highlight-background: var(--checkbox-bg);
+    --p-radiobutton-highlight-border-color: var(--checkbox-border);
+
+    --p-button-background: var(--button-bg);
+    --p-button-border-color: var(--button-bg);
+    --p-button-hover-background: var(--button-hover-bg);
+    --p-button-hover-border-color: var(--button-hover-bg);
+    --p-button-primary-background: var(--button-bg);
+    --p-button-primary-border-color: var(--button-bg);
+    --p-button-primary-hover-background: var(--button-hover-bg);
+    --p-button-primary-hover-border-color: var(--button-hover-bg);
+
+    --p-slider-range-background: var(--slider-range-bg);
+    --p-slider-handle-background: var(--slider-handle-bg);
+    --p-slider-handle-content-background: var(--slider-handle-bg);
+    --p-slider-handle-border-color: var(--slider-handle-bg);
+
+    --p-progressbar-background: var(--progressbar-bg, rgba(128, 128, 128, 0.2));
+    --p-progressbar-value-background: var(--progressbar-value-bg, var(--primary-color));
 
     /* PrimeNG message component overrides (restore Vela-era colours) */
     --p-message-warn-background: #ffecb3;
@@ -43,12 +98,14 @@
     --p-message-success-border-color: #a5d6a7;
 }
 
+
+
 /* You can add global styles to this file, and also import other style files */
 @layer axe-os {
 
     :root {
-        /* Bridge PrimeFlex legacy semantic classes to Aura design tokens */
-        /* This ensures automatic dark/light mode switching without manual inversion blocks */
+        /* Bridge semantic variables to Aura design tokens */
+        /* This handles the internal mappings for components and layouts */
         --primary-color: var(--p-primary-color);
         --primary-color-text: var(--p-primary-contrast-color);
         --primary-400: var(--p-primary-400);
@@ -69,19 +126,6 @@
         
         --maskbg: var(--p-mask-background);
         --focus-ring: var(--p-focus-ring-shadow);
-
-
-    }
-
-    :root {
-        /* Layout shell variables */
-        --topbar-height: 5.5rem;
-        --sidebar-width: 12rem;
-
-        --transition-duration: 0.2s;
-        --card-shadow: 0 2px 1px -1px rgba(0, 0, 0, 0.2),
-                       0 1px 1px 0 rgba(0, 0, 0, 0.14),
-                       0 1px 3px 0 rgba(0, 0, 0, 0.12);
 
         /* PrimeFlex color variable aliases */
         --green-500: var(--p-green-500);
@@ -114,186 +158,31 @@
         }
     }
 
-    .hover-next-input:hover + * {
-        .p-dropdown, .p-select {
-            border-color: var(--checkbox-hover-bg);
-        }
-        .p-slider {
-            .p-slider-handle {
-                border-color: var(--checkbox-hover-bg);
-                background-color: var(--checkbox-hover-bg);
-            }
-            .p-slider-range {
-                background-color: var(--checkbox-hover-bg);
-            }
-        }
-    }
-
-    /* PrimeNG Component Theme Overrides */
-    .p-slider {
-        .p-slider-range {
-            background: var(--slider-range-bg);
-        }
-        .p-slider-handle {
-            background: var(--slider-handle-bg);
-            border: 2px solid var(--slider-handle-bg);
-
-            &:focus {
-                box-shadow: var(--focus-ring);
-            }
-        }
-    }
-
-    .p-checkbox {
-        &:not(.p-checkbox-disabled) {
-            .p-checkbox-box {
-                &.p-focus,
-                &:hover {
-                    border-color: var(--checkbox-hover-bg);
-                }
-
-                &.p-highlight {
-                    border-color: var(--checkbox-border);
-                    background: var(--checkbox-bg);
-
-                    &:hover {
-                        background: var(--checkbox-hover-bg);
-                        border-color: var(--checkbox-hover-bg);
-                    }
-                }
-            }
-        }
-    }
-
-    .p-radiobutton {
-        .p-radiobutton-box {
-            &:not(.p-disabled):not(.p-highlight):hover,
-            &:not(.p-disabled).p-focus {
-                border-color: var(--checkbox-hover-bg);
-            }
-
-            &.p-highlight {
-                border-color: var(--checkbox-border);
-                background: var(--checkbox-bg);
-
-                &:not(.p-disabled):hover {
-                    background: var(--checkbox-hover-bg);
-                    border-color: var(--checkbox-hover-bg);
-                }
-            }
-        }
-    }
-
-    .p-button:not(.p-button-secondary) {
-        background: var(--button-bg);
-        border: 1px solid var(--button-bg);
-        padding: var(--p-button-padding-y) var(--p-button-padding-x);
-
-        &:enabled:hover {
-            background: var(--button-hover-bg);
-            border-color: var(--button-hover-bg);
-        }
-    }
-
-    .p-button.p-button-text.color-dot {
-        &:enabled:hover {
-            background: var(--button-bg);
-        }
-        &:focus {
-            box-shadow: none;
-        }
-        &:enabled:focus {
-            box-shadow: none;
-        }
-    }
-
-    // Remove focus ring from theme color buttons
-    button.color-dot {
-        &:focus {
-            outline: none !important;
-            box-shadow: none !important;
-        }
-    }
-
-    .p-togglebutton {
-        &.p-highlight {
-            background: var(--togglebutton-bg);
-            border-color: var(--togglebutton-bg);
-
-            &:hover {
-                background: var(--togglebutton-hover-bg);
-                border-color: var(--togglebutton-hover-bg);
-            }
-        }
-    }
-
     .p-inputtext {
         width: 100%;
-        background: transparent !important;
-        transition: none !important;
-        box-shadow: none !important;
-        outline: none !important;
-
-        &:enabled:hover,
-        &:enabled:focus {
-            border-color: var(--togglebutton-hover-bg) !important;
-        }
+        transition: none;
+        box-shadow: none;
+        outline: none;
     }
 
-    /* Progress Bar Theme Override */
+    /* Progress Bar */
     .p-progressbar {
-        background: var(--progressbar-bg, rgba(128, 128, 128, 0.2));
-
-        .p-progressbar-value {
-            background: var(--progressbar-value-bg, var(--primary-color));
-        }
-
         &--thin {
-            height: 6px !important;
+            height: 6px;
         }
     }
 
-    /* Dropdown Theme*/
+    /* Dropdown/Select Theme */
     .p-dropdown, .p-select {
-        background: transparent !important;
-        transition: none !important;
-        box-shadow: none !important;
-        outline: none !important;
-        padding: var(--p-select-padding-y) var(--p-select-padding-x);
-        color: var(--text-color) !important;
-        border: 1px solid var(--surface-border) !important;
-
-        &:hover,
-        &:focus,
-        &.p-dropdown-open,
-        &.p-select-open,
-        &:not(.p-disabled).p-focus {
-            border-color: var(--togglebutton-hover-bg) !important;
-        }
+        width: 100%;
+        transition: none;
+        box-shadow: none;
+        outline: none;
 
         .p-dropdown-panel, .p-select-panel {
-            background: var(--surface-overlay) !important;
-
             .p-dropdown-items, .p-select-items {
                 padding: 0;
-
-                .p-dropdown-item, .p-select-item {
-                    &:hover {
-                        background: var(--highlight-bg) !important;
-                        color: var(--highlight-text-color) !important;
-                    }
-
-                    &.p-highlight {
-                        background: var(--highlight-bg) !important;
-                        color: var(--highlight-text-color) !important;
-                    }
-                }
             }
-        }
-
-        .p-overlay {
-            left: -1px !important;
-            right: -1px !important;
         }
 
         &--small {
@@ -327,7 +216,7 @@
         }
 
         &-header-icon {
-            @extend .p-button;
+            @extend .p-button !optional;
             width: 2.2rem;
             height: 2.2rem;
             color: #fff;
