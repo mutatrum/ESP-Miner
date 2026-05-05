@@ -26,14 +26,13 @@
         </div>
         <div class="field grid p-fluid">
             <label for="wifiPass" class="col-12 md:col-2 md:m-0">Wi-Fi Password</label>
-            <div class="col-12 md:col-10 p-input-icon-right">
-                <i *ngIf="form.get('wifiPass')?.dirty" class="pi cursor-pointer"
-                    [ngClass]="{'pi-eye': !showWifiPassword, 'pi-eye-slash': showWifiPassword}"
-                    (click)="toggleWifiPasswordVisibility()"></i>
+            <p-iconfield iconPosition="right" class="col-12 md:col-10 p-0">
+                <p-inputicon *ngIf="form.get('wifiPass')?.dirty" styleClass="pi cursor-pointer {{!showWifiPassword ? 'pi-eye' : 'pi-eye-slash'}}"
+                    (click)="toggleWifiPasswordVisibility()"></p-inputicon>
                 <input pInputText id="wifiPass" formControlName="wifiPass"
                     [type]="showWifiPassword ? 'text' : 'password'"
                     placeholder="Enter Wi-Fi password" />
-            </div>
+            </p-iconfield>
         </div>
 
         <div class="flex mt-5 gap-3">

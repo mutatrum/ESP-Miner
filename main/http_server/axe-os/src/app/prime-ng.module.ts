@@ -13,6 +13,8 @@ import { SliderModule } from 'primeng/slider';
 import { InputTextarea } from 'primeng/inputtextarea';
 import { OverlayPanelModule } from 'primeng/overlaypanel';
 import { ProgressBarModule } from 'primeng/progressbar';
+import { IconFieldModule } from 'primeng/iconfield';
+import { InputIconModule } from 'primeng/inputicon';
 
 const primeNgModules = [
     SidebarModule,
@@ -29,6 +31,8 @@ const primeNgModules = [
     InputTextarea,
     OverlayPanelModule,
     ProgressBarModule,
+    IconFieldModule,
+    InputIconModule
 ];
 
 @NgModule({

@@ -44,8 +44,8 @@
                     </p-dropdown>
                 </div>
 
-                <div class="w-full p-input-icon-left relative">
-                    <i class="pi pi-filter"></i>
+                <p-iconfield class="w-full relative">
+                    <p-inputicon styleClass="pi pi-filter"></p-inputicon>
                     <input
                         pInputText
                         type="text"
@@ -63,7 +63,7 @@
                         class="absolute right-0 mt-2 mr-2"
                         *ngIf="filterText"
                         (click)="filterText = ''" />
-                </div>
+                </p-iconfield>
 
                 <div class="flex align-items-center">
                     <p-button

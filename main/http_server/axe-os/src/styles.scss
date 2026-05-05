@@ -6,8 +6,6 @@
     font-style: normal;
 }
 
-
-
 @import "app/layout/styles/layout/layout.scss";
 
 @import "app/layout/styles/modules/primeicons.css";
@@ -230,11 +228,11 @@
     }
 
     .p-inputtext {
+        width: 100%;
         background: transparent !important;
         transition: none !important;
         box-shadow: none !important;
         outline: none !important;
-        padding: var(--p-inputtext-padding-y) var(--p-inputtext-padding-x);
 
         &:enabled:hover,
         &:enabled:focus {
