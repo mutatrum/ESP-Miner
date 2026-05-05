@@ -5,6 +5,8 @@ import { CommonModule } from '@angular/common';
 import { SystemApiService } from 'src/app/services/system.service';
 import { provideHttpClient } from '@angular/common/http';
 import { TooltipModule } from 'primeng/tooltip';
+import { IconFieldModule } from 'primeng/iconfield';
+import { InputIconModule } from 'primeng/inputicon';
 import { ReactiveFormsModule } from '@angular/forms';
 import { ButtonModule } from 'primeng/button';
 import { provideToastr } from 'ngx-toastr';
@@ -24,6 +26,8 @@ describe('LogsComponent', () => {
         ReactiveFormsModule,
         TooltipModule,
         InputTextModule,
+        IconFieldModule,
+        InputIconModule,
         ANSIPipe
       ],
       providers: [
