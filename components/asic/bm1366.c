@@ -73,8 +73,6 @@ typedef struct __attribute__((__packed__))
 
 static const char * TAG = "bm1366";
 
-static task_result result;
-
 static int address_interval;
 
 /// @brief

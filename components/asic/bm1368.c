@@ -74,8 +74,6 @@ typedef struct __attribute__((__packed__))
 
 static const char * TAG = "bm1368";
 
-static task_result result;
-
 static int address_interval;
 
 static void _send_BM1368(uint8_t header, uint8_t * data, uint8_t data_len, bool debug)
