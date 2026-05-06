@@ -87,7 +87,6 @@ void ASIC_result_task(void *pvParameters)
 
                 float process_time = (sent_time_us - asic_result.timestamp_us) / 1000.0f;
                 GLOBAL_STATE->SYSTEM_MODULE.process_time = process_time;
-                GLOBAL_STATE->SYSTEM_MODULE.share_submit_latency_us = (uint32_t)(sent_time_us - asic_result.timestamp_us);
                 ESP_LOGI(TAG, "Processing time: %0.1f ms", process_time);
             }
         }

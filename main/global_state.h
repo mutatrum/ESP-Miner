@@ -71,10 +71,6 @@ typedef struct
     bool fallback_pool_extranonce_subscribe;
     bool pool_decode_coinbase_tx;
     bool fallback_pool_decode_coinbase_tx;
-    uint32_t share_submit_latency_us;
-    int last_share_submit_id;
-    int64_t last_share_submit_time_us;
-    uint32_t share_response_latency_us;
     float response_time;
     float process_time;
     float cpu_usage;

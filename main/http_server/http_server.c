@@ -984,8 +984,6 @@ static esp_err_t GET_system_info(httpd_req_t * req)
     cJSON_AddStringToObject(root, "fallbackStratumCert", fallbackStratumCert);
     cJSON_AddNumberToObject(root, "fallbackStratumDecodeCoinbase", nvs_config_get_bool(NVS_CONFIG_FALLBACK_STRATUM_DECODE_COINBASE_TX));
     cJSON_AddFloatToObject(root, "responseTime", GLOBAL_STATE->SYSTEM_MODULE.response_time);
-    cJSON_AddNumberToObject(root, "shareSubmitLatency", GLOBAL_STATE->SYSTEM_MODULE.share_submit_latency_us / 1000.0);
-    cJSON_AddNumberToObject(root, "shareResponseLatency", GLOBAL_STATE->SYSTEM_MODULE.share_response_latency_us / 1000.0);
     cJSON_AddFloatToObject(root, "cpuUsage", GLOBAL_STATE->SYSTEM_MODULE.cpu_usage);
 
     cJSON_AddStringToObject(root, "version", GLOBAL_STATE->SYSTEM_MODULE.version);
