@@ -64,7 +64,7 @@
                                 </table>
                             </div>
 
-                            <table class="px-1 border-1 border-surface border-round-xs">
+                            <table class="px-1 border-1 border-round-xs">
                                 <thead>
                                     <tr>
                                         <th *ngFor="let i of hashrateAverages" class="p-0 text-color-secondary font-normal line-height-1">
@@ -211,7 +211,7 @@
                                     formControlName="chartY1Data"
                                     appendTo="body"
                                     panelStyleClass="p-dropdown--small"
-                                    styleClass="w-10rem border-surface p-dropdown--small">
+                                    styleClass="w-10rem p-dropdown--small">
                                 </p-dropdown>
                                 <p-dropdown
                                     [options]="dataSourceLabels(info)"
@@ -220,7 +220,7 @@
                                     formControlName="chartY2Data"
                                     appendTo="body"
                                     panelStyleClass="p-dropdown--small"
-                                    styleClass="w-10rem border-surface p-dropdown--small">
+                                    styleClass="w-10rem p-dropdown--small">
                                 </p-dropdown>
                             </div>
 
@@ -409,7 +409,7 @@
                                 (onChange)="onPoolChange($event)"
                                 appendTo="body"
                                 panelStyleClass="p-dropdown--small"
-                                styleClass="border-surface p-dropdown--small absolute right-0"
+                                styleClass="p-dropdown--small absolute right-0"
                             />
                         </div>
 

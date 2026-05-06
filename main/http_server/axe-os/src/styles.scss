@@ -315,4 +315,9 @@
             text-align: left;
         }
     }
+
+    /* Global element borders */
+    fieldset, table.border-1 {
+        border-color: var(--p-content-border-color) !important;
+    }
 }
