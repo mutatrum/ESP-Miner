@@ -31,12 +31,14 @@
                 </div>
                 <div class="field grid p-fluid">
                     <label [htmlFor]="pool + 'Password'" class="col-12 md:col-2 md:mb-0">Password</label>
-                    <p-iconfield iconPosition="right" class="col-12 md:col-10 p-0">
-                        <p-inputicon *ngIf="form.get(pool + 'Password')?.dirty" styleClass="pi cursor-pointer {{!showPassword[pool] ? 'pi-eye' : 'pi-eye-slash'}}"
-                        (click)="showPassword[pool] = !showPassword[pool]"></p-inputicon>
-                        <input pInputText [id]="pool + 'Password'" [formControlName]="pool + 'Password'"
-                            [type]="showPassword[pool] ? 'text' : 'password'" />
-                    </p-iconfield>
+                    <div class="col-12 md:col-10">
+                        <p-iconfield iconPosition="right">
+                            <p-inputicon *ngIf="form.get(pool + 'Password')?.dirty" styleClass="pi cursor-pointer {{!showPassword[pool] ? 'pi-eye' : 'pi-eye-slash'}}"
+                            (click)="showPassword[pool] = !showPassword[pool]"></p-inputicon>
+                            <input pInputText [id]="pool + 'Password'" [formControlName]="pool + 'Password'"
+                                [type]="showPassword[pool] ? 'text' : 'password'" />
+                        </p-iconfield>
+                    </div>
                 </div>
 
                 <fieldset class="m-0 p-0 mt-4 border-surface border-bottom-none border-left-none border-right-none">

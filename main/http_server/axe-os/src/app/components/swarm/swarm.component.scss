@@ -46,3 +46,12 @@ tbody tr {
         height: 1.5rem;
     }
 }
+
+a {
+    color: #ffffff !important;
+    text-decoration: none;
+
+    &:hover {
+        text-decoration: underline;
+    }
+}

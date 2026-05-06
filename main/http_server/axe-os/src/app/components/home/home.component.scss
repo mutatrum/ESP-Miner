@@ -80,9 +80,23 @@
     // Edit mode
     &.gs-edit-mode {
         .grid-stack-item > .grid-stack-item-content {
-            outline: 2px dashed var(--primary-color, #6366f1);
-            outline-offset: -2px;
-            border-radius: 8px;
+            > .card {
+                border-color: transparent !important;
+                position: relative;
+
+                &::after {
+                    content: '';
+                    position: absolute;
+                    top: 0;
+                    left: 0;
+                    right: 0;
+                    bottom: 0;
+                    border: 2px dashed var(--primary-color);
+                    border-radius: inherit;
+                    pointer-events: none;
+                    z-index: 1;
+                }
+            }
         }
 
         .ui-resizable-handle,

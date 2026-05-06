@@ -29,7 +29,8 @@
     
     --surface-ground: #070D17;
     --surface-card: #0B1219;
-    --surface-border: #304562;
+    --surface-border: #454d59;
+    --card-border: #1A2632;
     --text-color: rgba(255, 255, 255, 0.87);
     --text-color-secondary: rgba(255, 255, 255, 0.6);
     --maskbg: rgba(0, 0, 0, 0.4);
@@ -67,13 +68,11 @@
     --p-select-list-border-color: var(--surface-border);
 
     --p-checkbox-background: transparent;
-    --p-checkbox-border-color: var(--p-content-border-color);
     --p-checkbox-hover-border-color: var(--checkbox-hover-bg);
     --p-checkbox-highlight-background: var(--checkbox-bg);
     --p-checkbox-highlight-border-color: var(--checkbox-border);
     
     --p-radiobutton-background: transparent;
-    --p-radiobutton-border-color: var(--p-content-border-color);
     --p-radiobutton-hover-border-color: var(--checkbox-hover-bg);
     --p-radiobutton-highlight-background: var(--checkbox-bg);
     --p-radiobutton-highlight-border-color: var(--checkbox-border);
@@ -97,12 +96,13 @@
     --p-progressbar-background: var(--progressbar-bg, #dee2e6);
     --p-progressbar-value-background: var(--progressbar-value-bg, var(--primary-color));
 
+    --p-border-radius: 2px;
+
     /* Component sizing */
     --p-button-padding-y: 0.5rem;
     --p-button-padding-x: 1rem;
     --p-select-padding-y: 0.5rem;
     --p-select-padding-x: 0.75rem;
-    --p-select-border-radius: 2px;
     --p-inputtext-padding-y: 0.5rem;
     --p-inputtext-padding-x: 0.75rem;
     --p-checkbox-width: 18px;
@@ -217,7 +217,7 @@
     /* Panel & Overlay Logic */
     .p-select-panel, .p-dropdown-panel, .p-select-overlay {
         background-color: var(--p-card-background) !important;
-        border: 1px solid var(--surface-border) !important;
+        border: 1px solid var(--card-border) !important;
         box-shadow: 0 10px 30px rgba(0,0,0,0.5) !important;
         width: max-content !important;
         min-width: 100%;
@@ -300,5 +300,19 @@
         line-break: anywhere;
         font-family: monospace;
         font-size: medium;
+    }
+
+    h1, h2, h3, h4, h5, h6, .p-dialog-title {
+        color: #ffffff !important;
+    }
+
+    /* Form Label Alignment */
+    .field.grid label, .grid label {
+        @media screen and (min-width: 768px) {
+            display: flex;
+            align-items: center;
+            justify-content: flex-start;
+            text-align: left;
+        }
     }
 }
