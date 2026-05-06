@@ -97,6 +97,9 @@
     --p-progressbar-value-background: var(--progressbar-value-bg, var(--primary-color));
 
     --p-border-radius: 2px;
+    --p-button-border-radius: var(--p-border-radius);
+    --p-select-border-radius: var(--p-border-radius);
+    --p-inputtext-border-radius: var(--p-border-radius);
 
     /* Component sizing */
     --p-button-padding-y: 0.5rem;
