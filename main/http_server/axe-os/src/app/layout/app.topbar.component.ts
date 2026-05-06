@@ -1,10 +1,11 @@
 import { Component, ElementRef, Input, ViewChild, OnInit, OnDestroy } from '@angular/core';
 import { Observable, shareReplay, Subject, takeUntil } from 'rxjs';
 import { ToastrService } from 'ngx-toastr';
-import { SystemService } from 'src/app/services/system.service';
+import { SystemApiService } from 'src/app/services/system.service';
 import { LayoutService } from './service/app.layout.service';
 import { SensitiveData } from 'src/app/services/sensitive-data.service';
-import { ISystemInfo } from 'src/models/ISystemInfo';
+import { DashboardEditService } from 'src/app/services/dashboard-edit.service';
+import { SystemInfo as ISystemInfo } from 'src/app/generated/models';
 import { MenuItem } from 'primeng/api';
 
 @Component({
@@ -16,6 +17,7 @@ export class AppTopBarComponent implements OnInit, OnDestroy {
 
   public info$!: Observable<ISystemInfo>;
   public sensitiveDataHidden: boolean = false;
+  public isMiningPaused: boolean = false;
   public items!: MenuItem[];
 
   @Input() isAPMode: boolean = false;
@@ -24,9 +26,10 @@ export class AppTopBarComponent implements OnInit, OnDestroy {
 
   constructor(
     public layoutService: LayoutService,
-    private systemService: SystemService,
+    private systemService: SystemApiService,
     private toastr: ToastrService,
     private sensitiveData: SensitiveData,
+    public dashboardEdit: DashboardEditService,
   ) {
     this.info$ = this.systemService.getInfo().pipe(shareReplay({refCount: true, bufferSize: 1}))
   }
@@ -37,6 +40,12 @@ export class AppTopBarComponent implements OnInit, OnDestroy {
       .subscribe((hidden: boolean) => {
         this.sensitiveDataHidden = hidden;
       });
+
+    this.info$.pipe(takeUntil(this.destroy$)).subscribe((info: ISystemInfo) => {
+      if ((info as any).miningPaused !== undefined) {
+        this.isMiningPaused = (info as any).miningPaused;
+      }
+    });
   }
 
   ngOnDestroy() {
@@ -46,6 +55,20 @@ export class AppTopBarComponent implements OnInit, OnDestroy {
 
   public toggleSensitiveData() {
     this.sensitiveData.toggle();
+  }
+
+  public toggleMiningPaused() {
+    const action = this.isMiningPaused
+      ? this.systemService.resumeMining()
+      : this.systemService.pauseMining();
+    const newPausedState = !this.isMiningPaused;
+    action.subscribe({
+      next: (response) => {
+        this.isMiningPaused = newPausedState;
+        this.toastr.success(response.message);
+      },
+      error: () => this.toastr.error('Failed to change mining state')
+    });
   }
 
   public restart() {

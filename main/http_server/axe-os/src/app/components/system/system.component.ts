@@ -2,12 +2,11 @@ import { Component, OnInit, OnDestroy } from '@angular/core';
 import { Observable, Subject, combineLatest, switchMap, shareReplay, first, takeUntil, map, timer } from 'rxjs';
 import { HttpErrorResponse } from '@angular/common/http';
 import { ToastrService } from 'ngx-toastr';
-import { SystemService } from 'src/app/services/system.service';
+import { SystemApiService } from 'src/app/services/system.service';
 import { LoadingService } from 'src/app/services/loading.service';
 import { DateAgoPipe } from 'src/app/pipes/date-ago.pipe';
 import { ByteSuffixPipe } from 'src/app/pipes/byte-suffix.pipe';
-import { ISystemInfo } from 'src/models/ISystemInfo';
-import { ISystemASIC } from 'src/models/ISystemASIC';
+import { SystemInfo as ISystemInfo, SystemAsic as ISystemASIC, GenericResponse, } from 'src/app/generated/models';
 
 type TableRow = {
   label: string;
@@ -35,7 +34,7 @@ export class SystemComponent implements OnInit, OnDestroy {
   private destroy$ = new Subject<void>();
 
   constructor(
-    private systemService: SystemService,
+    private systemService: SystemApiService,
     private loadingService: LoadingService,
     private toastr: ToastrService,
   ) {
@@ -97,6 +96,7 @@ export class SystemComponent implements OnInit, OnDestroy {
       { label: 'Wi-Fi IPv4', value: data.info.ipv4},
       { label: 'Wi-Fi IPv6', value: data.info.ipv6, class: 'pb-3', isSensitiveData: true},
       { label: 'MAC Address', value: data.info.macAddr, class: 'pb-3', isSensitiveData: true },
+      { label: 'CPU Usage', value: data.info.cpuUsage.toFixed(1) + '%'},
       { label: 'Free Heap Memory', value: ByteSuffixPipe.transform(data.info.freeHeap)},
       { label: '• Internal', value: ByteSuffixPipe.transform(data.info.freeHeapInternal)},
       { label: '• Spiram', value: ByteSuffixPipe.transform(data.info.freeHeapSpiram), class: 'pb-3' },
@@ -110,8 +110,8 @@ export class SystemComponent implements OnInit, OnDestroy {
     this.systemService.identify()
       .pipe(this.loadingService.lockUIUntilComplete())
       .subscribe({
-        next: () => {
-          this.toastr.success('The device says "Hi!" for 30 seconds.');
+        next: (result) => {
+          this.toastr.success((result as GenericResponse).message);
         },
         error: (err: HttpErrorResponse) => {
           this.toastr.error(`Could not identify device. ${err.message}`);

@@ -10,6 +10,8 @@ import { ToastrModule } from 'ngx-toastr';
 
 import { AppRoutingModule } from './app-routing.module';
 import { AppComponent } from './app.component';
+import { Api } from './generated/api';
+import { ApiConfiguration } from './generated/api-configuration';
 import { EditComponent } from './components/edit/edit.component';
 import { PoolComponent } from './components/pool/pool.component';
 import { NetworkEditComponent } from './components/network-edit/network.edit.component';
@@ -25,6 +27,7 @@ import { UpdateComponent } from './components/update/update.component';
 import { NetworkComponent } from './components/network/network.component';
 import { SettingsComponent } from './components/settings/settings.component';
 import { SwarmComponent } from './components/swarm/swarm.component';
+import { ScoreboardComponent } from './components/scoreboard/scoreboard.component';
 import { ThemeConfigComponent } from './components/design/theme-config.component';
 import { DesignComponent } from './components/design/design.component';
 import { AppLayoutModule } from './layout/app.layout.module';
@@ -32,6 +35,8 @@ import { ANSIPipe } from './pipes/ansi.pipe';
 import { DateAgoPipe } from './pipes/date-ago.pipe';
 import { HashSuffixPipe } from './pipes/hash-suffix.pipe';
 import { DiffSuffixPipe } from './pipes/diff-suffix.pipe';
+import { AddressPipe } from './pipes/address.pipe';
+import { SatsPipe } from './pipes/sats.pipe';
 import { PrimeNGModule } from './prime-ng.module';
 import { MessageModule } from 'primeng/message';
 import { TooltipModule } from 'primeng/tooltip';
@@ -64,9 +69,12 @@ const components = [
     ANSIPipe,
     DateAgoPipe,
     SwarmComponent,
+    ScoreboardComponent,
     SettingsComponent,
     HashSuffixPipe,
     DiffSuffixPipe,
+    AddressPipe,
+    SatsPipe,
     ThemeConfigComponent,
     DesignComponent,
     PoolComponent,
@@ -90,6 +98,8 @@ const components = [
   ],
   providers: [
     { provide: LocationStrategy, useClass: HashLocationStrategy },
+    { provide: ApiConfiguration, useValue: { rootUrl: '' } },
+    Api,
     DialogService,
     PrimeDialogService,
     provideHttpClient()

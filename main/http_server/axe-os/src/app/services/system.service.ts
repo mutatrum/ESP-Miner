@@ -1,30 +1,55 @@
-import { HttpClient, HttpParams, HttpEvent } from '@angular/common/http';
-import { Injectable } from '@angular/core';
-import { delay, Observable, of, timeout } from 'rxjs';
+import { HttpClient, HttpEvent } from '@angular/common/http';
+import { Injectable, Optional } from '@angular/core';
+import { delay, Observable, of, timeout, from } from 'rxjs';
 import { eChartLabel } from 'src/models/enum/eChartLabel';
 import { chartLabelKey } from 'src/models/enum/eChartLabel';
 import { chartLabelValue } from 'src/models/enum/eChartLabel';
-import { ISystemInfo } from 'src/models/ISystemInfo';
-import { ISystemStatistics } from 'src/models/ISystemStatistics';
-import { ISystemASIC } from 'src/models/ISystemASIC';
+import {
+  SystemInfo as ISystemInfo,
+  SystemStatistics as ISystemStatistics,
+  SystemAsic as ISystemASIC,
+  SystemScoreboardEntry as ISystemScoreboardEntry,
+  Settings,
+  GenericResponse
+} from '../generated/models';
+import { Api } from '../generated/api';
+import * as functions from '../generated/functions';
 
 import { environment } from '../../environments/environment';
+
+const API_TIMEOUT = 15000;
 
 @Injectable({
   providedIn: 'root'
 })
-export class SystemService {
+export class SystemApiService {
 
   constructor(
-    private httpClient: HttpClient
+    private httpClient: HttpClient,
+    @Optional() private api: Api
   ) { }
 
-  public getInfo(uri: string = ''): Observable<ISystemInfo> {
-    if (environment.production) {
-      return this.httpClient.get<ISystemInfo>(`${uri}/api/system/info`).pipe(timeout(5000));
+  public downloadLogs(uri: string = ''): Observable<Blob> {
+    if (environment.production && this.api && !uri) {
+      return from(this.api.invoke(functions.downloadSystemLogs, {}) as Promise<Blob>);
     }
 
-    // Mock data for development
+    if (environment.production && uri) {
+      return this.httpClient.get(`${uri}/api/system/logs`, { responseType: 'blob' });
+    }
+
+    return of(new Blob(['Mock logs content'], { type: 'text/plain' })).pipe(delay(1000));
+  }
+
+  public getInfo(uri: string = ''): Observable<ISystemInfo> {
+    if (environment.production && this.api && !uri) {
+      return from(this.api.invoke(functions.getSystemInfo, {})).pipe(timeout(API_TIMEOUT));
+    }
+
+    if (environment.production && uri) {
+      return this.httpClient.get<ISystemInfo>(`${uri}/api/system/info`).pipe(timeout(API_TIMEOUT));
+    }
+
     return of(
       {
         power: 11.670000076293945,
@@ -43,6 +68,7 @@ export class SystemService {
         errorPercentage: 0.2,
         bestDiff: 238214491,
         bestSessionDiff: 21212121,
+        cpuUsage: 12.5,
         freeHeap: 200504,
         freeHeapInternal: 200504,
         freeHeapSpiram: 200504,
@@ -58,36 +84,49 @@ export class SystemService {
         wifiRSSI: -32,
         apEnabled: 0,
         sharesAccepted: 1,
-        sharesRejected: 0,
-        sharesRejectedReasons: [],
+        sharesRejected: 10,
+        sharesRejectedReasons: [
+          { message: "Above target", count: 8 },
+          { message: "Duplicate share", count: 2 }
+        ],
         uptimeSeconds: 38,
         smallCoreCount: 672,
-        ASICModel: "BM1366",
+        ASICModel: "BM1370" as any,
         stratumURL: "public-pool.io",
         stratumPort: 21496,
         stratumUser: "bc1q99n3pu025yyu0jlywpmwzalyhm36tg5u37w20d.bitaxe-U1",
         stratumSuggestedDifficulty: 1000,
-        stratumExtranonceSubscribe: 0,
+        stratumExtranonceSubscribe: !!0,
+        stratumTLS: !!0,
+        stratumCert: "",
+        stratumDecodeCoinbase: true,
         fallbackStratumURL: "test.public-pool.io",
         fallbackStratumPort: 21497,
         fallbackStratumUser: "bc1q99n3pu025yyu0jlywpmwzalyhm36tg5u37w20d.bitaxe-U1",
         fallbackStratumSuggestedDifficulty: 1000,
-        fallbackStratumExtranonceSubscribe: 0,
+        fallbackStratumExtranonceSubscribe: !!0,
+        fallbackStratumTLS: !!0,
+        fallbackStratumCert: "",
+        fallbackStratumDecodeCoinbase: true,
         poolDifficulty: 1000,
         responseTime: 10,
-        isUsingFallbackStratum: false,
-        poolAddrFamily: 2,
+        isUsingFallbackStratum: 0,
+        poolConnectionInfo: "IPv4 (TLS)",
         frequency: 485,
-        version: "v2.9.0",
-        axeOSVersion: "v2.9.0",
-        idfVersion: "v5.1.2",
+        actualFrequency: 485,
+        version: "v2.12.0",
+        axeOSVersion: "v2.12.0",
+        idfVersion: "v5.5.1",
         resetReason: "Power-on reset",
-        boardVersion: "204",
+        boardVersion: "602",
         display: "SSD1306 (128x32)",
         rotation: 0,
         invertscreen: 0,
         displayTimeout: -1,
         autofanspeed: 1,
+        isPSRAMAvailable: 1,
+        overclockEnabled: 1,
+        runningPartition: "factory",
         minFanSpeed: 25,
         fanspeed: 50,
         manualFanSpeed: 70,
@@ -103,6 +142,7 @@ export class SystemService {
         blockHeight: 811111,
         scriptsig: "..%..h..,H...ckpool.eu/solo.ckpool.org/",
         networkDifficulty: 155970000000000,
+        blockSignals: [],
         hashrateMonitor: {
           asics: [{
             total: 441.2579,
@@ -111,7 +151,12 @@ export class SystemService {
           }],
           hashrate: 441.2579,
         },
-        blockFound: 0,
+        blockFound: 1,
+        showNewBlock: true,
+        coinbaseOutputs: [{value: 50, address: "payoutaddress"}],
+        coinbaseValueTotalSatoshis: 50,
+        coinbaseValueUserSatoshis: 50,
+        miningPaused: false,
       }
     ).pipe(delay(1000));
   }
@@ -126,12 +171,10 @@ export class SystemService {
       columnList.push(y2);
     }
 
-    if (environment.production) {
-      const options = { params: new HttpParams().set('columns', columnList.join(',')) };
-      return this.httpClient.get<ISystemStatistics>(`${uri}/api/system/statistics`, options).pipe(timeout(5000));
+    if (environment.production && this.api) {
+      return from(this.api.invoke(functions.getSystemStatistics, { columns: columnList })).pipe(timeout(API_TIMEOUT));
     }
 
-    // Mock data for development
     const hashrateData = [0,413.4903744405481,410.7764830376959,440.100549473198,430.5816012914026,452.5464981767163,414.9564271189586,498.7294609150379,411.1671601439723,491.327834852684];
     const powerData = [14.45068359375,14.86083984375,15.03173828125,15.1171875,15.1171875,15.1513671875,15.185546875,15.27099609375,15.30517578125,15.33935546875];
     const asicTempData = [-1,58.5,59.625,60.125,60.75,61.5,61.875,62.125,62.5,63];
@@ -144,6 +187,7 @@ export class SystemService {
     const fan2RpmData = [3545,3904,3691,3564,3554,3691,3573,3701,4044, 4032];
     const wifiRssiData = [-35,-34,-33,-34,-34,-34,-33,-35,-33,-34];
     const freeHeapData = [214504,212504,213504,210504,207504,209504,203504,202504,201504,200504];
+    const responseTimeData = [15.1,14.5,14.3,15.1,13.1,16.1,28.6,18.4,17.7,17.6,18.0,15.5];
     const timestampData = [13131,18126,23125,28125,33125,38125,43125,48125,53125,58125];
 
     columnList.push("timestamp");
@@ -165,9 +209,10 @@ export class SystemService {
           case eChartLabel.current:      statisticsList[i][j] = currentData[i];      break;
           case eChartLabel.fanSpeed:     statisticsList[i][j] = fanSpeedData[i];     break;
           case eChartLabel.fanRpm:       statisticsList[i][j] = fanRpmData[i];       break;
-          case eChartLabel.fan2Rpm:      statisticsList[i][j] = fan2RpmData[i];       break;
+          case eChartLabel.fan2Rpm:      statisticsList[i][j] = fan2RpmData[i];      break;
           case eChartLabel.wifiRssi:     statisticsList[i][j] = wifiRssiData[i];     break;
           case eChartLabel.freeHeap:     statisticsList[i][j] = freeHeapData[i];     break;
+          case eChartLabel.responseTime: statisticsList[i][j] = responseTimeData[i]; break;
           default:
             if (columnList[j] === "timestamp") {
               statisticsList[i][j] = timestampData[i];
@@ -186,35 +231,120 @@ export class SystemService {
     });
   }
 
-  public restart(uri: string = '') {
-    return this.httpClient.post(`${uri}/api/system/restart`, {}, {responseType: 'text'});
-  }
-
-  public identify(uri: string = '') {
-    return this.httpClient.post(`${uri}/api/system/identify`, {}, {responseType: 'text'});
-  }
-
-  public updateSystem(uri: string = '', update: any) {
+  public getScoreboard(uri: string = ''): Observable<ISystemScoreboardEntry[]> {
     if (environment.production) {
-      return this.httpClient.patch(`${uri}/api/system`, update);
-    } else {
-      return of(true);
+      return this.httpClient.get<ISystemScoreboardEntry[]>(`${uri}/api/system/scoreboard`).pipe(timeout(5000));
     }
+
+    // Mock data for development
+    return of([
+      {
+        rank: 0,
+        since: 3606,
+        difficulty: 2000,
+        job_id: "123456",
+        extranonce2: "000000",
+        ntime: 61125,
+        nonce: "00000000",
+        version_bits: "20000000"
+      },
+      {
+        rank: 1,
+        since: 3605,
+        difficulty: 1000,
+        job_id: "123457",
+        extranonce2: "000001",
+        ntime: 61126,
+        nonce: "00000001",
+        version_bits: "20000000"
+      }]).pipe(delay(1000));
   }
 
-  private otaUpdate(file: File | Blob, url: string) {
+  public restart(uri: string = ''): Observable<GenericResponse> {
+    if (environment.production && this.api && !uri) {
+      return from(this.api.invoke(functions.restartSystem, {}) as Promise<GenericResponse>);
+    }
+
+    if (environment.production && uri) {
+      return this.httpClient.post<GenericResponse>(`${uri}/api/system/restart`, {});
+    }
+
+    return of({ message: 'Device restarted (mock)' });
+  }
+
+  public dismissBlockFound(uri: string = ''): Observable<GenericResponse> {
+    if (environment.production && this.api && !uri) {
+      return from(this.api.invoke(functions.dismissBlockFound, {}) as Promise<GenericResponse>);
+    }
+
+    if (environment.production && uri) {
+      return this.httpClient.post<GenericResponse>(`${uri}/api/system/blockFound/dismiss`, {});
+    }
+
+    return of({ message: 'Block found notification dismissed (mock)' });
+  }
+
+  public pauseMining(uri: string = ''): Observable<GenericResponse> {
+    if (environment.production && this.api && !uri) {
+      return from(this.api.invoke(functions.pauseMining, {}) as Promise<GenericResponse>);
+    }
+
+    if (environment.production && uri) {
+      return this.httpClient.post<GenericResponse>(`${uri}/api/system/pause`, {});
+    }
+
+    return of<GenericResponse>({ message: 'Mining paused' });
+  }
+
+  public resumeMining(uri: string = ''): Observable<GenericResponse> {
+    if (environment.production && this.api && !uri) {
+      return from(this.api.invoke(functions.resumeMining, {}) as Promise<GenericResponse>);
+    }
+
+    if (environment.production && uri) {
+      return this.httpClient.post<GenericResponse>(`${uri}/api/system/resume`, {});
+    }
+
+    return of<GenericResponse>({ message: 'Mining resumed' });
+  }
+
+  public identify(uri: string = ''): Observable<GenericResponse> {
+    if (environment.production && this.api && !uri) {
+      return from(this.api.invoke(functions.identifySystem, {}) as Promise<GenericResponse>);
+    }
+
+    if (environment.production && uri) {
+      return this.httpClient.post<GenericResponse>(`${uri}/api/system/identify`, {});
+    }
+
+    return of({ message: 'Device identified (mock)' });
+  }
+
+  public updateSystem(uri: string = '', update: any): Observable<void> {
+    if (environment.production && this.api && !uri) {
+      return from(this.api.invoke(functions.updateSystemSettings, { body: update as Settings }) as Promise<void>);
+    }
+
+    if (environment.production && uri) {
+      return this.httpClient.patch<void>(`${uri}/api/system`, update);
+    }
+
+    return of(undefined);
+  }
+
+  private otaUpdate(file: File | Blob, url: string): Observable<HttpEvent<string>> {
     return new Observable<HttpEvent<string>>((subscriber) => {
       const reader = new FileReader();
 
       reader.onload = (event: any) => {
         const fileContent = event.target.result;
 
-        return this.httpClient.post(url, fileContent, {
+        this.httpClient.post(url, fileContent, {
           reportProgress: true,
           observe: 'events',
-          responseType: 'text', // Specify the response type
+          responseType: 'text',
           headers: {
-            'Content-Type': 'application/octet-stream', // Set the content type
+            'Content-Type': 'application/octet-stream',
           },
         }).subscribe({
           next: (event) => {
@@ -232,22 +362,26 @@ export class SystemService {
     });
   }
 
-  public performOTAUpdate(file: File | Blob) {
-    return this.otaUpdate(file, `/api/system/OTA`);
+  public performOTAUpdate(file: File | Blob): Observable<HttpEvent<string>> {
+    return this.otaUpdate(file, '/api/system/OTA');
   }
-  public performWWWOTAUpdate(file: File | Blob) {
-    return this.otaUpdate(file, `/api/system/OTAWWW`);
+
+  public performWWWOTAUpdate(file: File | Blob): Observable<HttpEvent<string>> {
+    return this.otaUpdate(file, '/api/system/OTAWWW');
   }
 
   public getAsicSettings(uri: string = ''): Observable<ISystemASIC> {
-    if (environment.production) {
-      return this.httpClient.get<ISystemASIC>(`${uri}/api/system/asic`).pipe(timeout(5000));
+    if (environment.production && this.api && !uri) {
+      return from(this.api.invoke(functions.getAsicSettings, {})).pipe(timeout(API_TIMEOUT));
     }
 
-    // Mock data for development
+    if (environment.production && uri) {
+      return this.httpClient.get<ISystemASIC>(`${uri}/api/system/asic`).pipe(timeout(API_TIMEOUT));
+    }
+
     return of({
-      ASICModel: "BM1366",
-      deviceModel: "Ultra",
+      ASICModel: "BM1370" as any,
+      deviceModel: "Gamma",
       swarmColor: "purple",
       asicCount: 1,
       defaultFrequency: 485,
@@ -257,11 +391,5 @@ export class SystemService {
     }).pipe(delay(1000));
   }
 
-  public getSwarmInfo(uri: string = ''): Observable<{ ip: string }[]> {
-    return this.httpClient.get<{ ip: string }[]>(`${uri}/api/swarm/info`).pipe(timeout(5000));
-  }
 
-  public updateSwarm(uri: string = '', swarmConfig: any) {
-    return this.httpClient.patch(`${uri}/api/swarm`, swarmConfig);
-  }
 }

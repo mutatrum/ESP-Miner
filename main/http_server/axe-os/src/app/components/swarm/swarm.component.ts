@@ -5,9 +5,8 @@ import { ToastrService } from 'ngx-toastr';
 import { forkJoin, catchError, from, map, mergeMap, of, take, timeout, toArray, Observable, Subscription } from 'rxjs';
 import { LocalStorageService } from 'src/app/local-storage.service';
 import { LayoutService } from "../../layout/service/app.layout.service";
-import { SystemService } from 'src/app/services/system.service';
+import { SystemApiService } from 'src/app/services/system.service';
 import { ModalComponent } from '../modal/modal.component';
-import { ISystemInfo } from 'src/models/ISystemInfo';
 
 const SWARM_DATA = 'SWARM_DATA';
 const SWARM_REFRESH_TIME = 'SWARM_REFRESH_TIME';
@@ -63,7 +62,7 @@ export class SwarmComponent implements OnInit, OnDestroy {
     private toastr: ToastrService,
     private localStorageService: LocalStorageService,
     public layoutService: LayoutService,
-    private systemService: SystemService,
+    private systemService: SystemApiService,
     private httpClient: HttpClient
   ) {
 
@@ -170,8 +169,8 @@ export class SwarmComponent implements OnInit, OnDestroy {
         asic: fetchAsic ? this.httpClient.get<any>(`http://${IP}/api/system/asic`).pipe(catchError(() => of({}))) : of({})
       }).pipe(
         map(({ info, asic }) => {
-          const existingDevice = this.swarm.find(device => device.IP === IP);
-          return this.fallbackDeviceModel({ IP, ...(existingDevice ? existingDevice : {}), ...info, ...asic, ...this.numerizeDeviceBestDiffs(info) });
+          const existingDevice = this.swarm.find(device => device.IP === IP) || {};
+          return this.mergeDeviceData(IP, existingDevice, info, asic);
         }),
         timeout(5000),
         catchError(error => errorHandler(error, IP))
@@ -187,7 +186,7 @@ export class SwarmComponent implements OnInit, OnDestroy {
 
     // Check if IP already exists
     if (this.swarm.some(item => item.IP === IP)) {
-      this.toastr.warning('This IP address already exists in the swarm.');
+      this.toastr.warning('Device already added to the swarm.', `Device at ${IP}`);
       return;
     }
 
@@ -201,7 +200,7 @@ export class SwarmComponent implements OnInit, OnDestroy {
       if (!info.ASICModel || !asic.ASICModel) {
         return;
       }
-      this.swarm.push(this.fallbackDeviceModel({ IP, ...info, ...asic, ...this.numerizeDeviceBestDiffs(info) }));
+      this.swarm.push(this.mergeDeviceData(IP, {}, info, asic));
       this.sortSwarm();
       this.localStorageService.setObject(SWARM_DATA, this.swarm);
       this.calculateTotals();
@@ -213,19 +212,30 @@ export class SwarmComponent implements OnInit, OnDestroy {
     this.modalComponent.isVisible = true;
   }
 
-  public restart(axe: any) {
-    this.httpClient.post(`http://${axe.IP}/api/system/restart`, {}).pipe(
+  public postAction(axe: any, action: string) {
+    this.httpClient.post(`http://${axe.IP}/api/system/${action}`, {}, { responseType: 'json' }).pipe(
+      timeout(800),
       catchError(error => {
-        if (error.status === 0 || error.status === 200 || error.name === 'HttpErrorResponse') {
-          return of('success');
-        } else {
-          this.toastr.error(`Failed to restart device at ${axe.IP}`);
-          return of(null);
+        if ((action === 'restart' || action === 'identify') && (error.status === 200 || error.status === 0 || error.name === 'HttpErrorResponse' || error.statusText === 'Unknown Error')) {
+          if (action === 'restart') {
+            return of({ message: 'System will restarted shortly' });
+          } else {
+            return of({ message: 'Identify signal sent - device should say "Hi!"' });
+          }
         }
+        let errorMsg = `Failed to ${action} device`;
+        if (error.name === 'TimeoutError') {
+          errorMsg = 'Request timed out';
+        } else if (error.message) {
+          errorMsg += `: ${error.message}`;
+        }
+        this.toastr.error(errorMsg, `Device at ${axe.IP}`);
+        return of(null);
       })
-    ).subscribe(res => {
-      if (res !== null && res == 'success') {
-        this.toastr.success(`Device at ${axe.IP} restarted`);
+    ).subscribe((res: any) => {
+      if (res !== null) {
+        this.toastr.success(res.message, `Device at ${axe.IP}`);
+        this.refreshList(false);
       }
     });
   }
@@ -236,26 +246,9 @@ export class SwarmComponent implements OnInit, OnDestroy {
     this.calculateTotals();
   }
 
-  public identify(axe: any) {
-    this.httpClient.post(`http://${axe.IP}/api/system/identify`, {}).pipe(
-      catchError(error => {
-        if (error.status === 0 || error.status === 200 || error.name === 'HttpErrorResponse') {
-          return of('success');
-        } else {
-          this.toastr.error(`Failed to identify device at ${axe.IP}`);
-          return of(null);
-        }
-      })
-    ).subscribe(res => {
-      if (res !== null && res == 'success') {
-        this.toastr.success(`Device at ${axe.IP} says "Hi!" for 30 seconds`);
-      }
-    });
-  }
-
   public refreshErrorHandler = (error: any, ip: string) => {
     const errorMessage = error?.message || error?.statusText || error?.toString() || 'Unknown error';
-    this.toastr.error(`Failed to get info from ${ip}. ${errorMessage}`);
+    this.toastr.error(`Failed to get info: ${errorMessage}`, `Device at ${ip}`);
     const existingDevice = this.swarm.find(axeOs => axeOs.IP === ip);
     return of({
       ...existingDevice,
@@ -347,16 +340,6 @@ export class SwarmComponent implements OnInit, OnDestroy {
     );
   }
 
-  // Fallback logic to derive deviceModel and swarmColor, can be removed after some time
-  private fallbackDeviceModel(data: any): any {
-    if (data.deviceModel && data.swarmColor && data.poolDifficulty && data.hashRate) return data;
-    const deviceModel = data.deviceModel || this.deriveDeviceModel(data);
-    const swarmColor = data.swarmColor || this.deriveSwarmColor(deviceModel);
-    const poolDifficulty = data.poolDifficulty || data.stratumDiff;
-    const hashRate = data.hashRate || data.hashRate_10m;
-    return { ...data, deviceModel, swarmColor, poolDifficulty, hashRate };
-  }
-
   private deriveDeviceModel(data: any): string {
     if (data.boardVersion && data.boardVersion.length > 1) {
       if (data.boardVersion[0] == "1" || data.boardVersion == "2.2") return "Max";
@@ -381,15 +364,28 @@ export class SwarmComponent implements OnInit, OnDestroy {
     }
   }
 
-  private numerizeDeviceBestDiffs(info: ISystemInfo) {
-    const parseAsNumber = (val: number | string): number => {
-      return typeof val === 'string' ? this.parseSuffixString(val) : val;
+  private mergeDeviceData(IP: string, existing: Partial<SwarmDevice>, info: any, asic: any): SwarmDevice {
+    const merged: any = {
+      IP,
+      ...existing,
+      power_fault: null,
+      overheat_mode: null,
+      isUsingFallbackStratum: null,
+      blockFound: null,
+      ...info,
+      ...asic,
     };
 
-    return {
-      bestDiff: parseAsNumber(info.bestDiff),
-      bestSessionDiff: parseAsNumber(info.bestSessionDiff),
-    };
+    merged.deviceModel = merged.deviceModel || this.deriveDeviceModel(merged);
+    merged.swarmColor = merged.swarmColor || this.deriveSwarmColor(merged.deviceModel);
+    merged.asicCount = merged.asicCount || 1;
+
+    merged.poolDifficulty = merged.poolDifficulty || info.stratumDiff;
+    merged.hashRate = merged.hashRate || info.hashRate_10m;
+    if (typeof merged.bestDiff === 'string') merged.bestDiff = this.parseSuffixString(merged.bestDiff);
+    if (typeof merged.bestSessionDiff === 'string') merged.bestSessionDiff = this.parseSuffixString(merged.bestSessionDiff);
+
+    return merged as SwarmDevice;
   }
 
   private parseSuffixString(input: string): number {
@@ -471,6 +467,8 @@ export class SwarmComponent implements OnInit, OnDestroy {
 
   getDeviceNotification(axe: any): { color: string; msg: string } | undefined {
     switch (true) {
+      case !!axe.miningPaused:
+        return { color: 'yellow', msg: 'Paused' };
       case axe.overheat_mode === 1:
         return { color: 'red', msg: 'Overheated' };
       case !!axe.power_fault:
@@ -479,7 +477,7 @@ export class SwarmComponent implements OnInit, OnDestroy {
         return { color: 'orange', msg: 'Frequency Low' };
       case axe.isUsingFallbackStratum === 1:
         return { color: 'orange', msg: 'Fallback Pool' };
-      case axe.blockFound === 1:
+      case axe.showNewBlock === 1:
         return { color: 'green', msg: 'Block found' };
       default:
         return undefined;

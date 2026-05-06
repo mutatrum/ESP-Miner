@@ -77,6 +77,7 @@ typedef struct __attribute__((__packed__))
 static const char * TAG = "bm1397";
 
 static uint32_t prev_nonce = 0;
+static task_result result;
 
 static int address_interval;
 
@@ -130,7 +131,6 @@ static void _send_read_address(void)
 
 static void _send_chain_inactive(void)
 {
-
     unsigned char read_address[2] = {0x00, 0x00};
     // send serial data
     _send_BM1397((TYPE_CMD | GROUP_ALL | CMD_INACTIVE), read_address, 2, BM1397_SERIALTX_DEBUG);
@@ -138,17 +138,17 @@ static void _send_chain_inactive(void)
 
 static void _set_chip_address(uint8_t chipAddr)
 {
-
     unsigned char read_address[2] = {chipAddr, 0x00};
     // send serial data
     _send_BM1397((TYPE_CMD | GROUP_SINGLE | CMD_SETADDRESS), read_address, 2, BM1397_SERIALTX_DEBUG);
 }
 
-void BM1397_set_version_mask(uint32_t version_mask) {
+void BM1397_set_version_mask(uint32_t version_mask) 
+{
     // placeholder
 }
 
-void BM1397_send_hash_frequency(float target_freq)
+float BM1397_send_hash_frequency(float target_freq)
 {
     uint8_t fb_divider, refdiv, postdiv1, postdiv2;
     float frequency;
@@ -174,13 +174,18 @@ void BM1397_send_hash_frequency(float target_freq)
     vTaskDelay(10 / portTICK_PERIOD_MS);
 
     ESP_LOGI(TAG, "Setting Frequency to %g MHz (%g)", target_freq, frequency);
+
+    return frequency;
 }
 
-uint8_t BM1397_init(float frequency, uint16_t asic_count, uint16_t difficulty)
+uint8_t BM1397_init(void * pvParameters)
 {
+    GlobalState * GLOBAL_STATE = (GlobalState *)pvParameters;
+
     // send the init command
     _send_read_address();
 
+    uint16_t asic_count = GLOBAL_STATE->DEVICE_CONFIG.family.asic_count;
     int chip_counter = count_asic_chips(asic_count, BM1397_CHIP_ID, BM1397_CHIP_ID_RESPONSE_LENGTH);
 
     if (chip_counter == 0) {
@@ -209,6 +214,8 @@ uint8_t BM1397_init(float frequency, uint16_t asic_count, uint16_t difficulty)
     unsigned char init4[9] = {0x00, CORE_REGISTER_CONTROL, 0x80, 0x00, 0x80, 0x74}; // init4 - init_4_?
     _send_BM1397((TYPE_CMD | GROUP_ALL | CMD_WRITE), init4, 6, BM1397_SERIALTX_DEBUG);
 
+    uint16_t difficulty = GLOBAL_STATE->DEVICE_CONFIG.family.asic.difficulty;
+
     //set difficulty mask
     uint8_t difficulty_mask[6];
     get_difficulty_mask(difficulty, difficulty_mask);
@@ -223,7 +230,7 @@ uint8_t BM1397_init(float frequency, uint16_t asic_count, uint16_t difficulty)
     BM1397_set_default_baud();
 
     //ramp up the hash frequency
-    do_frequency_transition(frequency, BM1397_send_hash_frequency);
+    do_frequency_transition(GLOBAL_STATE, BM1397_send_hash_frequency);
 
     return chip_counter;
 }
@@ -293,25 +300,26 @@ void BM1397_send_work(void *pvParameters, bm_job *next_bm_job)
     _send_BM1397((TYPE_JOB | GROUP_SINGLE | CMD_WRITE), (uint8_t *)&job, sizeof(job_packet), BM1397_DEBUG_WORK);
 }
 
-bool BM1397_process_work(void *pvParameters, task_result * result)
+task_result *BM1397_process_work(void *pvParameters)
 {
-    bm1397_asic_result_t asic_result;
+    bm1397_asic_result_t asic_result = {0};
 
-    if (receive_work((uint8_t *)&asic_result, sizeof(asic_result), &result->receive_time_us) == ESP_FAIL) {
-        return false;
+    memset(&result, 0, sizeof(task_result));
+
+    if (receive_work((uint8_t *)&asic_result, sizeof(asic_result), &result.timestamp_us) == ESP_FAIL) {
+        return NULL;
     }
 
     if (!asic_result.is_job_response) {
-        result->register_type = REGISTER_MAP[asic_result.cmd.register_address];
-        if (result->register_type == REGISTER_INVALID) {
+        result.register_type = REGISTER_MAP[asic_result.cmd.register_address];
+        if (result.register_type == REGISTER_INVALID) {
             ESP_LOGW(TAG, "Unknown register read: %02x", asic_result.cmd.register_address);
-            return false;
+            return NULL;
         }
+        result.asic_nr = asic_result.cmd.asic_address / address_interval;
+        result.value = ntohl(asic_result.cmd.value);
 
-        result->asic_nr = asic_result.cmd.asic_address / address_interval;
-        result->value = ntohl(asic_result.cmd.value);
-
-        return true;
+        return &result;
     }
 
     uint8_t nonce_found = 0;
@@ -324,7 +332,7 @@ bool BM1397_process_work(void *pvParameters, task_result * result)
     if (GLOBAL_STATE->valid_jobs[rx_job_id] == 0)
     {
         ESP_LOGW(TAG, "Invalid job nonce found, id=%d", rx_job_id);
-        return false;
+        return NULL;
     }
 
     uint32_t rolled_version = GLOBAL_STATE->ASIC_TASK_MODULE.active_jobs[rx_job_id]->version;
@@ -344,12 +352,12 @@ bool BM1397_process_work(void *pvParameters, task_result * result)
     else if (asic_result.job.nonce == first_nonce)
     {
         // stop if we've already seen this nonce
-        return false;
+        return NULL;
     }
 
     if (asic_result.job.nonce == prev_nonce)
     {
-        return false;
+        return NULL;
     }
     else
     {
@@ -358,18 +366,17 @@ bool BM1397_process_work(void *pvParameters, task_result * result)
 
     uint32_t nonce_h = ntohl(asic_result.job.nonce);
     uint8_t asic_nr = (uint8_t)((nonce_h >> 17) & 0xff) / address_interval;
-
-    result->job_id = rx_job_id;
-    result->nonce = asic_result.job.nonce;
-    result->rolled_version = rolled_version;
-    result->asic_nr = asic_nr;
-
     uint8_t core_id = (uint8_t)((nonce_h >> 25) & 0x7f);
     uint8_t small_core_id = asic_result.job.id & 0x0f;
 
-    ESP_LOGI(TAG, "Job ID: %02X, Asic nr: %d, Core: %d/%d, Ver: %08" PRIX32, rx_job_id, asic_nr, core_id, small_core_id, rolled_version);    
+    result.job_id = rx_job_id;
+    result.nonce = asic_result.job.nonce;
+    result.rolled_version = rolled_version;
+    result.asic_nr = asic_nr;
+    result.core_id = core_id;
+    result.small_core_id = small_core_id;
 
-    return true;
+    return &result;
 }
 
 void BM1397_read_registers(void)

@@ -74,6 +74,8 @@ typedef struct __attribute__((__packed__))
 
 static const char * TAG = "bm1368";
 
+static task_result result;
+
 static int address_interval;
 
 static void _send_BM1368(uint8_t header, uint8_t * data, uint8_t data_len, bool debug)
@@ -122,7 +124,30 @@ void BM1368_set_version_mask(uint32_t version_mask)
     _send_BM1368(TYPE_CMD | GROUP_ALL | CMD_WRITE, version_cmd, 6, BM1368_SERIALTX_DEBUG);
 }
 
-void BM1368_send_hash_frequency(float target_freq) 
+void BM1368_set_hash_counting_number(uint32_t hcn) {
+    uint8_t set_10_hash_counting[6] = {0x00, 0x10, 0x00, 0x00, 0x00, 0x00};
+    set_10_hash_counting[2] = (hcn >> 24) & 0xFF;
+    set_10_hash_counting[3] = (hcn >> 16) & 0xFF;
+    set_10_hash_counting[4] = (hcn >> 8) & 0xFF;
+    set_10_hash_counting[5] = hcn & 0xFF;
+    _send_BM1368((TYPE_CMD | GROUP_ALL | CMD_WRITE), set_10_hash_counting, 6, BM1368_SERIALTX_DEBUG);
+}
+
+void BM1368_set_nonce_space(double nonce_percent, float frequency, uint16_t asic_count, uint16_t cores) 
+{   
+    int cores_up = _next_power_of_two(cores);
+    int asic_count_up =  _next_power_of_two(asic_count);
+
+    // HCN hash counting number (the size of the nonce space)
+    float hcn_space = (float)NONCE_SPACE / cores_up / asic_count_up;
+    double hcn_max = hcn_space * (double)FREQ_MULT / frequency * 0.5f; 
+    double hcn_frac = nonce_percent * hcn_max;
+    uint32_t hcn_register_value = (uint32_t)hcn_frac;
+
+    BM1368_set_hash_counting_number(hcn_register_value);
+}
+
+float BM1368_send_hash_frequency(float target_freq)
 {
     uint8_t fb_divider, refdiv, postdiv1, postdiv2;
     float new_freq;
@@ -136,10 +161,14 @@ void BM1368_send_hash_frequency(float target_freq)
     _send_BM1368(TYPE_CMD | GROUP_ALL | CMD_WRITE, freqbuf, sizeof(freqbuf), BM1368_SERIALTX_DEBUG);
 
     ESP_LOGI(TAG, "Setting Frequency to %g MHz (%g)", target_freq, new_freq);
+
+    return new_freq;
 }
 
-uint8_t BM1368_init(float frequency, uint16_t asic_count, uint16_t difficulty)
+uint8_t BM1368_init(void * pvParameters)
 {
+    GlobalState * GLOBAL_STATE = (GlobalState *)pvParameters;
+
     // set version mask
     for (int i = 0; i < 4; i++) {
         BM1368_set_version_mask(STRATUM_DEFAULT_VERSION_MASK);
@@ -147,6 +176,7 @@ uint8_t BM1368_init(float frequency, uint16_t asic_count, uint16_t difficulty)
 
     _send_BM1368(TYPE_CMD | GROUP_ALL | CMD_READ, (uint8_t[]){0x00, 0x00}, 2, false);
 
+    uint16_t asic_count = GLOBAL_STATE->DEVICE_CONFIG.family.asic_count;
     int chip_counter = count_asic_chips(asic_count, BM1368_CHIP_ID, BM1368_CHIP_ID_RESPONSE_LENGTH);
 
     if (chip_counter == 0) {
@@ -189,13 +219,18 @@ uint8_t BM1368_init(float frequency, uint16_t asic_count, uint16_t difficulty)
         vTaskDelay(pdMS_TO_TICKS(500));
     }
 
+    uint16_t difficulty = GLOBAL_STATE->DEVICE_CONFIG.family.asic.difficulty;
+
     uint8_t difficulty_mask[6];
     get_difficulty_mask(difficulty, difficulty_mask);
     _send_BM1368((TYPE_CMD | GROUP_ALL | CMD_WRITE), difficulty_mask, 6, BM1368_SERIALTX_DEBUG);    
 
-    do_frequency_transition(frequency, BM1368_send_hash_frequency);
+    do_frequency_transition(GLOBAL_STATE, BM1368_send_hash_frequency);
 
-    _send_BM1368(TYPE_CMD | GROUP_ALL | CMD_WRITE, (uint8_t[]){0x00, 0x10, 0x00, 0x00, 0x15, 0xa4}, 6, false);
+    float frequency = GLOBAL_STATE->POWER_MANAGEMENT_MODULE.frequency_value;
+    int cores = GLOBAL_STATE->DEVICE_CONFIG.family.asic.core_count;
+
+    BM1368_set_nonce_space(1.0, frequency, asic_count,cores);
     BM1368_set_version_mask(STRATUM_DEFAULT_VERSION_MASK);
 
     return chip_counter;
@@ -252,24 +287,26 @@ void BM1368_send_work(void * pvParameters, bm_job * next_bm_job)
     _send_BM1368((TYPE_JOB | GROUP_SINGLE | CMD_WRITE), (uint8_t *)&job, sizeof(BM1368_job), BM1368_DEBUG_WORK);
 }
 
-bool BM1368_process_work(void * pvParameters, task_result * result)
+task_result * BM1368_process_work(void * pvParameters)
 {
     bm1368_asic_result_t asic_result = {0};
 
-    if (receive_work((uint8_t *)&asic_result, sizeof(asic_result), &result->receive_time_us) == ESP_FAIL) {
-        return false;
+    memset(&result, 0, sizeof(task_result));
+
+    if (receive_work((uint8_t *)&asic_result, sizeof(asic_result), &result.timestamp_us) == ESP_FAIL) {
+        return NULL;
     }
 
     if (!asic_result.is_job_response) {
-        result->register_type = REGISTER_MAP[asic_result.cmd.register_address];
-        if (result->register_type == REGISTER_INVALID) {
+        result.register_type = REGISTER_MAP[asic_result.cmd.register_address];
+        if (result.register_type == REGISTER_INVALID) {
             ESP_LOGW(TAG, "Unknown register read: %02x", asic_result.cmd.register_address);
-            return false;
+            return NULL;
         }
-        result->asic_nr = asic_result.cmd.asic_address / address_interval;
-        result->value = ntohl(asic_result.cmd.value);
+        result.asic_nr = asic_result.cmd.asic_address / address_interval;
+        result.value = ntohl(asic_result.cmd.value);
         
-        return true;
+        return &result;
     }
 
     uint8_t job_id = (asic_result.job.id & 0xf0) >> 1;
@@ -278,23 +315,24 @@ bool BM1368_process_work(void * pvParameters, task_result * result)
     uint8_t core_id = (uint8_t)((nonce_h >> 25) & 0x7f);
     uint8_t small_core_id = asic_result.job.id & 0x0f;
     uint32_t version_bits = (ntohs(asic_result.job.version) << 13);
-    ESP_LOGI(TAG, "Job ID: %02X, Asic nr: %d, Core: %d/%d, Ver: %08" PRIX32, job_id, asic_nr, core_id, small_core_id, version_bits);    
 
     GlobalState * GLOBAL_STATE = (GlobalState *) pvParameters;
 
     if (GLOBAL_STATE->valid_jobs[job_id] == 0) {
         ESP_LOGW(TAG, "Invalid job nonce found, 0x%02X", job_id);
-        return false;
+        return NULL;
     }
 
     uint32_t rolled_version = GLOBAL_STATE->ASIC_TASK_MODULE.active_jobs[job_id]->version | version_bits;
 
-    result->job_id = job_id;
-    result->nonce = asic_result.job.nonce;
-    result->rolled_version = rolled_version;
-    result->asic_nr = asic_nr;
+    result.job_id = job_id;
+    result.nonce = asic_result.job.nonce;
+    result.rolled_version = rolled_version;
+    result.asic_nr = asic_nr;
+    result.core_id = core_id;
+    result.small_core_id = small_core_id;
 
-    return true;
+    return &result;
 }
 
 void BM1368_read_registers(void)

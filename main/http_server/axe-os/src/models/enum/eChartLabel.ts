@@ -4,6 +4,7 @@ export enum eChartLabel {
     hashrate_10m = 'Hashrate 10m',
     hashrate_1h = 'Hashrate 1h',
     asicTemp = 'ASIC Temp',
+    asicTemp2 = 'ASIC Temp 2',
     errorPercentage = 'Error %',
     vrTemp = 'VR Temp',
     asicVoltage = 'ASIC Voltage',
@@ -15,6 +16,7 @@ export enum eChartLabel {
     fan2Rpm = 'Fan 2 RPM',
     wifiRssi = 'Wi-Fi RSSI',
     freeHeap = 'Free Heap',
+    responseTime = 'Response Time',
     none = 'None'
 }
 

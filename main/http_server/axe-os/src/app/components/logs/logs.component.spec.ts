@@ -1,6 +1,15 @@
-import { ComponentFixture, TestBed } from '@angular/core/testing';
-
+import { provideRouter } from '@angular/router';
+import { ANSIPipe } from 'src/app/pipes/ansi.pipe';
+import { InputTextModule } from 'primeng/inputtext';
+import { CommonModule } from '@angular/common';
+import { SystemApiService } from 'src/app/services/system.service';
+import { provideHttpClient } from '@angular/common/http';
+import { TooltipModule } from 'primeng/tooltip';
+import { ReactiveFormsModule } from '@angular/forms';
+import { ButtonModule } from 'primeng/button';
+import { provideToastr } from 'ngx-toastr';
 import { LogsComponent } from './logs.component';
+import { ComponentFixture, TestBed } from '@angular/core/testing';
 
 describe('LogsComponent', () => {
   let component: LogsComponent;
@@ -8,7 +17,20 @@ describe('LogsComponent', () => {
 
   beforeEach(async () => {
     await TestBed.configureTestingModule({
-      imports: [LogsComponent]
+      declarations: [LogsComponent, ANSIPipe],
+      imports: [
+        CommonModule,
+        ButtonModule,
+        ReactiveFormsModule,
+        TooltipModule,
+        InputTextModule
+      ],
+      providers: [
+        provideRouter([]),
+        provideToastr(),
+        provideHttpClient(),
+        SystemApiService
+      ]
     })
     .compileComponents();
     

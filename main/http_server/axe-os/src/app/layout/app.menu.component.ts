@@ -1,8 +1,8 @@
 import { Component, OnInit } from '@angular/core';
 import { Observable, shareReplay } from 'rxjs';
-import { SystemService } from '../services/system.service';
+import { SystemApiService } from '../services/system.service';
 import { LayoutService } from './service/app.layout.service';
-import { ISystemInfo } from 'src/models/ISystemInfo';
+import { SystemInfo as ISystemInfo } from 'src/app/generated/models';
 
 @Component({
   selector: 'app-menu',
@@ -14,7 +14,7 @@ export class AppMenuComponent implements OnInit {
   model: any[] = [];
 
   constructor(public layoutService: LayoutService,
-    private systemService: SystemService,
+    private systemService: SystemApiService,
   ) {
     this.info$ = this.systemService.getInfo().pipe(shareReplay({ refCount: true, bufferSize: 1 }))
   }
@@ -25,6 +25,7 @@ export class AppMenuComponent implements OnInit {
         label: 'Menu',
         items: [
           { label: 'Dashboard', icon: 'pi pi-fw pi-home', routerLink: ['/'] },
+          { label: 'Scoreboard', icon: 'pi pi-fw pi-trophy', routerLink: ['scoreboard'] },
           { label: 'Swarm', icon: 'pi pi-fw pi-sitemap', routerLink: ['swarm'] },
           { label: 'Logs', icon: 'pi pi-fw pi-list', routerLink: ['logs'] },
           { label: 'System', icon: 'pi pi-fw pi-wave-pulse', routerLink: ['system'] },
