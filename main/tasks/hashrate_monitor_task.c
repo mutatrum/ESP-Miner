@@ -20,6 +20,7 @@
 #define HASHRATE_1H_SIZE 6
 #define DIV_10M (HASHRATE_1M_SIZE)
 #define DIV_1H (HASHRATE_10M_SIZE * DIV_10M)
+#define DOMAIN_STALL_POLLS 30
 
 static unsigned long poll_count = 0;
 static float hashrate_1m[HASHRATE_1M_SIZE];
@@ -56,6 +57,8 @@ void hashrate_monitor_reset_measurements(void *pvParameters)
     pthread_mutex_lock(&HASHRATE_MONITOR_MODULE->lock);
     memset(HASHRATE_MONITOR_MODULE->total_measurement, 0, asic_count * sizeof(measurement_t));
     memset(HASHRATE_MONITOR_MODULE->domain_measurements[0], 0, asic_count * hash_domains * sizeof(measurement_t));
+    memset(HASHRATE_MONITOR_MODULE->domain_stall_counts[0], 0, asic_count * hash_domains * sizeof(uint8_t));
+    memset(HASHRATE_MONITOR_MODULE->domain_stalled[0], 0, asic_count * hash_domains * sizeof(bool));
     memset(HASHRATE_MONITOR_MODULE->error_measurement, 0, asic_count * sizeof(measurement_t));
     pthread_mutex_unlock(&HASHRATE_MONITOR_MODULE->lock);
 }
@@ -86,6 +89,33 @@ void update_hash_counter(measurement_t * measurement, uint32_t value, uint64_t t
 
     measurement->value = value;
     measurement->time_us = time_us;
+}
+
+static void update_domain_hash_counter(HashrateMonitorModule *module, uint8_t asic_nr, uint8_t domain_nr, uint32_t value, uint64_t time_us)
+{
+    measurement_t *measurement = &module->domain_measurements[asic_nr][domain_nr];
+    uint32_t previous_value = measurement->value;
+    uint64_t previous_time_us = measurement->time_us;
+
+    update_hash_counter(measurement, value, time_us);
+
+    if (previous_time_us == 0 || measurement->time_us == previous_time_us) {
+        return;
+    }
+
+    if (value == previous_value) {
+        if (module->domain_stall_counts[asic_nr][domain_nr] < DOMAIN_STALL_POLLS) {
+            module->domain_stall_counts[asic_nr][domain_nr]++;
+        }
+    } else {
+        module->domain_stall_counts[asic_nr][domain_nr] = 0;
+        module->domain_stalled[asic_nr][domain_nr] = false;
+    }
+
+    if (module->domain_stall_counts[asic_nr][domain_nr] >= DOMAIN_STALL_POLLS && !module->domain_stalled[asic_nr][domain_nr]) {
+        ESP_LOGW(TAG, "ASIC %d domain %d hash counter stalled", asic_nr, domain_nr);
+        module->domain_stalled[asic_nr][domain_nr] = true;
+    }
 }
 
 static void init_averages()
@@ -154,8 +184,14 @@ void hashrate_monitor_task(void *pvParameters)
     HASHRATE_MONITOR_MODULE->total_measurement = heap_caps_malloc(asic_count * sizeof(measurement_t), MALLOC_CAP_SPIRAM);
     measurement_t* data = heap_caps_malloc(asic_count * hash_domains * sizeof(measurement_t), MALLOC_CAP_SPIRAM);
     HASHRATE_MONITOR_MODULE->domain_measurements = heap_caps_malloc(asic_count * sizeof(measurement_t*), MALLOC_CAP_SPIRAM);
+    uint8_t* stall_count_data = heap_caps_malloc(asic_count * hash_domains * sizeof(uint8_t), MALLOC_CAP_SPIRAM);
+    HASHRATE_MONITOR_MODULE->domain_stall_counts = heap_caps_malloc(asic_count * sizeof(uint8_t*), MALLOC_CAP_SPIRAM);
+    bool* stalled_data = heap_caps_malloc(asic_count * hash_domains * sizeof(bool), MALLOC_CAP_SPIRAM);
+    HASHRATE_MONITOR_MODULE->domain_stalled = heap_caps_malloc(asic_count * sizeof(bool*), MALLOC_CAP_SPIRAM);
     for (size_t asic_nr = 0; asic_nr < asic_count; asic_nr++) {
         HASHRATE_MONITOR_MODULE->domain_measurements[asic_nr] = data + (asic_nr * hash_domains);
+        HASHRATE_MONITOR_MODULE->domain_stall_counts[asic_nr] = stall_count_data + (asic_nr * hash_domains);
+        HASHRATE_MONITOR_MODULE->domain_stalled[asic_nr] = stalled_data + (asic_nr * hash_domains);
     }
     HASHRATE_MONITOR_MODULE->error_measurement = heap_caps_malloc(asic_count * sizeof(measurement_t), MALLOC_CAP_SPIRAM);
 
@@ -235,7 +271,7 @@ void hashrate_monitor_register_read(void *pvParameters, register_type_t register
         case REGISTER_DOMAIN_7_COUNT: {
             uint8_t domain_idx = register_type - REGISTER_DOMAIN_0_COUNT;
             if (domain_idx < GLOBAL_STATE->DEVICE_CONFIG.family.asic.hash_domains) {
-                update_hash_counter(&HASHRATE_MONITOR_MODULE->domain_measurements[asic_nr][domain_idx], value, timestamp_us);
+                update_domain_hash_counter(HASHRATE_MONITOR_MODULE, asic_nr, domain_idx, value, timestamp_us);
             }
             break;
         }
