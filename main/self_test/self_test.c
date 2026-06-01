@@ -525,15 +525,17 @@ void self_test_task(void * pvParameters)
         tests_done(GLOBAL_STATE, false);
     }
 
-    // Prime the last sample timestamps from hashrate monitor
-    pthread_mutex_lock(&GLOBAL_STATE->HASHRATE_MONITOR_MODULE.lock);
-    for (int asic_nr = 0; asic_nr < asic_count; asic_nr++) {
-        for (int domain_nr = 0; domain_nr < hash_domains; domain_nr++) {
-            domain_averages[asic_nr * hash_domains + domain_nr].last_sample_time_us = 
-                GLOBAL_STATE->HASHRATE_MONITOR_MODULE.domain_measurements[asic_nr][domain_nr].time_us;
+    // Prime the last sample timestamps from hashrate monitor if initialized
+    if (GLOBAL_STATE->HASHRATE_MONITOR_MODULE.is_initialized) {
+        pthread_mutex_lock(&GLOBAL_STATE->HASHRATE_MONITOR_MODULE.lock);
+        for (int asic_nr = 0; asic_nr < asic_count; asic_nr++) {
+            for (int domain_nr = 0; domain_nr < hash_domains; domain_nr++) {
+                domain_averages[asic_nr * hash_domains + domain_nr].last_sample_time_us = 
+                    GLOBAL_STATE->HASHRATE_MONITOR_MODULE.domain_measurements[asic_nr][domain_nr].time_us;
+            }
         }
+        pthread_mutex_unlock(&GLOBAL_STATE->HASHRATE_MONITOR_MODULE.lock);
     }
-    pthread_mutex_unlock(&GLOBAL_STATE->HASHRATE_MONITOR_MODULE.lock);
 
     self_test_start_nonce_measurement(GLOBAL_STATE);
     ESP_LOGI(TAG, "Starting 30s hashrate monitoring loop, target temp %.1f°C", SELF_TEST_TARGET_TEMP_C);
