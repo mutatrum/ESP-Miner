@@ -1,15 +1,18 @@
-import { Component, OnDestroy, Renderer2, ViewChild } from '@angular/core';
-import { NavigationEnd, Router } from '@angular/router';
+import { Component, OnDestroy, Renderer2, ViewChild, ChangeDetectionStrategy } from '@angular/core';
+import { NavigationEnd, Router, RouterOutlet } from '@angular/router';
 import { filter, Subscription, Subject, takeUntil } from 'rxjs';
 import { SensitiveData } from 'src/app/services/sensitive-data.service';
 import { LayoutService } from "./service/app.layout.service";
 import { AppSidebarComponent } from "./app.sidebar.component";
 import { AppTopBarComponent } from './app.topbar.component';
+import { NgClass } from '@angular/common';
+import { LoadingComponent } from '../components/loading/loading.component';
 
 @Component({
     selector: 'app-layout',
     templateUrl: './app.layout.component.html',
-    standalone: false
+    changeDetection: ChangeDetectionStrategy.Eager,
+    imports: [NgClass, AppTopBarComponent, AppSidebarComponent, RouterOutlet, LoadingComponent]
 })
 export class AppLayoutComponent implements OnDestroy {
     private destroy$ = new Subject<void>();

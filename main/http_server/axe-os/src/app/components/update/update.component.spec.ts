@@ -1,13 +1,9 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-
 import { UpdateComponent } from './update.component';
 import { ModalComponent } from '../modal/modal.component';
-import { FileUploadModule } from 'primeng/fileupload';
-import { CheckboxModule } from 'primeng/checkbox';
-import { ProgressBarModule } from 'primeng/progressbar';
-import { ButtonModule } from 'primeng/button';
-import { provideHttpClient } from '@angular/common/http';
-import { provideToastr } from 'ngx-toastr';
+import { FormsModule } from '@angular/forms';
+import { provideHttpClient, withXhr } from '@angular/common/http';
+import { ToastrService } from 'src/app/services/toast.service';
 
 describe('UpdateComponent', () => {
   let component: UpdateComponent;
@@ -15,9 +11,11 @@ describe('UpdateComponent', () => {
 
   beforeEach(() => {
     TestBed.configureTestingModule({
-      declarations: [UpdateComponent, ModalComponent],
-      imports: [FileUploadModule, CheckboxModule, ButtonModule, ProgressBarModule],
-      providers: [provideHttpClient(), provideToastr()]
+      imports: [FormsModule, UpdateComponent, ModalComponent],
+      providers: [
+        provideHttpClient(withXhr()),
+        { provide: ToastrService, useValue: { success: jasmine.createSpy(), error: jasmine.createSpy(), warning: jasmine.createSpy() } }
+      ]
     });
     fixture = TestBed.createComponent(UpdateComponent);
     component = fixture.componentInstance;

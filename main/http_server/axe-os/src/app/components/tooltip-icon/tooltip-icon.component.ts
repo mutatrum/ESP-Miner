@@ -1,10 +1,13 @@
-import { Component, Input, HostListener } from '@angular/core';
+import { Component, Input, ChangeDetectionStrategy } from '@angular/core';
+import { NgClass } from '@angular/common';
 
 @Component({
     selector: 'tooltip-icon',
     templateUrl: './tooltip-icon.component.html',
     styleUrls: ['./tooltip-icon.component.scss'],
-    standalone: false
+    changeDetection: ChangeDetectionStrategy.Eager,
+    imports: [NgClass],
+    standalone: true
 })
 export class TooltipIconComponent {
   @Input() tooltip: string = '';

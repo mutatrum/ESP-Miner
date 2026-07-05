@@ -1,117 +1,134 @@
 <div class="card">
-    <h2>Update</h2>
+  <h2>Update</h2>
 
-    <div class="grid grid-cols-12 gap-4">
-        <div class="col-span-12 xl:col-span-4">
-            <div class="card h-full">
-                <h5>Current Version: {{(info$ | async)?.version}}</h5>
+  <div class="grid grid-cols-12 gap-4">
+    <div class="col-span-12 xl:col-span-4">
+      <div class="card h-full">
+        <h5>Current Version: {{(info$ | async)?.version}}</h5>
 
-                <ng-container *ngIf="checkLatestRelease == false; else afterCheck">
-                    <h3>Latest Release: <p-button (onClick)="handleReleaseCheck()">Check</p-button></h3>
-
-                    <app-modal #privacyModal [headline]="'Privacy Warning'">
-                        <p>
-                            Please note, this will connect to <strong>github.com</strong> to check for the latest release.
-                        </p>
-                        <p class="flex gap-2">
-                            <p-checkbox
-                                [binary]="true"
-                                inputId="ignoreWarning"
-                                #ignoreWarning></p-checkbox>
-                            <label for="ignoreWarning">Don't show again</label>
-                        </p>
-                        <div class="flex gap-3 mt-5">
-                            <p-button (onClick)="continueReleaseCheck(ignoreWarning.model)">Continue</p-button>
-                            <p-button styleClass="p-button-secondary" (onClick)="privacyModal.isVisible = false">Cancel</p-button>
-                        </div>
-                    </app-modal>
-                </ng-container>
-
-                <ng-template #afterCheck>
-                    <ng-container *ngIf="latestRelease$ | async as latestRelease">
-                        <h3>Latest Release:
-                            <a style="text-decoration: underline;" target="_blank"
-                            [href]="latestRelease.html_url">{{latestRelease.name}}</a>
-                        </h3>
-
-                        <div class="text-orange-500 mb-4">Download both files for update!</div>
-
-                        <div *ngFor="let asset of latestRelease.assets">
-                            <div *ngIf="asset.name == 'esp-miner.bin'">
-                                <a style="text-decoration: underline;" target="_blank"
-                                    [href]="asset.browser_download_url">esp-miner.bin</a>
-                            </div>
-                            <div *ngIf="asset.name == 'www.bin'">
-                                <a style="text-decoration: underline;" target="_blank"
-                                    [href]="asset.browser_download_url">www.bin</a>
-                            </div>
-                        </div>
-
-                        <a class="text-secondary underline block mt-4 cursor-pointer" (click)="releaseNotesModal.isVisible = true">
-                            Release Notes
-                        </a>
-
-                        <app-modal #releaseNotesModal [headline]="latestRelease.name">
-                            <div [innerHTML]="simpleMarkdownParser(latestRelease.body)"></div>
-                        </app-modal>
-                    </ng-container>
-                </ng-template>
+        @if (checkLatestRelease == false) {
+          <h3>Latest Release: <button (click)="handleReleaseCheck()" class="ml-2 px-3 py-1 bg-primary text-white rounded-lg hover:bg-opacity-90 font-medium transition-all duration-200 text-sm">Check</button></h3>
+          <app-modal #privacyModal [headline]="'Privacy Warning'">
+            <p>
+              Please note, this will connect to <strong>github.com</strong> to check for the latest release.
+            </p>
+            <p class="flex items-center gap-2 mt-4">
+              <input
+                type="checkbox"
+                id="ignoreWarning"
+                [(ngModel)]="ignoreWarningModel"
+                class="w-4 h-4 rounded text-primary bg-neutral-950 border-neutral-800 focus:ring-primary focus:ring-opacity-50"
+              >
+              <label for="ignoreWarning" class="cursor-pointer text-sm">Don't show again</label>
+            </p>
+            <div class="flex gap-3 mt-5">
+              <button (click)="continueReleaseCheck(ignoreWarningModel)" class="px-4 py-2 bg-primary text-white rounded-lg hover:bg-opacity-90 font-medium transition-all duration-200 text-sm">Continue</button>
+              <button class="px-4 py-2 bg-neutral-800 hover:bg-neutral-700 text-white rounded-lg font-medium transition-all duration-200 text-sm" (click)="privacyModal.isVisible = false">Cancel</button>
             </div>
-        </div>
-        <div class="col-span-12 lg:col-span-6 xl:col-span-4">
-            <div class="card h-full">
-                <h3>Update AxeOS</h3>
+          </app-modal>
+        } @else {
+          @if (latestRelease$ | async; as latestRelease) {
+            <h3>Latest Release:
+              <a style="text-decoration: underline;" target="_blank"
+              [href]="latestRelease.html_url">{{latestRelease.name}}</a>
+            </h3>
+            <div class="text-orange-500 mb-4">Download both files for update!</div>
+            @for (asset of latestRelease.assets; track asset) {
+              <div>
+                @if (asset.name == 'esp-miner.bin') {
+                  <div>
+                    <a style="text-decoration: underline;" target="_blank"
+                    [href]="asset.browser_download_url">esp-miner.bin</a>
+                  </div>
+                }
+                @if (asset.name == 'www.bin') {
+                  <div>
+                    <a style="text-decoration: underline;" target="_blank"
+                    [href]="asset.browser_download_url">www.bin</a>
+                  </div>
+                }
+              </div>
+            }
+            <a class="text-secondary underline block mt-4 cursor-pointer" (click)="releaseNotesModal.isVisible = true">
+              Release Notes
+            </a>
+            <app-modal #releaseNotesModal [headline]="latestRelease.name">
+              <div [innerHTML]="simpleMarkdownParser(latestRelease.body)"></div>
+            </app-modal>
+          }
+        }
 
-                <p-fileupload #websiteUpload [customUpload]="true" mode="basic" accept=".bin" (uploadHandler)="otaWWWUpdate($event)"
-                    [auto]="true" chooseLabel="Browse"></p-fileupload>
-
-                <small>(www.bin)</small>
-            </div>
-        </div>
-        <div class="col-span-12 lg:col-span-6 xl:col-span-4">
-            <div class="card h-full">
-                <h3>Update Firmware</h3>
-                <p-fileupload #firmwareUpload [customUpload]="true" mode="basic" accept=".bin" (uploadHandler)="otaUpdate($event)"
-                    [auto]="true" chooseLabel="Browse"></p-fileupload>
-
-                <small>(esp-miner.bin)</small>
-            </div>
-
-        </div>
+      </div>
     </div>
+    <div class="col-span-12 lg:col-span-6 xl:col-span-4">
+      <div class="card h-full">
+        <h3>Update AxeOS</h3>
+
+        <div class="flex flex-col items-start gap-2">
+          <input #websiteInput type="file" accept=".bin" class="hidden" (change)="onWebsiteFileSelected($event)">
+          <button type="button" (click)="websiteInput.click()" class="px-4 py-2 bg-neutral-900 border border-neutral-800 hover:bg-neutral-800 text-white rounded-lg font-medium transition-all duration-200 focus:outline-none focus:ring-1 focus:ring-primary text-sm">
+            Browse
+          </button>
+          <small class="text-neutral-500">(www.bin)</small>
+        </div>
+      </div>
+    </div>
+    <div class="col-span-12 lg:col-span-6 xl:col-span-4">
+      <div class="card h-full">
+        <h3>Update Firmware</h3>
+        
+        <div class="flex flex-col items-start gap-2">
+          <input #firmwareInput type="file" accept=".bin" class="hidden" (change)="onFirmwareFileSelected($event)">
+          <button type="button" (click)="firmwareInput.click()" class="px-4 py-2 bg-neutral-900 border border-neutral-800 hover:bg-neutral-800 text-white rounded-lg font-medium transition-all duration-200 focus:outline-none focus:ring-1 focus:ring-primary text-sm">
+            Browse
+          </button>
+          <small class="text-neutral-500">(esp-miner.bin)</small>
+        </div>
+      </div>
+
+    </div>
+  </div>
 </div>
 <app-modal #progressModal [headline]="'Updating ' + updateTarget" [closable]="updateStatus !== 'progress'">
-    <div class="flex flex-col items-center justify-center p-4">
-        <ng-container *ngIf="updateStatus === 'progress'">
-            <div class="text-xl mb-4" *ngIf="updateTarget === 'AxeOS' && websiteUpdateProgress !== null">
-                Uploading... {{ websiteUpdateProgress }}%
-            </div>
-            <div class="text-xl mb-4" *ngIf="updateTarget === 'Firmware' && firmwareUpdateProgress !== null">
-                Uploading... {{ firmwareUpdateProgress }}%
-            </div>
-            <div class="text-xl mb-4" *ngIf="(updateTarget === 'AxeOS' && websiteUpdateProgress === null) || (updateTarget === 'Firmware' && firmwareUpdateProgress === null)">
-                Applying update...
-            </div>
-            <p-progressbar class="w-full" [styleClass]="'instant-progress'" [showValue]="false" [value]="updateTarget === 'AxeOS' ? websiteUpdateProgress : firmwareUpdateProgress" [style]="{'height': '1.5rem', 'width': '100%'}"></p-progressbar>
-            <div class="text-center mt-3 text-secondary">
-                Please do not disconnect the power.
-            </div>
-        </ng-container>
+  <div class="flex flex-col items-center justify-center p-4 w-full">
+    @if (updateStatus === 'progress') {
+      @if (updateTarget === 'AxeOS' && websiteUpdateProgress !== null) {
+        <div class="text-xl mb-4 text-white">
+          Uploading... {{ websiteUpdateProgress }}%
+        </div>
+      }
+      @if (updateTarget === 'Firmware' && firmwareUpdateProgress !== null) {
+        <div class="text-xl mb-4 text-white">
+          Uploading... {{ firmwareUpdateProgress }}%
+        </div>
+      }
+      @if ((updateTarget === 'AxeOS' && websiteUpdateProgress === null) || (updateTarget === 'Firmware' && firmwareUpdateProgress === null)) {
+        <div class="text-xl mb-4 text-white">
+          Applying update...
+        </div>
+      }
+      <app-progress-bar size="md" [value]="(updateTarget === 'AxeOS' ? websiteUpdateProgress : firmwareUpdateProgress) || 0"></app-progress-bar>
+      <div class="text-center mt-4 text-neutral-400 text-sm">
+        Please do not disconnect the power.
+      </div>
+    }
 
-        <ng-container *ngIf="updateStatus === 'success'">
-            <i class="pi pi-check-circle text-green-500" style="font-size: 3.5rem; margin-bottom: 1rem;"></i>
-            <div class="text-lg text-center">{{ updateMessage }}</div>
-            <div class="mt-4" *ngIf="updateTarget !== 'AxeOS'">
-                <p-button (onClick)="progressModal.isVisible = false">Close</p-button>
-            </div>
-        </ng-container>
+    @if (updateStatus === 'success') {
+      <i class="pi pi-check-circle text-green-500" style="font-size: 3.5rem; margin-bottom: 1rem;"></i>
+      <div class="text-lg text-center text-white mb-4">{{ updateMessage }}</div>
+      @if (updateTarget !== 'AxeOS') {
+        <div>
+          <button (click)="progressModal.isVisible = false" class="px-4 py-2 bg-primary text-white rounded-lg hover:bg-opacity-90 font-medium transition-all duration-200 text-sm">Close</button>
+        </div>
+      }
+    }
 
-        <ng-container *ngIf="updateStatus === 'error'">
-            <i class="pi pi-times-circle text-red-500" style="font-size: 3.5rem; margin-bottom: 1rem;"></i>
-            <div class="text-lg text-center text-red-500">{{ updateMessage }}</div>
-             <div class="mt-4">
-                <p-button (onClick)="progressModal.isVisible = false">Close</p-button>
-            </div>
-        </ng-container>
-    </div>
+    @if (updateStatus === 'error') {
+      <i class="pi pi-times-circle text-red-500" style="font-size: 3.5rem; margin-bottom: 1rem;"></i>
+      <div class="text-lg text-center text-red-500 mb-4">{{ updateMessage }}</div>
+      <div>
+        <button (click)="progressModal.isVisible = false" class="px-4 py-2 bg-primary text-white rounded-lg hover:bg-opacity-90 font-medium transition-all duration-200 text-sm">Close</button>
+      </div>
+    }
+  </div>
 </app-modal>

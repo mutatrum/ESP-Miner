@@ -1,8 +1,9 @@
-import { Component, OnInit, OnDestroy } from '@angular/core';
+import { Component, OnInit, OnDestroy, ChangeDetectionStrategy, inject } from '@angular/core';
 import { Subject } from 'rxjs';
 import { takeUntil } from 'rxjs/operators';
 import { LayoutService } from '../../layout/service/app.layout.service';
 import { ThemeService } from '../../services/theme.service';
+import { FormsModule } from '@angular/forms';
 
 interface ThemeOption {
   name: string;
@@ -16,9 +17,11 @@ interface ThemeOption {
     selector: 'app-theme-config',
     templateUrl: './theme-config.component.html',
     styleUrls: ['./design-component.scss'],
-    standalone: false
+    changeDetection: ChangeDetectionStrategy.Eager,
+    imports: [FormsModule],
+    standalone: true
 })
-export class ThemeConfigComponent implements OnInit {
+export class ThemeConfigComponent implements OnInit, OnDestroy {
   selectedScheme: string;
   currentColor: string = '';
   themes: ThemeOption[] = [
@@ -186,10 +189,10 @@ export class ThemeConfigComponent implements OnInit {
 
   private destroy$ = new Subject<void>();
 
-  constructor(
-    public layoutService: LayoutService,
-    private themeService: ThemeService
-  ) {
+  public layoutService = inject(LayoutService);
+  private themeService = inject(ThemeService);
+
+  constructor() {
     this.selectedScheme = this.layoutService.config().colorScheme;
   }
 

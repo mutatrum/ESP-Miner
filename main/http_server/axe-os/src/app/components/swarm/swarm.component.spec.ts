@@ -1,12 +1,9 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-
 import { SwarmComponent } from './swarm.component';
 import { ModalComponent } from '../modal/modal.component';
-import { FileUploadModule } from 'primeng/fileupload';
-import { InputGroupModule } from 'primeng/inputgroup';
 import { ReactiveFormsModule } from '@angular/forms';
-import { provideHttpClient } from '@angular/common/http';
-import { provideToastr } from 'ngx-toastr';
+import { provideHttpClient, withXhr } from '@angular/common/http';
+import { ToastrService } from 'src/app/services/toast.service';
 
 describe('SwarmComponent', () => {
   let component: SwarmComponent;
@@ -14,9 +11,11 @@ describe('SwarmComponent', () => {
 
   beforeEach(() => {
     TestBed.configureTestingModule({
-      declarations: [SwarmComponent, ModalComponent],
-      imports: [FileUploadModule, InputGroupModule, ReactiveFormsModule],
-      providers: [provideHttpClient(), provideToastr()]
+      imports: [ReactiveFormsModule, SwarmComponent, ModalComponent],
+      providers: [
+        provideHttpClient(withXhr()),
+        { provide: ToastrService, useValue: { success: jasmine.createSpy(), error: jasmine.createSpy(), warning: jasmine.createSpy() } }
+      ]
     });
     fixture = TestBed.createComponent(SwarmComponent);
     component = fixture.componentInstance;

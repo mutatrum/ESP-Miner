@@ -1,16 +1,11 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { HomeComponent } from './home.component';
-import { provideHttpClient } from '@angular/common/http';
-import { provideToastr } from 'ngx-toastr';
+import { provideHttpClient, withXhr } from '@angular/common/http';
+import { ToastrService } from 'src/app/services/toast.service';
 import { ReactiveFormsModule, FormsModule } from '@angular/forms';
 import { NoopAnimationsModule } from '@angular/platform-browser/animations';
 import { Title } from '@angular/platform-browser';
 import { provideRouter } from '@angular/router';
-import { MessageModule } from 'primeng/message';
-import { SelectModule } from 'primeng/select';
-import { ChartModule } from 'primeng/chart';
-import { ProgressBarModule } from 'primeng/progressbar';
-import { TooltipModule } from 'primeng/tooltip';
 
 import { HashSuffixPipe } from 'src/app/pipes/hash-suffix.pipe';
 import { DiffSuffixPipe } from 'src/app/pipes/diff-suffix.pipe';
@@ -22,6 +17,7 @@ import { ByteSuffixPipe } from 'src/app/pipes/byte-suffix.pipe';
 import { TooltipTextIconComponent } from 'src/app/components/tooltip-text-icon/tooltip-text-icon.component';
 import { ConfettiComponent } from 'src/app/components/confetti/confetti.component';
 import { SnowflakesComponent } from 'src/app/components/snowflakes/snowflakes.component';
+import { ChartComponent } from 'src/app/components/chart/chart.component';
 
 import { SystemApiService } from 'src/app/services/system.service';
 import { ThemeService } from 'src/app/services/theme.service';
@@ -38,32 +34,26 @@ describe('HomeComponent', () => {
 
   beforeEach(() => {
     TestBed.configureTestingModule({
-      declarations: [
-        HomeComponent,
-        TooltipTextIconComponent,
-        ConfettiComponent,
-        SnowflakesComponent
-      ],
-      imports: [
+    imports: [
         ReactiveFormsModule,
         FormsModule,
         NoopAnimationsModule,
-        MessageModule,
-        SelectModule,
-        ChartModule,
-        ProgressBarModule,
-        TooltipModule,
         HashSuffixPipe,
         DiffSuffixPipe,
         DateAgoPipe,
         AddressPipe,
         SatsPipe,
-        ByteSuffixPipe
-      ],
-      providers: [
+        ByteSuffixPipe,
+        HomeComponent,
+        TooltipTextIconComponent,
+        ConfettiComponent,
+        SnowflakesComponent,
+        ChartComponent
+    ],
+    providers: [
         provideRouter([]),
-        provideHttpClient(),
-        provideToastr(),
+        provideHttpClient(withXhr()),
+        { provide: ToastrService, useValue: { success: jasmine.createSpy(), error: jasmine.createSpy(), warning: jasmine.createSpy() } },
         SystemApiService,
         ThemeService,
         QuicklinkService,
@@ -73,8 +63,8 @@ describe('HomeComponent', () => {
         LocalStorageService,
         DashboardEditService,
         LayoutService
-      ]
-    });
+    ]
+});
     fixture = TestBed.createComponent(HomeComponent);
     component = fixture.componentInstance;
     fixture.detectChanges();

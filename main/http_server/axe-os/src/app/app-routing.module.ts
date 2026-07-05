@@ -16,7 +16,7 @@ import { ApModeGuard } from './guards/ap-mode.guard';
 
 const TITLE_PREFIX = 'AxeOS';
 
-const routes: Routes = [
+export const routes: Routes = [
   {
       path: 'ap',
       component: AppLayoutComponent,

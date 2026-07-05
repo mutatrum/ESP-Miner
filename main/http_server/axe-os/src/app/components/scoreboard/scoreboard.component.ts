@@ -1,9 +1,12 @@
-import { Component, OnInit, OnDestroy } from '@angular/core';
+import { Component, OnInit, OnDestroy, ChangeDetectionStrategy } from '@angular/core';
 import { Observable, Subject, merge, switchMap, map, shareReplay, timer, takeUntil, finalize } from 'rxjs';
 import { SystemApiService } from 'src/app/services/system.service';
 import { LoadingService } from 'src/app/services/loading.service';
 import { LocalStorageService } from 'src/app/local-storage.service';
 import { ISystemScoreboardEntry } from 'src/models/ISystemScoreboard';
+import { NgClass, NgStyle, AsyncPipe, DatePipe } from '@angular/common';
+import { DateAgoPipe } from '../../pipes/date-ago.pipe';
+import { DiffSuffixPipe } from '../../pipes/diff-suffix.pipe';
 
 const SWARM_SORTING = 'SCOREBOARD_SORTING';
 
@@ -11,7 +14,9 @@ const SWARM_SORTING = 'SCOREBOARD_SORTING';
   selector: 'app-scoreboard',
   templateUrl: './scoreboard.component.html',
   styleUrls: ['./scoreboard.component.scss'],
-  standalone: false
+  changeDetection: ChangeDetectionStrategy.Eager,
+  imports: [NgClass, NgStyle, AsyncPipe, DatePipe, DateAgoPipe, DiffSuffixPipe],
+  standalone: true
 })
 export class ScoreboardComponent implements OnInit, OnDestroy {
   public scoreboard$: Observable<ISystemScoreboardEntry[]>;

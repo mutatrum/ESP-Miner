@@ -5,20 +5,19 @@ import { provideRouter, RouterModule } from '@angular/router';
 import { LayoutService } from './layout/service/app.layout.service';
 import { ThemeService } from './services/theme.service';
 import { LocalStorageService } from './local-storage.service';
-import { provideHttpClient } from '@angular/common/http';
-import { provideToastr } from 'ngx-toastr';
+import { provideHttpClient, withXhr } from '@angular/common/http';
+import { ToastrService } from './services/toast.service';
 
 describe('AppComponent', () => {
   beforeEach(() => TestBed.configureTestingModule({
-    imports: [RouterModule],
-    declarations: [AppComponent, SnowflakesComponent],
+    imports: [RouterModule, SnowflakesComponent, AppComponent],
     providers: [
       provideRouter([]),
       LayoutService,
       ThemeService,
       LocalStorageService,
-      provideHttpClient(),
-      provideToastr()
+      provideHttpClient(withXhr()),
+      { provide: ToastrService, useValue: { success: jasmine.createSpy(), error: jasmine.createSpy(), warning: jasmine.createSpy() } }
     ]
   }));
 

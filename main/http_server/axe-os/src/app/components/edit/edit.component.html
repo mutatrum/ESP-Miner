@@ -1,182 +1,253 @@
-<form *ngIf="form" [formGroup]="form">
+@if (form) {
+  <form [formGroup]="form">
     <div class="card">
-        <p-message *ngIf="settingsUnlocked" severity="warn" icon="pi pi-exclamation-triangle" styleClass="w-full mb-4 rounded-xl">
+      @if (settingsUnlocked) {
+        <div class="flex items-start gap-3 p-4 rounded-xl border border-amber-900/50 bg-amber-950/20 text-amber-200 mb-4 w-full">
+          <i class="pi pi-exclamation-triangle text-amber-500 mt-0.5"></i>
+          <span class="text-sm font-sans leading-relaxed">
             Custom settings can cause damage & system instability. Only modify these settings if you understand the risks of running outside designed parameters.
-        </p-message>
-
+          </span>
+        </div>
+      }
+      <div class="grid grid-cols-12 gap-4 items-center mb-6">
+        @if (settingsUnlocked) {
+          <label for="frequency" class="col-span-12 md:col-span-2 md:m-0">Frequency</label>
+          <div class="col-span-12 md:col-span-10">
+            <input id="frequency" formControlName="frequency" type="number" 
+              class="w-full bg-neutral-900 border border-neutral-800 text-white rounded-lg px-3 py-2 focus:outline-none focus:ring-1 focus:ring-primary" />
+          </div>
+        }
+        @if (!settingsUnlocked) {
+          <label class="col-span-12 md:col-span-2 md:m-0 hover-next-input">Frequency</label>
+          <div class="col-span-12 md:col-span-10">
+            <select
+              formControlName="frequency"
+              class="w-full bg-neutral-900 border border-neutral-800 text-white rounded-lg px-3 py-2 focus:outline-none focus:ring-1 focus:ring-primary"
+            >
+              @for (option of selectFrequency; track option.value) {
+                <option [value]="option.value">{{ option.name }}</option>
+              }
+            </select>
+          </div>
+        }
+      </div>
+      <div class="grid grid-cols-12 gap-4 items-center mb-6">
+        @if (settingsUnlocked) {
+          <label for="coreVoltage" class="col-span-12 md:col-span-2 md:m-0">Core Voltage</label>
+          <div class="col-span-12 md:col-span-10">
+            <input id="coreVoltage" formControlName="coreVoltage" type="number" 
+              class="w-full bg-neutral-900 border border-neutral-800 text-white rounded-lg px-3 py-2 focus:outline-none focus:ring-1 focus:ring-primary" />
+          </div>
+        }
+        @if (!settingsUnlocked) {
+          <label class="col-span-12 md:col-span-2 md:m-0 hover-next-input">Core Voltage</label>
+          <div class="col-span-12 md:col-span-10">
+            <select
+              formControlName="coreVoltage"
+              class="w-full bg-neutral-900 border border-neutral-800 text-white rounded-lg px-3 py-2 focus:outline-none focus:ring-1 focus:ring-primary"
+            >
+              @for (option of selectVoltage; track option.value) {
+                <option [value]="option.value">{{ option.name }}</option>
+              }
+            </select>
+          </div>
+        }
+      </div>
+      @if (form.get('overheat_mode')?.value === 1) {
+        <div class="mt-4">
+          <button type="button"
+            class="px-4 py-2 bg-red-650 hover:bg-red-700 text-white font-medium rounded-lg transition-all duration-200 text-sm w-full"
+            (click)="disableOverheatMode()">
+            Disable Overheat Mode
+          </button>
+          <small class="block mt-1 text-center text-primary">
+            Make sure to reset Frequency and Voltage before clicking this button.
+          </small>
+        </div>
+      }
+      <div class="grid grid-cols-12 gap-4 items-center mb-6">
+        <div class="col-span-1 md:col-span-10 md:order-2">
+          <input
+            type="checkbox"
+            id="autofanspeed"
+            formControlName="autofanspeed"
+            class="w-4 h-4 rounded text-primary bg-neutral-950 border-neutral-800 focus:ring-primary focus:ring-opacity-50"
+          >
+        </div>
+        <label for="autofanspeed" class="col-span-11 m-0 pl-3 md:col-span-2 md:order-1 md:py-2 md:pl-0">Automatic Fan Control</label>
+      </div>
+      @if (form.controls['autofanspeed'].value) {
         <div class="grid grid-cols-12 gap-4 items-center mb-6">
-            <ng-container *ngIf="settingsUnlocked">
-                <label for="frequency" class="col-span-12 md:col-span-2 md:m-0">Frequency</label>
-                <div class="col-span-12 md:col-span-10">
-                    <input pInputText id="frequency" formControlName="frequency" type="number" />
-                </div>
-            </ng-container>
-            <ng-container *ngIf="!settingsUnlocked">
-                <label (click)="frequencySelect.show()" class="col-span-12 md:col-span-2 md:m-0 hover-next-input">Frequency</label>
-                <div class="col-span-12 md:col-span-10">
-                    <p-select
-                        styleClass="w-full"
-                        [options]="selectFrequency"
-                        optionLabel="name"
-                        optionValue="value"
-                        formControlName="frequency"
-                        #frequencySelect
-                    ></p-select>
-                </div>
-            </ng-container>
+          <label class="hidden md:flex md:col-span-2 md:m-0 hover-next-input">Target Temperature</label>
+          <div class="col-span-12 md:col-span-10">
+            <label class="block mb-1 text-sm text-neutral-300">
+              <span class="md:hidden mr-1">Target Temperature:</span>{{form.controls['temptarget'].value}} °C
+            </label>
+            <input
+              type="range"
+              [min]="35"
+              [max]="66"
+              formControlName="temptarget"
+              class="w-full accent-primary bg-neutral-800 h-1.5 rounded-lg cursor-pointer mt-2"
+            >
+          </div>
         </div>
-
+      }
+      @if (form.controls['autofanspeed'].value) {
         <div class="grid grid-cols-12 gap-4 items-center mb-6">
-            <ng-container *ngIf="settingsUnlocked">
-                <label for="coreVoltage" class="col-span-12 md:col-span-2 md:m-0">Core Voltage</label>
-                <div class="col-span-12 md:col-span-10">
-                    <input pInputText id="coreVoltage" formControlName="coreVoltage" type="number" />
-                </div>
-            </ng-container>
-            <ng-container *ngIf="!settingsUnlocked">
-                <label (click)="voltageSelect.show()" class="col-span-12 md:col-span-2 md:m-0 hover-next-input">Core Voltage</label>
-                <div class="col-span-12 md:col-span-10">
-                    <p-select
-                        styleClass="w-full"
-                        [options]="selectVoltage"
-                        optionLabel="name"
-                        optionValue="value"
-                        formControlName="coreVoltage"
-                        #voltageSelect
-                    ></p-select>
-                </div>
-            </ng-container>
+          <label class="hidden md:flex md:col-span-2 md:m-0 hover-next-input">Minimum Fan Speed</label>
+          <div class="col-span-12 md:col-span-10">
+            <label class="block mb-1 text-sm text-neutral-300">
+              <span class="md:hidden mr-1">Minimum Fan Speed:</span>{{form.controls['minfanspeed'].value}} %
+            </label>
+            <input
+              type="range"
+              [min]="0"
+              [max]="99"
+              formControlName="minfanspeed"
+              class="w-full accent-primary bg-neutral-800 h-1.5 rounded-lg cursor-pointer mt-2"
+            >
+          </div>
         </div>
-
-        <div class="mt-4" *ngIf="form.get('overheat_mode')?.value === 1">
-            <button pButton type="button" label="Disable Overheat Mode"
-                    class="p-button-danger w-full"
-                    (click)="disableOverheatMode()">
-            </button>
-            <small class="block mt-1 text-center text-primary">
-                Make sure to reset Frequency and Voltage before clicking this button.
-            </small>
+      }
+      @if (!form.controls['autofanspeed'].value) {
+        <div class="grid grid-cols-12 gap-4 items-center mt-2 mb-6">
+          <label class="hidden md:flex md:col-span-2 md:m-0 hover-next-input">Fan Speed</label>
+          <div class="col-span-12 md:col-span-10">
+            <label class="block mb-1 text-sm text-neutral-300">
+              <span class="md:hidden mr-1">Fan Speed:</span>{{form.controls['manualFanSpeed'].value}} %
+              @if (form.controls['manualFanSpeed'].value < 33) {
+                <b class="text-primary ml-2">
+                  Danger: Could Cause Overheating
+                </b>
+              }
+              @if (form.controls['manualFanSpeed'].value == 100) {
+                <b class="text-orange-500 ml-2">
+                  S19 Simulator
+                </b>
+              }
+            </label>
+            <input
+              type="range"
+              [min]="0"
+              [max]="100"
+              formControlName="manualFanSpeed"
+              class="w-full accent-primary bg-neutral-800 h-1.5 rounded-lg cursor-pointer mt-2"
+            >
+          </div>
         </div>
-
-        <div class="grid grid-cols-12 gap-4 items-center mb-6">
-            <div class="col-span-1 md:col-span-10 md:order-2">
-                <p-checkbox name="autofanspeed" formControlName="autofanspeed" inputId="autofanspeed" [binary]="true"></p-checkbox>
-            </div>
-            <label for="autofanspeed" class="col-span-11 m-0 pl-3 md:col-span-2 md:order-1 md:py-2 md:pl-0">Automatic Fan Control</label>
-        </div>
-
-        <div *ngIf="form.controls['autofanspeed'].value" class="grid grid-cols-12 gap-4 items-center mb-6">
-            <label class="hidden md:flex md:col-span-2 md:m-0 hover-next-input">Target Temperature</label>
-            <div class="col-span-12 md:col-span-10">
-                <label class="block mb-1">
-                    <span class="md:hidden mr-1">Target Temperature:</span>{{form.controls['temptarget'].value}} °C
-                </label>
-                <p-slider [min]="35" [max]="66" formControlName="temptarget"></p-slider>
-            </div>
-        </div>
-
-        <div *ngIf="form.controls['autofanspeed'].value" class="grid grid-cols-12 gap-4 items-center mb-6">
-            <label class="hidden md:flex md:col-span-2 md:m-0 hover-next-input">Minimum Fan Speed</label>
-            <div class="col-span-12 md:col-span-10">
-                <label class="block mb-1">
-                    <span class="md:hidden mr-1">Minimum Fan Speed:</span>{{form.controls['minfanspeed'].value}} %
-                </label>
-                <p-slider [min]="0" [max]="99" formControlName="minfanspeed"></p-slider>
-            </div>
-        </div>
-
-        <div *ngIf="!form.controls['autofanspeed'].value" class="grid grid-cols-12 gap-4 items-center mt-2 mb-6">
-            <label class="hidden md:flex md:col-span-2 md:m-0 hover-next-input">Fan Speed</label>
-            <div class="col-span-12 md:col-span-10">
-                <label class="block mb-1">
-                    <span class="md:hidden mr-1">Fan Speed:</span>{{form.controls['manualFanSpeed'].value}} %
-                    <b *ngIf="form.controls['manualFanSpeed'].value < 33" class="text-primary">
-                        Danger: Could Cause Overheating
-                    </b>
-                    <b *ngIf="form.controls['manualFanSpeed'].value == 100" class="text-orange-500 ml-2">
-                        S19 Simulator
-                    </b>
-                </label>
-                <p-slider formControlName="manualFanSpeed"></p-slider>
-            </div>
-        </div>
+      }
     </div>
-
     <h3 class="mt-5">Display</h3>
-
     <div class="card">
-        <div class="grid grid-cols-12 gap-4 items-center mb-6">
-            <label (click)="displaySelect.show()" class="col-span-12 md:col-span-2 md:m-0 hover-next-input">Type</label>
-            <div class="col-span-12 md:col-span-10">
-                <p-select styleClass="w-full" [options]="displays" formControlName="display" #displaySelect></p-select>
-            </div>
+      <div class="grid grid-cols-12 gap-4 items-center mb-6">
+        <label class="col-span-12 md:col-span-2 md:m-0 hover-next-input">Type</label>
+        <div class="col-span-12 md:col-span-10">
+          <select
+            formControlName="display"
+            class="w-full bg-neutral-900 border border-neutral-800 text-white rounded-lg px-3 py-2 focus:outline-none focus:ring-1 focus:ring-primary"
+          >
+            @for (option of displays; track option) {
+              <option [value]="option">{{ option }}</option>
+            }
+          </select>
         </div>
-
-        <div class="grid grid-cols-12 gap-4 items-center mb-6">
-            <label (click)="rotationSelect.show()" class="col-span-12 md:col-span-2 md:m-0 hover-next-input">Rotation</label>
-            <div class="col-span-12 md:col-span-10">
-                <p-select styleClass="w-full" [options]="rotations" formControlName="rotation" #rotationSelect></p-select>
-            </div>
+      </div>
+      <div class="grid grid-cols-12 gap-4 items-center mb-6">
+        <label class="col-span-12 md:col-span-2 md:m-0 hover-next-input">Rotation</label>
+        <div class="col-span-12 md:col-span-10">
+          <select
+            formControlName="rotation"
+            class="w-full bg-neutral-900 border border-neutral-800 text-white rounded-lg px-3 py-2 focus:outline-none focus:ring-1 focus:ring-primary"
+          >
+            @for (option of rotations; track option) {
+              <option [value]="option">{{ option }}°</option>
+            }
+          </select>
         </div>
-
-        <div class="grid grid-cols-12 gap-4 items-center mb-6">
-            <label class="col-span-12 md:col-span-2 hidden md:flex md:m-0 relative hover-next-input">
-                Sleep
-            </label>
-            <div class="col-span-12 md:col-span-10">
-                <label class="block mb-1">
-                    <ng-container *ngIf="this.form.controls['displayTimeout'].value == 0">
-                        <span class="md:hidden mr-1">Display</span> Always Off
-                    </ng-container>
-                    <ng-container *ngIf="this.form.controls['displayTimeout'].value > 0">
-                        <span class="md:hidden mr-1">Display</span> Timeout: {{this.form.controls['displayTimeout'].value * 60 | dateAgo}}
-                    </ng-container>
-                    <ng-container *ngIf="this.form.controls['displayTimeout'].value == -1">
-                        <span class="md:hidden mr-1">Display</span> Always On
-                    </ng-container>
-                </label>
-                <p-slider [min]="0" [max]="displayTimeoutMaxSteps" [step]="1" [formControl]="displayTimeoutControl"></p-slider>
-                <input type="hidden" formControlName="displayTimeout" />
-            </div>
+      </div>
+      <div class="grid grid-cols-12 gap-4 items-center mb-6">
+        <label class="col-span-12 md:col-span-2 hidden md:flex md:m-0 relative hover-next-input">
+          Sleep
+        </label>
+        <div class="col-span-12 md:col-span-10">
+          <label class="block mb-1 text-sm text-neutral-300">
+            @if (this.form.controls['displayTimeout'].value == 0) {
+              <span class="md:hidden mr-1">Display</span> Always Off
+            }
+            @if (this.form.controls['displayTimeout'].value > 0) {
+              <span class="md:hidden mr-1">Display</span> Timeout: {{this.form.controls['displayTimeout'].value * 60 | dateAgo}}
+            }
+            @if (this.form.controls['displayTimeout'].value == -1) {
+              <span class="md:hidden mr-1">Display</span> Always On
+            }
+          </label>
+          <input
+            type="range"
+            [min]="0"
+            [max]="displayTimeoutMaxSteps"
+            [step]="1"
+            [formControl]="displayTimeoutControl"
+            class="w-full accent-primary bg-neutral-800 h-1.5 rounded-lg cursor-pointer mt-2"
+          >
+          <input type="hidden" formControlName="displayTimeout" />
         </div>
-
-        <div class="grid grid-cols-12 gap-4 items-center mt-4 mb-2">
-            <div class="col-span-1 md:col-span-10 md:order-2">
-                <p-checkbox name="invertscreen" formControlName="invertscreen" inputId="invertscreen" [binary]="true"></p-checkbox>
-            </div>
-            <label for="invertscreen" class="col-span-11 m-0 pl-3 md:col-span-2 md:order-1 md:py-2 md:pl-0">Invert Display Colors</label>
+      </div>
+      <div class="grid grid-cols-12 gap-4 items-center mt-4 mb-2">
+        <div class="col-span-1 md:col-span-10 md:order-2">
+          <input
+            type="checkbox"
+            id="invertscreen"
+            formControlName="invertscreen"
+            class="w-4 h-4 rounded text-primary bg-neutral-950 border-neutral-800 focus:ring-primary focus:ring-opacity-50"
+          >
         </div>
+        <label for="invertscreen" class="col-span-11 m-0 pl-3 md:col-span-2 md:order-1 md:py-2 md:pl-0">Invert Display Colors</label>
+      </div>
     </div>
-
     <h3 class="mt-5">Statistics</h3>
-
     <div class="card">
-        <div class="grid grid-cols-12 gap-4 items-center mb-2">
-            <label class="col-span-12 md:col-span-2 hidden md:flex md:m-0 relative hover-next-input">
-                Data Logging
-            </label>
-            <div class="col-span-12 md:col-span-10">
-                <label class="block mb-2">
-                    <ng-container *ngIf="this.form.controls['statsFrequency'].value == 0">
-                        <span class="md:hidden mr-1">Data Logging</span>Disabled
-                    </ng-container>
-                    <ng-container *ngIf="this.form.controls['statsFrequency'].value > 0">
-                        <span class="md:hidden mr-1">Log Data</span>Every {{form.controls['statsFrequency'].value | dateAgo: {strict: true} }} for {{(form.controls['statsFrequency'].value * statsLimit) | dateAgo}}
-                    </ng-container>
-                </label>
-                <p-slider [min]="0" [max]="statsFrequencyMaxSteps" [step]="1" [formControl]="statsFrequencyControl"></p-slider>
-                <input type="hidden" formControlName="statsFrequency" />
-            </div>
+      <div class="grid grid-cols-12 gap-4 items-center mb-2">
+        <label class="col-span-12 md:col-span-2 hidden md:flex md:m-0 relative hover-next-input">
+          Data Logging
+        </label>
+        <div class="col-span-12 md:col-span-10">
+          <label class="block mb-2 text-sm text-neutral-300">
+            @if (this.form.controls['statsFrequency'].value == 0) {
+              <span class="md:hidden mr-1">Data Logging</span>Disabled
+            }
+            @if (this.form.controls['statsFrequency'].value > 0) {
+              <span class="md:hidden mr-1">Log Data</span>Every {{form.controls['statsFrequency'].value | dateAgo: {strict: true} }} for {{(form.controls['statsFrequency'].value * statsLimit) | dateAgo}}
+            }
+          </label>
+          <input
+            type="range"
+            [min]="0"
+            [max]="statsFrequencyMaxSteps"
+            [step]="1"
+            [formControl]="statsFrequencyControl"
+            class="w-full accent-primary bg-neutral-800 h-1.5 rounded-lg cursor-pointer mt-2"
+          >
+          <input type="hidden" formControlName="statsFrequency" />
         </div>
+      </div>
     </div>
-
     <div class="flex mt-5 gap-3">
-        <button pButton [disabled]="!form.dirty || form.invalid" (click)="updateSystem()"
-            class="btn btn-primary">Save</button>
-
-        <button pButton [disabled]="!savedChanges" (click)="restart()">Restart</button>
-
-        <button *ngIf="settingsUnlocked" pButton pButton="p-button-danger" (click)="toggleOverclockMode(false)"
-            class="p-button-danger" pTooltip="Return to safe preset values only">Disable Overclock Mode</button>
+      <button [disabled]="!form.dirty || form.invalid" (click)="updateSystem()"
+        class="px-5 py-2 bg-primary text-white font-medium rounded-lg hover:bg-opacity-90 transition-all duration-200 disabled:opacity-50 text-sm">
+        Save
+      </button>
+      <button [disabled]="!savedChanges" (click)="restart()"
+        class="px-5 py-2 bg-neutral-800 hover:bg-neutral-700 text-white font-medium rounded-lg transition-all duration-200 disabled:opacity-50 text-sm">
+        Restart
+      </button>
+      @if (settingsUnlocked) {
+        <button (click)="toggleOverclockMode(false)"
+          class="px-4 py-2 bg-red-650 hover:bg-red-700 text-white font-medium rounded-lg transition-all duration-200 text-sm"
+          title="Return to safe preset values only">
+          Disable Overclock Mode
+        </button>
+      }
     </div>
-</form>
+  </form>
+}

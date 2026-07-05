@@ -2,32 +2,51 @@
   <div class="grid grid-cols-12 gap-4">
     <div class="col-span-12">
       <h5>Color Scheme</h5>
-      <div class="flex gap-3">
-        <div class="flex items-center">
-          <p-radioButton name="colorScheme" [value]="'dark'" [(ngModel)]="selectedScheme"
-            (onClick)="changeColorScheme('dark')" inputId="dark"></p-radioButton>
-          <label for="dark" class="ml-2 cursor-pointer">Dark</label>
-        </div>
-        <div class="flex items-center">
-          <p-radioButton name="colorScheme" [value]="'light'" [(ngModel)]="selectedScheme"
-            (onClick)="changeColorScheme('light')" inputId="light"></p-radioButton>
-          <label for="light" class="ml-2 cursor-pointer">Light</label>
-        </div>
+      <div class="flex gap-4">
+        <label for="dark" class="flex items-center gap-2 cursor-pointer text-neutral-200 hover:text-white">
+          <input
+            type="radio"
+            name="colorScheme"
+            value="dark"
+            [(ngModel)]="selectedScheme"
+            (click)="changeColorScheme('dark')"
+            id="dark"
+            class="w-4 h-4 text-primary bg-neutral-950 border-neutral-800 focus:ring-primary focus:ring-opacity-50"
+          >
+          <span>Dark</span>
+        </label>
+        <label for="light" class="flex items-center gap-2 cursor-pointer text-neutral-200 hover:text-white">
+          <input
+            type="radio"
+            name="colorScheme"
+            value="light"
+            [(ngModel)]="selectedScheme"
+            (click)="changeColorScheme('light')"
+            id="light"
+            class="w-4 h-4 text-primary bg-neutral-950 border-neutral-800 focus:ring-primary focus:ring-opacity-50"
+          >
+          <span>Light</span>
+        </label>
       </div>
     </div>
 
     <div class="col-span-12 mt-4">
       <h5>Theme Colors</h5>
       <div class="flex justify-between w-full flex-wrap gap-2">
-        <div *ngFor="let theme of themes" class="theme-color">
-          <button pButton [class]="'p-button-rounded p-button-text color-dot'"
-                  [style.backgroundColor]="theme.primaryColor"
-                  style="width: 2.2rem; height: 2.2rem; border: none; border-radius: 9999px;"
-                  (click)="changeTheme(theme)">
-            <i *ngIf="theme.primaryColor === currentColor" class="pi pi-check selected-icon"></i>
-          </button>
-          <div class="text-sm mt-1">{{theme.name}}</div>
-        </div>
+        @for (theme of themes; track theme.name) {
+          <div class="theme-color flex flex-col items-center">
+            <button
+              type="button"
+              [style.backgroundColor]="theme.primaryColor"
+              class="w-9 h-9 rounded-full flex items-center justify-center border-none cursor-pointer transition-transform duration-200 hover:scale-110 focus:outline-none"
+              (click)="changeTheme(theme)">
+              @if (theme.primaryColor === currentColor) {
+                <i class="pi pi-check text-white text-xs"></i>
+              }
+            </button>
+            <div class="text-xs text-neutral-400 mt-1.5">{{theme.name}}</div>
+          </div>
+        }
       </div>
     </div>
   </div>

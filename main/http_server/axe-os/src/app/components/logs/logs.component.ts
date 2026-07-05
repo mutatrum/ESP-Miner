@@ -1,15 +1,19 @@
-import { AfterViewChecked, Component, Input, OnInit, ElementRef, OnDestroy, ViewChild, HostListener } from '@angular/core';
-import { FormBuilder, FormGroup, Validators } from '@angular/forms';
+import { AfterViewChecked, Component, Input, OnInit, ElementRef, OnDestroy, ViewChild, ChangeDetectionStrategy } from '@angular/core';
+import { FormBuilder, FormGroup, Validators, FormsModule, ReactiveFormsModule } from '@angular/forms';
 import { Subscription } from 'rxjs';
-import { ToastrService } from 'ngx-toastr';
+import { ToastrService } from '../../services/toast.service';
 import { WebsocketService } from 'src/app/services/web-socket.service';
 import { SystemApiService } from 'src/app/services/system.service';
+import { NgClass } from '@angular/common';
+import { ANSIPipe } from '../../pipes/ansi.pipe';
 
 @Component({
     selector: 'app-logs',
     templateUrl: './logs.component.html',
     styleUrl: './logs.component.scss',
-    standalone: false
+    changeDetection: ChangeDetectionStrategy.Eager,
+    imports: [FormsModule, ReactiveFormsModule, NgClass, ANSIPipe],
+    standalone: true
 })
 export class LogsComponent implements OnInit, OnDestroy, AfterViewChecked {
   public loadingLogs: boolean = false;

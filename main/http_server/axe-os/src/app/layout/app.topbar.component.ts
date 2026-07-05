@@ -1,18 +1,23 @@
-import { Component, ElementRef, Input, ViewChild, OnInit, OnDestroy } from '@angular/core';
+import { Component, ElementRef, Input, ViewChild, OnInit, OnDestroy, ChangeDetectionStrategy } from '@angular/core';
 import { Observable, Subject, takeUntil } from 'rxjs';
-import { ToastrService } from 'ngx-toastr';
+import { ToastrService } from '../services/toast.service';
 import { SystemApiService } from 'src/app/services/system.service';
 import { LiveDataService } from 'src/app/services/live-data.service';
 import { LayoutService } from './service/app.layout.service';
 import { SensitiveData } from 'src/app/services/sensitive-data.service';
 import { DashboardEditService } from 'src/app/services/dashboard-edit.service';
 import { SystemInfo as ISystemInfo } from 'src/app/generated/models';
-import { MenuItem } from 'primeng/api';
+import { RouterLink } from '@angular/router';
+import { NgClass, AsyncPipe } from '@angular/common';
+import { WifiIconComponent } from '../components/wifi-icon/wifi-icon.component';
+import { FormsModule } from '@angular/forms';
 
 @Component({
     selector: 'app-topbar',
     templateUrl: './app.topbar.component.html',
-    standalone: false
+    changeDetection: ChangeDetectionStrategy.Eager,
+    imports: [RouterLink, NgClass, WifiIconComponent, FormsModule, AsyncPipe],
+    standalone: true
 })
 export class AppTopBarComponent implements OnInit, OnDestroy {
   private destroy$ = new Subject<void>();
@@ -20,7 +25,7 @@ export class AppTopBarComponent implements OnInit, OnDestroy {
   public info$: Observable<ISystemInfo>;
   public sensitiveDataHidden: boolean = false;
   public isMiningPaused: boolean = false;
-  public items!: MenuItem[];
+  public showWidgetPanel: boolean = false;
 
   @Input() isAPMode: boolean = false;
 

@@ -1,8 +1,7 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-
 import { EditComponent } from './edit.component';
-import { provideHttpClient } from '@angular/common/http';
-import { provideToastr } from 'ngx-toastr';
+import { provideHttpClient, withXhr } from '@angular/common/http';
+import { ToastrService } from 'src/app/services/toast.service';
 import { provideRouter } from '@angular/router';
 
 describe('EditComponent', () => {
@@ -12,7 +11,11 @@ describe('EditComponent', () => {
   beforeEach(() => {
     TestBed.configureTestingModule({
       imports: [EditComponent],
-      providers: [provideHttpClient(), provideToastr(), provideRouter([])]
+      providers: [
+        provideHttpClient(withXhr()),
+        { provide: ToastrService, useValue: { success: jasmine.createSpy(), error: jasmine.createSpy(), warning: jasmine.createSpy() } },
+        provideRouter([])
+      ]
     });
     fixture = TestBed.createComponent(EditComponent);
     component = fixture.componentInstance;

@@ -1,16 +1,18 @@
-<div class="card" *ngIf="systemRows$ | async as rows">
+@if (systemRows$ | async; as rows) {
+  <div class="card">
     <h2>System</h2>
-
     <div class="card">
-        <table>
-            <tr *ngFor="let row of rows; trackBy: trackByRowLabel">
-                <td class="text-secondary align-top whitespace-nowrap pr-6 py-0.5" [class.pb-4]="row.isSeparator">{{ row.label }}</td>
-                <td class="align-top break-all py-0.5" [ngClass]="row.valueClass || ''" [class.pb-4]="row.isSeparator" [attr.sensitive-data]="row.isSensitiveData ? '' : null" [pTooltip]="row.tooltip">{{ row.value }}</td>
-            </tr>
-        </table>
-
-        <button pButton class="btn btn-primary mt-5" (click)="identifyDevice()">
-            Identify device
-        </button>
+      <table>
+        @for (row of rows; track trackByRowLabel($index, row)) {
+          <tr>
+            <td class="text-secondary align-top whitespace-nowrap pr-6 py-0.5" [class.pb-4]="row.isSeparator">{{ row.label }}</td>
+            <td class="align-top break-all py-0.5" [ngClass]="row.valueClass || ''" [class.pb-4]="row.isSeparator" [attr.sensitive-data]="row.isSensitiveData ? '' : null" [title]="row.tooltip || ''">{{ row.value }}</td>
+          </tr>
+        }
+      </table>
+      <button class="btn btn-primary mt-5 px-4 py-2 bg-primary text-white rounded-lg hover:bg-opacity-90 font-medium transition-all duration-200" (click)="identifyDevice()">
+        Identify device
+      </button>
     </div>
-</div>
+  </div>
+}

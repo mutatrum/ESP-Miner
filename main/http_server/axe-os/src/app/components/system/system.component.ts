@@ -1,13 +1,14 @@
-import { Component, OnInit, OnDestroy } from '@angular/core';
+import { Component, OnInit, OnDestroy, ChangeDetectionStrategy, inject } from '@angular/core';
 import { Observable, Subject, combineLatest, shareReplay, first, takeUntil, map } from 'rxjs';
 import { HttpErrorResponse } from '@angular/common/http';
-import { ToastrService } from 'ngx-toastr';
+import { ToastrService } from '../../services/toast.service';
 import { SystemApiService } from 'src/app/services/system.service';
 import { LiveDataService } from 'src/app/services/live-data.service';
 import { LoadingService } from 'src/app/services/loading.service';
 import { DateAgoPipe } from 'src/app/pipes/date-ago.pipe';
 import { ByteSuffixPipe } from 'src/app/pipes/byte-suffix.pipe';
 import { SystemInfo as ISystemInfo, SystemAsic as ISystemASIC, GenericResponse, } from 'src/app/generated/models';
+import { NgClass, AsyncPipe } from '@angular/common';
 
 type TableRow = {
   label: string;
@@ -26,7 +27,9 @@ type CombinedData = {
 @Component({
     selector: 'app-system',
     templateUrl: './system.component.html',
-    standalone: false
+    changeDetection: ChangeDetectionStrategy.Eager,
+    imports: [NgClass, AsyncPipe],
+    standalone: true
 })
 export class SystemComponent implements OnInit, OnDestroy {
   public info$: Observable<ISystemInfo>;
@@ -36,12 +39,12 @@ export class SystemComponent implements OnInit, OnDestroy {
 
   private destroy$ = new Subject<void>();
 
-  constructor(
-    private systemService: SystemApiService,
-    private liveDataService: LiveDataService,
-    private loadingService: LoadingService,
-    private toastr: ToastrService,
-  ) {
+  private systemService = inject(SystemApiService);
+  private liveDataService = inject(LiveDataService);
+  private loadingService = inject(LoadingService);
+  private toastr = inject(ToastrService);
+
+  constructor() {
     this.info$ = this.liveDataService.info$;
     this.isConnected$ = this.liveDataService.connected$;
     

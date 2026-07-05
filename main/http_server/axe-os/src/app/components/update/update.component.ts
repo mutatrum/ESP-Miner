@@ -1,8 +1,7 @@
-import { Component, ViewChild } from '@angular/core';
+import { Component, ViewChild, ChangeDetectionStrategy } from '@angular/core';
 import { Observable, map } from 'rxjs';
 import { HttpErrorResponse, HttpEventType } from '@angular/common/http';
-import { ToastrService } from 'ngx-toastr';
-import { FileUploadHandlerEvent, FileUpload } from 'primeng/fileupload';
+import { ToastrService } from '../../services/toast.service';
 import { GithubUpdateService } from 'src/app/services/github-update.service';
 import { LoadingService } from 'src/app/services/loading.service';
 import { SystemApiService } from 'src/app/services/system.service';
@@ -10,6 +9,10 @@ import { LiveDataService } from 'src/app/services/live-data.service';
 import { LocalStorageService } from 'src/app/local-storage.service';
 import { ModalComponent } from '../modal/modal.component';
 import { SystemInfo } from 'src/app/generated/models';
+import { FormsModule } from '@angular/forms';
+import { AsyncPipe } from '@angular/common';
+
+import { ProgressBarComponent } from '../progress-bar/progress-bar.component';
 
 const IGNORE_RELEASE_CHECK_WARNING = 'IGNORE_RELEASE_CHECK_WARNING';
 
@@ -17,10 +20,13 @@ const IGNORE_RELEASE_CHECK_WARNING = 'IGNORE_RELEASE_CHECK_WARNING';
     selector: 'app-update',
     templateUrl: './update.component.html',
     styleUrls: ['./update.component.scss'],
-    standalone: false
+    changeDetection: ChangeDetectionStrategy.Eager,
+    imports: [ModalComponent, FormsModule, AsyncPipe, ProgressBarComponent],
+    standalone: true
 })
 export class UpdateComponent {
 
+  public ignoreWarningModel: boolean = false;
   public firmwareUpdateProgress: number = 0;
   public websiteUpdateProgress: number = 0;
 
@@ -28,9 +34,6 @@ export class UpdateComponent {
   public latestRelease$: Observable<any>;
 
   public info$: Observable<SystemInfo>;
-
-  @ViewChild('firmwareUpload') firmwareUpload!: FileUpload;
-  @ViewChild('websiteUpload') websiteUpload!: FileUpload;
 
   @ViewChild('privacyModal') privacyModal?: ModalComponent;
   @ViewChild('progressModal') progressModal?: ModalComponent;
@@ -54,10 +57,25 @@ export class UpdateComponent {
     this.info$ = this.liveDataService.info$;
   }
 
-  otaUpdate(event: FileUploadHandlerEvent) {
-    const file = event.files[0];
-    this.firmwareUpload.clear(); // clear the file upload component
+  onWebsiteFileSelected(event: Event) {
+    const input = event.target as HTMLInputElement;
+    if (input.files && input.files.length > 0) {
+      const file = input.files[0];
+      this.otaWWWUpdate(file);
+      input.value = '';
+    }
+  }
 
+  onFirmwareFileSelected(event: Event) {
+    const input = event.target as HTMLInputElement;
+    if (input.files && input.files.length > 0) {
+      const file = input.files[0];
+      this.otaUpdate(file);
+      input.value = '';
+    }
+  }
+
+  otaUpdate(file: File) {
     if (file.name != 'esp-miner.bin') {
       this.toastrService.error('Incorrect file, looking for esp-miner.bin.');
       return;
@@ -101,10 +119,7 @@ export class UpdateComponent {
       });
   }
 
-  otaWWWUpdate(event: FileUploadHandlerEvent) {
-    const file = event.files[0];
-    this.websiteUpload.clear(); // clear the file upload component
-
+  otaWWWUpdate(file: File) {
     if (file.name != 'www.bin') {
       this.toastrService.error('Incorrect file, looking for www.bin.');
       return;

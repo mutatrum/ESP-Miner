@@ -1,8 +1,8 @@
-import { Component, OnInit, ViewChild, Input, OnDestroy, ElementRef, HostListener, effect } from '@angular/core';
+import { Component, OnInit, ViewChild, Input, OnDestroy, ElementRef, HostListener, effect, ChangeDetectionStrategy } from '@angular/core';
 import { map, Observable, shareReplay, Subscription, switchMap, tap, first, Subject, takeUntil, BehaviorSubject, filter, combineLatest } from 'rxjs';
 import { HttpErrorResponse } from '@angular/common/http';
-import { FormBuilder, FormGroup } from '@angular/forms';
-import { ToastrService } from 'ngx-toastr';
+import { FormBuilder, FormGroup, FormsModule, ReactiveFormsModule } from '@angular/forms';
+import { ToastrService } from '../../services/toast.service';
 import { DateAgoPipe } from 'src/app/pipes/date-ago.pipe';
 import { HashSuffixPipe } from 'src/app/pipes/hash-suffix.pipe';
 import { ByteSuffixPipe } from 'src/app/pipes/byte-suffix.pipe';
@@ -16,17 +16,29 @@ import { ThemeService } from 'src/app/services/theme.service';
 import { LayoutService } from 'src/app/layout/service/app.layout.service';
 import { SystemInfo as ISystemInfo, SystemStatistics as ISystemStatistics } from 'src/app/generated/models';
 import { Title } from '@angular/platform-browser';
-import { UIChart } from 'primeng/chart';
-import { SelectItem } from 'primeng/api';
+import { ChartComponent } from '../chart/chart.component';
+import { ProgressBarComponent } from '../progress-bar/progress-bar.component';
 import { eChartLabel } from 'src/models/enum/eChartLabel';
 import { chartLabelValue } from 'src/models/enum/eChartLabel';
 import { chartLabelKey } from 'src/models/enum/eChartLabel';
 import { LocalStorageService } from 'src/app/local-storage.service';
 import { GridStack, GridItemHTMLElement } from 'gridstack';
 import { DashboardEditService, WidgetDef } from 'src/app/services/dashboard-edit.service';
+import { TooltipTextIconComponent } from '../tooltip-text-icon/tooltip-text-icon.component';
+import { NgClass, AsyncPipe, DecimalPipe } from '@angular/common';
+import { ConfettiComponent } from '../confetti/confetti.component';
+import { DateAgoPipe as DateAgoPipe_1 } from '../../pipes/date-ago.pipe';
+import { HashSuffixPipe as HashSuffixPipe_1 } from '../../pipes/hash-suffix.pipe';
+import { DiffSuffixPipe as DiffSuffixPipe_1 } from '../../pipes/diff-suffix.pipe';
+import { AddressPipe } from '../../pipes/address.pipe';
+import { SatsPipe } from '../../pipes/sats.pipe';
+
+interface SelectItem<T> {
+  label: string;
+  value: T;
+}
 
 type PoolLabel = 'Primary' | 'Fallback';
-type ProtocolLabel = 'SV2 Standard Channel' | 'SV2 Extended Channel';
 type MessageType =
   | 'SYSTEM_INFO_ERROR'
   | 'MINING_PAUSED'
@@ -72,7 +84,9 @@ const WIDGET_DEFAULTS: WidgetDef[] = [
     selector: 'app-home',
     templateUrl: './home.component.html',
     styleUrls: ['./home.component.scss'],
-    standalone: false
+    changeDetection: ChangeDetectionStrategy.Eager,
+    imports: [TooltipTextIconComponent, NgClass, FormsModule, ReactiveFormsModule, ChartComponent, ConfettiComponent, AsyncPipe, DecimalPipe, DateAgoPipe_1, HashSuffixPipe_1, DiffSuffixPipe_1, AddressPipe, SatsPipe, ProgressBarComponent],
+    standalone: true
 })
 export class HomeComponent implements OnInit, OnDestroy {
   public messages: ISystemMessage[] = [];
@@ -123,7 +137,7 @@ export class HomeComponent implements OnInit, OnDestroy {
   ];
 
   @ViewChild('chart')
-  private chart?: UIChart
+  private chart?: ChartComponent
 
   private gridStackEl?: ElementRef<HTMLElement>;
   @ViewChild('gridStack', { static: false })
@@ -981,7 +995,7 @@ export class HomeComponent implements OnInit, OnDestroy {
       }));
   }
 
-  onPoolChange(event: { originalEvent: Event; value: PoolLabel }) {
+  onPoolChange(event: { originalEvent?: Event; value: PoolLabel }) {
     const useFallbackStratum = Number(event.value === 'Fallback');
 
     this.systemService.updateSystem('', { useFallbackStratum })

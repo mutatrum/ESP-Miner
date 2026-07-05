@@ -1,11 +1,12 @@
 import { HttpErrorResponse } from '@angular/common/http';
-import { Component, Input, OnInit } from '@angular/core';
-import { FormBuilder, FormGroup, Validators, ValidatorFn, ValidationErrors, AbstractControl, FormControl } from '@angular/forms';
-import { ToastrService } from 'ngx-toastr';
+import { Component, Input, OnInit, ChangeDetectionStrategy } from '@angular/core';
+import { FormBuilder, FormGroup, Validators, ValidatorFn, ValidationErrors, AbstractControl, FormsModule, ReactiveFormsModule } from '@angular/forms';
+import { ToastrService } from '../../services/toast.service';
 import { LoadingService } from 'src/app/services/loading.service';
 import { SystemApiService } from 'src/app/services/system.service';
 import { LiveDataService } from 'src/app/services/live-data.service';
 import { first } from 'rxjs';
+import { TooltipTextIconComponent } from '../tooltip-text-icon/tooltip-text-icon.component';
 
 type PoolType = 'stratum' | 'fallbackStratum';
 
@@ -28,7 +29,9 @@ interface IChannelOption {
     selector: 'app-pool',
     templateUrl: './pool.component.html',
     styleUrls: ['./pool.component.scss'],
-    standalone: false
+    changeDetection: ChangeDetectionStrategy.Eager,
+    imports: [FormsModule, ReactiveFormsModule, TooltipTextIconComponent],
+    standalone: true
 })
 export class PoolComponent implements OnInit {
   public form!: FormGroup;
