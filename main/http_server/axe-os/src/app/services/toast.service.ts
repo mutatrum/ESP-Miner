@@ -44,9 +44,3 @@ export class ToastService {
     this.toasts.update(current => current.filter(toast => toast.id !== id));
   }
 }
-
-// Export ToastrService for backward compatibility with injecting code
-@Injectable({
-  providedIn: 'root'
-})
-export class ToastrService extends ToastService {}

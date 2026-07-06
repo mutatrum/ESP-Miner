@@ -1,7 +1,7 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { EditComponent } from './edit.component';
 import { provideHttpClient, withXhr } from '@angular/common/http';
-import { ToastrService } from 'src/app/services/toast.service';
+import { ToastService } from 'src/app/services/toast.service';
 import { provideRouter } from '@angular/router';
 
 describe('EditComponent', () => {
@@ -13,7 +13,7 @@ describe('EditComponent', () => {
       imports: [EditComponent],
       providers: [
         provideHttpClient(withXhr()),
-        { provide: ToastrService, useValue: { success: jasmine.createSpy(), error: jasmine.createSpy(), warning: jasmine.createSpy() } },
+        { provide: ToastService, useValue: { success: jasmine.createSpy(), error: jasmine.createSpy(), warning: jasmine.createSpy() } },
         provideRouter([])
       ]
     });

@@ -6,7 +6,7 @@ import { LayoutService } from './layout/service/app.layout.service';
 import { ThemeService } from './services/theme.service';
 import { LocalStorageService } from './local-storage.service';
 import { provideHttpClient, withXhr } from '@angular/common/http';
-import { ToastrService } from './services/toast.service';
+import { ToastService } from './services/toast.service';
 
 describe('AppComponent', () => {
   beforeEach(() => TestBed.configureTestingModule({
@@ -17,7 +17,7 @@ describe('AppComponent', () => {
       ThemeService,
       LocalStorageService,
       provideHttpClient(withXhr()),
-      { provide: ToastrService, useValue: { success: jasmine.createSpy(), error: jasmine.createSpy(), warning: jasmine.createSpy() } }
+      { provide: ToastService, useValue: { success: jasmine.createSpy(), error: jasmine.createSpy(), warning: jasmine.createSpy() } }
     ]
   }));
 

@@ -4,7 +4,7 @@ import { CommonModule } from '@angular/common';
 import { SystemApiService } from 'src/app/services/system.service';
 import { provideHttpClient, withXhr } from '@angular/common/http';
 import { ReactiveFormsModule } from '@angular/forms';
-import { ToastrService } from 'src/app/services/toast.service';
+import { ToastService } from 'src/app/services/toast.service';
 import { LogsComponent } from './logs.component';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 
@@ -22,7 +22,7 @@ describe('LogsComponent', () => {
       ],
       providers: [
         provideRouter([]),
-        { provide: ToastrService, useValue: { success: jasmine.createSpy(), error: jasmine.createSpy(), warning: jasmine.createSpy() } },
+        { provide: ToastService, useValue: { success: jasmine.createSpy(), error: jasmine.createSpy(), warning: jasmine.createSpy() } },
         provideHttpClient(withXhr()),
         SystemApiService
       ]

@@ -1,7 +1,7 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { SystemComponent } from './system.component';
 import { provideHttpClient, withXhr } from '@angular/common/http';
-import { ToastrService } from 'src/app/services/toast.service';
+import { ToastService } from 'src/app/services/toast.service';
 
 describe('SystemComponent', () => {
   let component: SystemComponent;
@@ -12,7 +12,7 @@ describe('SystemComponent', () => {
       imports: [SystemComponent],
       providers: [
         provideHttpClient(withXhr()),
-        { provide: ToastrService, useValue: { success: jasmine.createSpy(), error: jasmine.createSpy(), warning: jasmine.createSpy() } }
+        { provide: ToastService, useValue: { success: jasmine.createSpy(), error: jasmine.createSpy(), warning: jasmine.createSpy() } }
       ]
     })
     .compileComponents();

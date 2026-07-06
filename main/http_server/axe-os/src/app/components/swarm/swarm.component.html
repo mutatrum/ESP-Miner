@@ -23,7 +23,7 @@
           <div>
             <select
               (change)="onSortChange({ value: sortOptions[$any($event.target).selectedIndex].value })"
-              class="bg-neutral-900 border border-neutral-800 text-white rounded-lg px-3 py-2 focus:outline-none focus:ring-1 focus:ring-primary w-40"
+              class="bg-neutral-900 border border-neutral-800 text-white rounded-sm px-3 py-2 focus:outline-none focus:ring-1 focus:ring-primary w-40"
             >
               @for (option of sortOptions; track option.value.sortField + option.value.sortDirection) {
                 <option [value]="option.value" [selected]="selectedSort.sortField === option.value.sortField && selectedSort.sortDirection === option.value.sortDirection">
@@ -39,7 +39,7 @@
           </span>
           <input
             type="text"
-            class="w-full sm:w-48 lg:w-56 bg-neutral-900 border border-neutral-800 text-white rounded-lg pl-9 pr-8 py-2 focus:outline-none focus:ring-1 focus:ring-primary placeholder-neutral-500"
+            class="w-full sm:w-48 lg:w-56 bg-neutral-900 border border-neutral-800 text-white rounded-sm pl-9 pr-8 py-2 focus:outline-none focus:ring-1 focus:ring-primary placeholder-neutral-500"
             autocomplete="off"
             placeholder="Filter"
             [(ngModel)]="filterText" />
@@ -54,7 +54,7 @@
             </button>
           }
         </div>
-        <div class="flex items-center border border-neutral-800 rounded-lg overflow-hidden bg-neutral-900/50">
+        <div class="flex items-center border border-neutral-800 rounded-sm overflow-hidden bg-neutral-900/50">
           <button
             type="button"
             class="p-2 text-white transition-all duration-200 focus:outline-none"
@@ -110,7 +110,7 @@
                   <div class="flex items-center mb-1 gap-2 mt-4">
                     <button
                       type="button"
-                      class="flex items-center justify-center p-2 rounded-lg border border-neutral-800 bg-neutral-900/50 hover:bg-neutral-800 text-neutral-300 hover:text-white transition-all duration-150 focus:outline-none focus:ring-1 focus:ring-primary"
+                      class="flex items-center justify-center p-2 rounded-sm border border-neutral-800 bg-neutral-900/50 hover:bg-neutral-800 text-neutral-300 hover:text-white transition-all duration-150 focus:outline-none focus:ring-1 focus:ring-primary"
                       title="Edit"
                       (click)="edit(axe)"
                     >
@@ -118,7 +118,7 @@
                     </button>
                     <button
                       type="button"
-                      class="flex items-center justify-center p-2 rounded-lg border border-neutral-800 bg-neutral-900/50 hover:bg-neutral-800 text-neutral-300 hover:text-white transition-all duration-150 focus:outline-none focus:ring-1 focus:ring-primary"
+                      class="flex items-center justify-center p-2 rounded-sm border border-neutral-800 bg-neutral-900/50 hover:bg-neutral-800 text-neutral-300 hover:text-white transition-all duration-150 focus:outline-none focus:ring-1 focus:ring-primary"
                       [title]="axe.miningPaused ? 'Resume Mining' : 'Pause Mining'"
                       (click)="postAction(axe, axe.miningPaused ? 'resume' : 'pause')"
                     >
@@ -126,7 +126,7 @@
                     </button>
                     <button
                       type="button"
-                      class="flex items-center justify-center p-2 rounded-lg border border-neutral-800 bg-neutral-900/50 hover:bg-neutral-800 text-neutral-300 hover:text-white transition-all duration-150 focus:outline-none focus:ring-1 focus:ring-primary"
+                      class="flex items-center justify-center p-2 rounded-sm border border-neutral-800 bg-neutral-900/50 hover:bg-neutral-800 text-neutral-300 hover:text-white transition-all duration-150 focus:outline-none focus:ring-1 focus:ring-primary"
                       title="Restart"
                       (click)="postAction(axe, 'restart')"
                     >
@@ -134,7 +134,7 @@
                     </button>
                     <button
                       type="button"
-                      class="flex items-center justify-center p-2 rounded-lg border border-neutral-800 bg-neutral-900/50 hover:bg-neutral-800 text-neutral-300 hover:text-white transition-all duration-150 focus:outline-none focus:ring-1 focus:ring-primary"
+                      class="flex items-center justify-center p-2 rounded-sm border border-neutral-800 bg-neutral-900/50 hover:bg-neutral-800 text-neutral-300 hover:text-white transition-all duration-150 focus:outline-none focus:ring-1 focus:ring-primary"
                       title="Identify"
                       (click)="postAction(axe, 'identify')"
                     >
@@ -142,7 +142,7 @@
                     </button>
                     <button
                       type="button"
-                      class="flex items-center justify-center p-2 rounded-lg border border-neutral-800 bg-neutral-900/50 hover:bg-neutral-800 text-red-400 hover:text-red-300 transition-all duration-150 focus:outline-none focus:ring-1 focus:ring-primary"
+                      class="flex items-center justify-center p-2 rounded-sm border border-neutral-800 bg-neutral-900/50 hover:bg-neutral-800 text-red-400 hover:text-red-300 transition-all duration-150 focus:outline-none focus:ring-1 focus:ring-primary"
                       title="Remove"
                       (click)="remove(axe)"
                     >
@@ -304,7 +304,7 @@
                   <td class="flex items-center mb-1 gap-2">
                     <button
                       type="button"
-                      class="flex items-center justify-center p-2 rounded-lg border border-neutral-800 bg-neutral-900/50 hover:bg-neutral-800 text-neutral-300 hover:text-white transition-all duration-150 focus:outline-none focus:ring-1 focus:ring-primary"
+                      class="flex items-center justify-center p-2 rounded-sm border border-neutral-800 bg-neutral-900/50 hover:bg-neutral-800 text-neutral-300 hover:text-white transition-all duration-150 focus:outline-none focus:ring-1 focus:ring-primary"
                       title="Edit"
                       (click)="edit(axe)"
                     >
@@ -312,7 +312,7 @@
                     </button>
                     <button
                       type="button"
-                      class="flex items-center justify-center p-2 rounded-lg border border-neutral-800 bg-neutral-900/50 hover:bg-neutral-800 text-neutral-300 hover:text-white transition-all duration-150 focus:outline-none focus:ring-1 focus:ring-primary"
+                      class="flex items-center justify-center p-2 rounded-sm border border-neutral-800 bg-neutral-900/50 hover:bg-neutral-800 text-neutral-300 hover:text-white transition-all duration-150 focus:outline-none focus:ring-1 focus:ring-primary"
                       [title]="axe.miningPaused ? 'Resume Mining' : 'Pause Mining'"
                       (click)="postAction(axe, axe.miningPaused ? 'resume' : 'pause')"
                     >
@@ -320,7 +320,7 @@
                     </button>
                     <button
                       type="button"
-                      class="flex items-center justify-center p-2 rounded-lg border border-neutral-800 bg-neutral-900/50 hover:bg-neutral-800 text-neutral-300 hover:text-white transition-all duration-150 focus:outline-none focus:ring-1 focus:ring-primary"
+                      class="flex items-center justify-center p-2 rounded-sm border border-neutral-800 bg-neutral-900/50 hover:bg-neutral-800 text-neutral-300 hover:text-white transition-all duration-150 focus:outline-none focus:ring-1 focus:ring-primary"
                       title="Restart"
                       (click)="postAction(axe, 'restart')"
                     >
@@ -328,7 +328,7 @@
                     </button>
                     <button
                       type="button"
-                      class="flex items-center justify-center p-2 rounded-lg border border-neutral-800 bg-neutral-900/50 hover:bg-neutral-800 text-neutral-300 hover:text-white transition-all duration-150 focus:outline-none focus:ring-1 focus:ring-primary"
+                      class="flex items-center justify-center p-2 rounded-sm border border-neutral-800 bg-neutral-900/50 hover:bg-neutral-800 text-neutral-300 hover:text-white transition-all duration-150 focus:outline-none focus:ring-1 focus:ring-primary"
                       title="Identify"
                       (click)="postAction(axe, 'identify')"
                     >
@@ -336,7 +336,7 @@
                     </button>
                     <button
                       type="button"
-                      class="flex items-center justify-center p-2 rounded-lg border border-neutral-800 bg-neutral-900/50 hover:bg-neutral-800 text-red-400 hover:text-red-300 transition-all duration-150 focus:outline-none focus:ring-1 focus:ring-primary"
+                      class="flex items-center justify-center p-2 rounded-sm border border-neutral-800 bg-neutral-900/50 hover:bg-neutral-800 text-red-400 hover:text-red-300 transition-all duration-150 focus:outline-none focus:ring-1 focus:ring-primary"
                       title="Remove"
                       (click)="remove(axe)"
                     >
@@ -372,7 +372,7 @@
     <form [formGroup]="form" class="card flex flex-col md:flex-row gap-4 mt-8">
       @if (this.swarm.length) {
         <div class="flex items-center gap-4">
-          <button type="button" (click)="refreshList()" class="flex justify-between items-center px-4 py-2 bg-neutral-900 border border-neutral-850 hover:bg-neutral-800 text-white font-medium rounded-lg transition-all duration-200 text-sm gap-3 focus:outline-none focus:ring-1 focus:ring-primary">
+          <button type="button" (click)="refreshList()" class="flex justify-between items-center px-4 py-2 bg-neutral-900 border border-neutral-850 hover:bg-neutral-800 text-white font-medium rounded-sm transition-all duration-200 gap-3 focus:outline-none focus:ring-1 focus:ring-primary">
             <span>{{isRefreshing ? 'Refreshing...' : 'Refresh'}}</span>
             @if (!isRefreshing) {
               <span class="text-xs px-1.5 py-0.5 rounded bg-neutral-850 text-neutral-400">{{refreshIntervalTime}}</span>
@@ -384,9 +384,9 @@
               [min]="5"
               [max]="30"
               [formControl]="refreshIntervalControl"
-              class="w-full md:w-12 xl:w-24 accent-primary bg-neutral-800 h-1 rounded-lg cursor-pointer"
+              class="w-full md:w-12 xl:w-24 accent-primary bg-neutral-800 h-1 rounded-sm cursor-pointer"
             >
-            <span class="text-sm whitespace-nowrap">{{refreshTimeSet}} s</span>
+            <span class="whitespace-nowrap">{{refreshTimeSet}} s</span>
           </div>
         </div>
       }
@@ -396,12 +396,12 @@
             placeholder="Add Device by Address"
             formControlName="manualAddAddress"
             type="text"
-            class="xl:w-80 bg-neutral-900 border border-neutral-800 text-white rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
+            class="xl:w-80 bg-neutral-900 border border-neutral-800 text-white rounded-sm px-3 py-2 focus:outline-none focus:ring-1 focus:ring-primary"
           />
           <button
             [disabled]="form.invalid"
             (click)="add()"
-            class="px-4 py-2 bg-primary text-white font-medium rounded-lg hover:bg-opacity-90 transition-all duration-200 disabled:opacity-50 text-sm"
+            class="px-4 py-2 bg-primary text-white font-medium rounded-sm hover:bg-opacity-90 transition-all duration-200 disabled:opacity-50"
           >
             Add
           </button>
@@ -410,7 +410,7 @@
           type="button"
           (click)="scanNetwork()"
           [disabled]="scanning"
-          class="px-4 py-2 bg-neutral-800 hover:bg-neutral-700 text-white font-medium rounded-lg transition-all duration-200 disabled:opacity-50 text-sm whitespace-nowrap"
+          class="px-4 py-2 bg-neutral-800 hover:bg-neutral-700 text-white font-medium rounded-sm transition-all duration-200 disabled:opacity-50 whitespace-nowrap"
         >
           {{scanning ? 'Scanning...' : 'Auto Scan'}}
         </button>

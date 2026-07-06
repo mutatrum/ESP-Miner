@@ -21,7 +21,7 @@
             <label [htmlFor]="pool + 'URL'" class="col-span-12 md:col-span-2 md:mb-0">Stratum Host</label>
             <div class="col-span-12 md:col-span-10">
               <input type="text" [id]="pool + 'URL'" [formControlName]="pool + 'URL'" (change)="onUrlChange(pool)" 
-                class="w-full bg-neutral-900 border border-neutral-800 text-white rounded-lg px-3 py-2 focus:outline-none focus:ring-1 focus:ring-primary" />
+                class="w-full bg-neutral-900 border border-neutral-800 text-white rounded-sm px-3 py-2 focus:outline-none focus:ring-1 focus:ring-primary" />
               @if (isPoolV2Enabled(pool)) {
                 <small class="block text-blue-600 mt-1">
                   SV2 Mode
@@ -33,14 +33,14 @@
             <label [htmlFor]="pool + 'Port'" class="col-span-12 md:col-span-2 md:mb-0">Stratum Port</label>
             <div class="col-span-12 md:col-span-10">
               <input [id]="pool + 'Port'" [formControlName]="pool + 'Port'" type="number" 
-                class="w-full bg-neutral-900 border border-neutral-800 text-white rounded-lg px-3 py-2 focus:outline-none focus:ring-1 focus:ring-primary" />
+                class="w-full bg-neutral-900 border border-neutral-800 text-white rounded-sm px-3 py-2 focus:outline-none focus:ring-1 focus:ring-primary" />
             </div>
           </div>
           <div class="grid grid-cols-12 gap-4 items-center mb-6">
             <label [htmlFor]="pool + 'User'" class="col-span-12 md:col-span-2 md:mb-0">User</label>
             <div class="col-span-12 md:col-span-10">
               <input [id]="pool + 'User'" [formControlName]="pool + 'User'" sensitive-data type="text" 
-                class="w-full bg-neutral-900 border border-neutral-800 text-white rounded-lg px-3 py-2 focus:outline-none focus:ring-1 focus:ring-primary" />
+                class="w-full bg-neutral-900 border border-neutral-800 text-white rounded-sm px-3 py-2 focus:outline-none focus:ring-1 focus:ring-primary" />
             </div>
           </div>
           <div class="grid grid-cols-12 gap-4 items-center mb-6">
@@ -49,7 +49,7 @@
               <div class="relative w-full flex items-center">
                 <input [id]="pool + 'Password'" [formControlName]="pool + 'Password'"
                   [type]="showPassword[pool] ? 'text' : 'password'" autocomplete="off" 
-                  class="w-full bg-neutral-900 border border-neutral-800 text-white rounded-lg pl-3 pr-10 py-2 focus:outline-none focus:ring-1 focus:ring-primary" />
+                  class="w-full bg-neutral-900 border border-neutral-800 text-white rounded-sm pl-3 pr-10 py-2 focus:outline-none focus:ring-1 focus:ring-primary" />
                 @if (form.get(pool + 'Password')?.dirty) {
                   <span (click)="showPassword[pool] = !showPassword[pool]"
                         class="absolute right-3 text-neutral-400 hover:text-white cursor-pointer select-none">
@@ -151,7 +151,7 @@
                       [id]="pool === 'stratum' ? 'stratumV2AuthorityPubkey' : 'fallbackStratumV2AuthorityPubkey'"
                       [formControlName]="pool === 'stratum' ? 'stratumV2AuthorityPubkey' : 'fallbackStratumV2AuthorityPubkey'"
                       rows="2"
-                      class="w-full bg-neutral-900 border border-neutral-800 text-white rounded-lg p-3 text-monospace focus:outline-none focus:ring-1 focus:ring-primary"
+                      class="w-full bg-neutral-900 border border-neutral-800 text-white rounded-sm p-3 text-monospace focus:outline-none focus:ring-1 focus:ring-primary"
                     placeholder="Enter base58-encoded authority public key (optional, e.g., 9auqWEzQ...)"></textarea>
                     @if (form.get(pool === 'stratum' ? 'stratumV2AuthorityPubkey' : 'fallbackStratumV2AuthorityPubkey')?.errors?.['invalidBase58']) {
                       <small class="block text-red-500 mt-1">
@@ -177,7 +177,7 @@
                   </label>
                   <div class="col-span-12 md:col-span-10">
                     <input [id]="pool + 'SuggestedDifficulty'" [formControlName]="pool + 'SuggestedDifficulty'" type="number" 
-                      class="w-full bg-neutral-900 border border-neutral-800 text-white rounded-lg px-3 py-2 focus:outline-none focus:ring-1 focus:ring-primary" />
+                      class="w-full bg-neutral-900 border border-neutral-800 text-white rounded-sm px-3 py-2 focus:outline-none focus:ring-1 focus:ring-primary" />
                   </div>
                 </div>
                 <div class="grid grid-cols-12 gap-4 items-center mb-6">
@@ -221,12 +221,12 @@
                           [id]="pool + 'Cert'"
                           [formControlName]="pool + 'Cert'"
                           rows="6"
-                          class="w-full bg-neutral-900 border border-neutral-800 text-white rounded-lg p-3 text-monospace focus:outline-none focus:ring-1 focus:ring-primary"
+                          class="w-full bg-neutral-900 border border-neutral-800 text-white rounded-sm p-3 text-monospace focus:outline-none focus:ring-1 focus:ring-primary"
                           placeholder="Enter or choose a certificate file (.pem, .crt, .cer)"
                         ></textarea>
                         <button
                           type="button"
-                          class="flex items-center justify-center px-4 bg-neutral-800 hover:bg-neutral-700 text-white rounded-lg border border-neutral-750 transition-colors duration-150"
+                          class="flex items-center justify-center px-4 bg-neutral-800 hover:bg-neutral-700 text-white rounded-sm border border-neutral-750 transition-colors duration-150"
                           title="Choose a certificate file"
                           (click)="certFileInput.click()"
                         >
@@ -268,7 +268,7 @@
                   </label>
                   <div class="col-span-12 md:col-span-10">
                     <button type="button" 
-                      class="px-4 py-2 border border-red-500/30 text-red-400 hover:bg-red-950/20 rounded-lg transition-all duration-200 text-sm flex items-center gap-2"
+                      class="px-4 py-2 border border-red-500/30 text-red-400 hover:bg-red-950/20 rounded-sm transition-all duration-200 text-sm flex items-center gap-2"
                       (click)="clearFallbackConfiguration()"
                     >
                       <i class="pi pi-trash"></i>
@@ -283,11 +283,11 @@
       }
       <div class="flex mt-5 gap-3">
         <button [disabled]="!form.dirty || form.invalid" (click)="updateSystem()"
-          class="px-5 py-2 bg-primary text-white font-medium rounded-lg hover:bg-opacity-90 transition-all duration-200 disabled:opacity-50 text-sm">
+          class="px-5 py-2 bg-primary text-white font-medium rounded-sm hover:bg-opacity-90 transition-all duration-200 disabled:opacity-50 text-sm">
           Save
         </button>
         <button [disabled]="!savedChanges" (click)="restart()"
-          class="px-5 py-2 bg-neutral-800 hover:bg-neutral-700 text-white font-medium rounded-lg transition-all duration-200 disabled:opacity-50 text-sm">
+          class="px-5 py-2 bg-neutral-800 hover:bg-neutral-700 text-white font-medium rounded-sm transition-all duration-200 disabled:opacity-50 text-sm">
           Restart
         </button>
       </div>

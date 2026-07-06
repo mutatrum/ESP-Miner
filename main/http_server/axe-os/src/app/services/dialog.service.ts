@@ -43,7 +43,7 @@ export class DialogService {
 @Component({
   selector: 'app-dialog-list',
   template: `
-    <div class="bg-neutral-900 border border-neutral-800 rounded-2xl p-6 shadow-2xl relative w-full text-left">
+    <div class="bg-neutral-900 border border-neutral-800 rounded-sm p-6 shadow-2xl relative w-full text-left">
       <div class="flex justify-between items-center mb-4 border-b border-neutral-800 pb-3">
         <h3 class="text-lg font-bold text-white font-sans">{{ data.title }}</h3>
         <button (click)="dialogRef.close()" class="text-neutral-400 hover:text-white transition-colors duration-200 focus:outline-none">
@@ -56,7 +56,7 @@ export class DialogService {
         @for (option of data.options; track option.value) {
           <button
             (click)="data.onSelect(option.value)"
-            class="w-full text-left flex items-center justify-between px-4 py-3 rounded-lg bg-neutral-800/50 hover:bg-neutral-800/80 border border-neutral-700/50 hover:border-neutral-600 text-white font-medium transition-all duration-200 group focus:outline-none focus:ring-1 focus:ring-primary"
+            class="w-full text-left flex items-center justify-between px-4 py-3 rounded-sm bg-neutral-800/50 hover:bg-neutral-800/80 border border-neutral-700/50 hover:border-neutral-600 text-white font-medium transition-all duration-200 group focus:outline-none focus:ring-1 focus:ring-primary"
             [title]="option.label + ' (' + option.rssi + ' dBm)'"
           >
             <span class="truncate pr-4 text-sm">{{ option.label }}</span>

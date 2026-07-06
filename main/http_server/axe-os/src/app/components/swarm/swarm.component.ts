@@ -1,7 +1,7 @@
 import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 import { Component, OnDestroy, OnInit, ViewChild, HostListener, ChangeDetectionStrategy } from '@angular/core';
 import { AbstractControl, FormBuilder, FormGroup, Validators, FormControl, ValidationErrors, FormsModule, ReactiveFormsModule } from '@angular/forms';
-import { ToastrService } from '../../services/toast.service';
+import { ToastService } from '../../services/toast.service';
 import { forkJoin, catchError, from, map, mergeMap, of, take, timeout, toArray, Observable, Subscription } from 'rxjs';
 import { LocalStorageService } from 'src/app/local-storage.service';
 import { LayoutService } from "../../layout/service/app.layout.service";
@@ -99,7 +99,7 @@ export class SwarmComponent implements OnInit, OnDestroy {
 
   constructor(
     private fb: FormBuilder,
-    private toastr: ToastrService,
+    private toastService: ToastService,
     private localStorageService: LocalStorageService,
     public layoutService: LayoutService,
     private systemService: SystemApiService,
@@ -324,7 +324,7 @@ private isIpAddress(value: string): boolean {
     forkJoin({
       info: this.httpClient.get<any>(`http://${address}/api/system/info`).pipe(catchError(error => {
         if (error.status === 401 || error.status === 0) {
-          this.toastr.warning(`Potential swarm peer detected at ${address} - upgrade its firmware to be able to add it.`);
+          this.toastService.warning(`Potential swarm peer detected at ${address} - upgrade its firmware to be able to add it.`);
           return of({ _corsError: 401 });
         }
         throw error;
@@ -339,7 +339,7 @@ private isIpAddress(value: string): boolean {
       }
 
       if (this.swarm.some(item => item.connectionAddress === info['ipv4'])) {
-        this.toastr.warning('Device already added to the swarm.', `Device at ${address}`);
+        this.toastService.warning('Device already added to the swarm.', `Device at ${address}`);
         return;
       }
 
@@ -380,14 +380,14 @@ private isIpAddress(value: string): boolean {
         } else if (error.message) {
           errorMsg += `: ${error.message}`;
         }
-        this.toastr.error(errorMsg, `Device at ${this.getDeviceDisplayName(device)}`);
+        this.toastService.error(errorMsg, `Device at ${this.getDeviceDisplayName(device)}`);
         return of(null);
       })
     ).subscribe((res: any) => {
       if (res !== null) {
         let message = res;
         try { message = JSON.parse(res)?.message ?? res; } catch {}
-        this.toastr.success(message, `Device at ${this.getDeviceDisplayName(device)}`);
+        this.toastService.success(message, `Device at ${this.getDeviceDisplayName(device)}`);
         this.refreshList(false);
       }
     });
@@ -401,7 +401,7 @@ private isIpAddress(value: string): boolean {
 
   public refreshErrorHandler = (error: any, address: string) => {
     const errorMessage = error?.message || error?.statusText || error?.toString() || 'Unknown error';
-    this.toastr.error(`Failed to get info: ${errorMessage}`, `Device at ${address}`);
+    this.toastService.error(`Failed to get info: ${errorMessage}`, `Device at ${address}`);
     const existingDevice = this.swarm.find(axeOs => axeOs.connectionAddress === address);
     return of({
       ...existingDevice,

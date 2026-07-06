@@ -1,7 +1,7 @@
 import { Component, OnInit, OnDestroy, ChangeDetectionStrategy, inject } from '@angular/core';
 import { Observable, Subject, combineLatest, shareReplay, first, takeUntil, map } from 'rxjs';
 import { HttpErrorResponse } from '@angular/common/http';
-import { ToastrService } from '../../services/toast.service';
+import { ToastService } from '../../services/toast.service';
 import { SystemApiService } from 'src/app/services/system.service';
 import { LiveDataService } from 'src/app/services/live-data.service';
 import { LoadingService } from 'src/app/services/loading.service';
@@ -42,7 +42,7 @@ export class SystemComponent implements OnInit, OnDestroy {
   private systemService = inject(SystemApiService);
   private liveDataService = inject(LiveDataService);
   private loadingService = inject(LoadingService);
-  private toastr = inject(ToastrService);
+  private toastService = inject(ToastService);
 
   constructor() {
     this.info$ = this.liveDataService.info$;
@@ -119,10 +119,10 @@ export class SystemComponent implements OnInit, OnDestroy {
       .pipe(this.loadingService.lockUIUntilComplete())
       .subscribe({
         next: (result) => {
-          this.toastr.success((result as GenericResponse).message);
+          this.toastService.success((result as GenericResponse).message);
         },
         error: (err: HttpErrorResponse) => {
-          this.toastr.error(`Could not identify device. ${err.message}`);
+          this.toastService.error(`Could not identify device. ${err.message}`);
         }
       });
   }

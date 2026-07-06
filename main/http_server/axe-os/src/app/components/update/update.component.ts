@@ -1,7 +1,7 @@
 import { Component, ViewChild, ChangeDetectionStrategy } from '@angular/core';
 import { Observable, map } from 'rxjs';
 import { HttpErrorResponse, HttpEventType } from '@angular/common/http';
-import { ToastrService } from '../../services/toast.service';
+import { ToastService } from '../../services/toast.service';
 import { GithubUpdateService } from 'src/app/services/github-update.service';
 import { LoadingService } from 'src/app/services/loading.service';
 import { SystemApiService } from 'src/app/services/system.service';
@@ -45,7 +45,7 @@ export class UpdateComponent {
   constructor(
     private systemService: SystemApiService,
     private liveDataService: LiveDataService,
-    private toastrService: ToastrService,
+    private toastService: ToastService,
     private loadingService: LoadingService,
     private githubUpdateService: GithubUpdateService,
     private localStorageService: LocalStorageService,
@@ -77,7 +77,7 @@ export class UpdateComponent {
 
   otaUpdate(file: File) {
     if (file.name != 'esp-miner.bin') {
-      this.toastrService.error('Incorrect file, looking for esp-miner.bin.');
+      this.toastService.error('Incorrect file, looking for esp-miner.bin.');
       return;
     }
 
@@ -95,7 +95,7 @@ export class UpdateComponent {
             this.firmwareUpdateProgress = Math.round((event.loaded / (event.total as number)) * 100);
           } else if (event.type === HttpEventType.Response) {
             if (event.ok) {
-              this.toastrService.success('Device restarted');
+              this.toastService.success('Device restarted');
               this.updateStatus = 'success';
               this.updateMessage = 'Firmware updated. Device has been successfully restarted.';
             } else {
@@ -121,7 +121,7 @@ export class UpdateComponent {
 
   otaWWWUpdate(file: File) {
     if (file.name != 'www.bin') {
-      this.toastrService.error('Incorrect file, looking for www.bin.');
+      this.toastService.error('Incorrect file, looking for www.bin.');
       return;
     }
 

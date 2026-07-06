@@ -6,10 +6,10 @@
 </div>
 
 <!-- Custom Toast Notification Container -->
-<div class="fixed bottom-4 right-4 z-50 flex flex-col gap-2 max-w-sm w-full">
+<div class="fixed bottom-4 right-4 z-[99999] flex flex-col gap-2 max-w-sm w-full">
   @for (toast of toastService.toasts(); track toast.id) {
     <div
-      class="flex items-start gap-3 p-4 rounded-xl shadow-lg border text-white transition-all duration-300 transform translate-y-0 scale-100"
+      class="flex items-start gap-3 p-4 rounded-sm shadow-lg border text-white transition-all duration-300 transform translate-y-0 scale-100"
       [ngClass]="{
         'bg-emerald-950/95 border-emerald-800/50 text-emerald-100': toast.type === 'success',
         'bg-red-950/95 border-red-800/50 text-red-100': toast.type === 'error',

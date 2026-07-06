@@ -1,7 +1,7 @@
 import { HttpErrorResponse } from '@angular/common/http';
 import { Component, Input, OnInit, ChangeDetectionStrategy } from '@angular/core';
 import { FormBuilder, FormGroup, Validators, ValidatorFn, ValidationErrors, AbstractControl, FormsModule, ReactiveFormsModule } from '@angular/forms';
-import { ToastrService } from '../../services/toast.service';
+import { ToastService } from '../../services/toast.service';
 import { LoadingService } from 'src/app/services/loading.service';
 import { SystemApiService } from 'src/app/services/system.service';
 import { LiveDataService } from 'src/app/services/live-data.service';
@@ -67,7 +67,7 @@ export class PoolComponent implements OnInit {
     private fb: FormBuilder,
     private systemService: SystemApiService,
     private liveDataService: LiveDataService,
-    private toastr: ToastrService,
+    private toastService: ToastService,
     private loadingService: LoadingService
   ) { }
 
@@ -158,13 +158,13 @@ export class PoolComponent implements OnInit {
       .subscribe({
         next: () => {
           const successMessage = this.uri ? `Saved pool settings for ${this.uri}` : 'Saved pool settings';
-          this.toastr.warning('You must restart this device after saving for changes to take effect.');
-          this.toastr.success(successMessage);
+          this.toastService.warning('You must restart this device after saving for changes to take effect.');
+          this.toastService.success(successMessage);
           this.savedChanges = true;
         },
         error: (err: HttpErrorResponse) => {
           const errorMessage = this.uri ? `Could not save pool settings for ${this.uri}. ${err.message}` : `Could not save pool settings. ${err.message}`;
-          this.toastr.error(errorMessage);
+          this.toastService.error(errorMessage);
           this.savedChanges = false;
         }
       });
@@ -176,11 +176,11 @@ export class PoolComponent implements OnInit {
       .subscribe({
         next: () => {
           const successMessage = this.uri ? `Device at ${this.uri} restarted` : 'Device restarted';
-          this.toastr.success(successMessage);
+          this.toastService.success(successMessage);
         },
         error: (err: HttpErrorResponse) => {
           const errorMessage = this.uri ? `Failed to restart device at ${this.uri}. ${err.message}` : `Failed to restart device. ${err.message}`;
-          this.toastr.error(errorMessage);
+          this.toastService.error(errorMessage);
         }
       });
   }
@@ -245,7 +245,7 @@ export class PoolComponent implements OnInit {
 
       reader.onerror = () => {
         // Error handling when reading the certificate file
-        this.toastr.error('Failed to read certificate file');
+        this.toastService.error('Failed to read certificate file');
         fileInput.value = '';
       };
 

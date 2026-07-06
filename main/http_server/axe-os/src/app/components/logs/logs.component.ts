@@ -1,7 +1,7 @@
 import { AfterViewChecked, Component, Input, OnInit, ElementRef, OnDestroy, ViewChild, ChangeDetectionStrategy } from '@angular/core';
 import { FormBuilder, FormGroup, Validators, FormsModule, ReactiveFormsModule } from '@angular/forms';
 import { Subscription } from 'rxjs';
-import { ToastrService } from '../../services/toast.service';
+import { ToastService } from '../../services/toast.service';
 import { WebsocketService } from 'src/app/services/web-socket.service';
 import { SystemApiService } from 'src/app/services/system.service';
 import { NgClass } from '@angular/common';
@@ -35,7 +35,7 @@ export class LogsComponent implements OnInit, OnDestroy, AfterViewChecked {
     private fb: FormBuilder,
     private websocketService: WebsocketService,
     private systemApiService: SystemApiService,
-    private toastr: ToastrService,
+    private toastService: ToastService,
   ) {}
 
   ngOnInit(): void {
@@ -92,7 +92,7 @@ export class LogsComponent implements OnInit, OnDestroy, AfterViewChecked {
           }
         },
         error: (error) => {
-          this.toastr.error("Error opening websocket connection");
+          this.toastService.error("Error opening websocket connection");
         }
       })
   }
@@ -113,12 +113,12 @@ export class LogsComponent implements OnInit, OnDestroy, AfterViewChecked {
         document.body.appendChild(a);
         a.click();
         window.URL.revokeObjectURL(url);
-        this.toastr.success("Logs downloaded successfully");
+        this.toastService.success("Logs downloaded successfully");
         this.loadingLogs = false;
       },
       error: (error) => {
         console.error('There was a problem with the log download:', error);
-        this.toastr.error("Failed to download logs");
+        this.toastService.error("Failed to download logs");
         this.loadingLogs = false;
       }
     });

@@ -1,9 +1,9 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { HomeComponent } from './home.component';
 import { provideHttpClient, withXhr } from '@angular/common/http';
-import { ToastrService } from 'src/app/services/toast.service';
+import { ToastService } from 'src/app/services/toast.service';
 import { ReactiveFormsModule, FormsModule } from '@angular/forms';
-import { NoopAnimationsModule } from '@angular/platform-browser/animations';
+import { provideNoopAnimations } from '@angular/platform-browser/animations';
 import { Title } from '@angular/platform-browser';
 import { provideRouter } from '@angular/router';
 
@@ -37,7 +37,6 @@ describe('HomeComponent', () => {
     imports: [
         ReactiveFormsModule,
         FormsModule,
-        NoopAnimationsModule,
         HashSuffixPipe,
         DiffSuffixPipe,
         DateAgoPipe,
@@ -53,7 +52,8 @@ describe('HomeComponent', () => {
     providers: [
         provideRouter([]),
         provideHttpClient(withXhr()),
-        { provide: ToastrService, useValue: { success: jasmine.createSpy(), error: jasmine.createSpy(), warning: jasmine.createSpy() } },
+        provideNoopAnimations(),
+        { provide: ToastService, useValue: { success: jasmine.createSpy(), error: jasmine.createSpy(), warning: jasmine.createSpy() } },
         SystemApiService,
         ThemeService,
         QuicklinkService,

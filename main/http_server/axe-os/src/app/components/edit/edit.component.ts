@@ -1,7 +1,7 @@
 import { HttpErrorResponse } from '@angular/common/http';
 import { Component, Input, OnInit, OnDestroy, OnChanges, SimpleChanges, ChangeDetectionStrategy } from '@angular/core';
 import { FormBuilder, FormGroup, FormControl, Validators, ReactiveFormsModule } from '@angular/forms';
-import { ToastrService } from '../../services/toast.service';
+import { ToastService } from '../../services/toast.service';
 import { forkJoin, startWith, Subject, takeUntil, pairwise, BehaviorSubject, Observable, first } from 'rxjs';
 import { LoadingService } from 'src/app/services/loading.service';
 import { LiveDataService } from 'src/app/services/live-data.service';
@@ -59,7 +59,7 @@ export class EditComponent implements OnInit, OnDestroy, OnChanges {
     private fb: FormBuilder,
     private systemService: SystemApiService,
     private liveDataService: LiveDataService,
-    private toastr: ToastrService,
+    private toastService: ToastService,
     private loadingService: LoadingService,
     private route: ActivatedRoute,
   ) {
@@ -245,14 +245,14 @@ export class EditComponent implements OnInit, OnDestroy, OnChanges {
         next: () => {
           const successMessage = this.uri ? `Saved settings for ${this.uri}` : 'Saved settings';
           if (this.isRestartRequired) {
-            this.toastr.warning('You must restart this device after saving for changes to take effect.');
+            this.toastService.warning('You must restart this device after saving for changes to take effect.');
           }
-          this.toastr.success(successMessage);
+          this.toastService.success(successMessage);
           this.savedChanges = true;
         },
         error: (err: HttpErrorResponse) => {
           const errorMessage = this.uri ? `Could not save settings for ${this.uri}. ${err.message}` : `Could not save settings. ${err.message}`;
-          this.toastr.error(errorMessage);
+          this.toastService.error(errorMessage);
           this.savedChanges = false;
         }
       });
@@ -283,11 +283,11 @@ export class EditComponent implements OnInit, OnDestroy, OnChanges {
       .subscribe({
         next: () => {
           const successMessage = this.uri ? `Device at ${this.uri} restarted` : 'Device restarted';
-          this.toastr.success(successMessage);
+          this.toastService.success(successMessage);
         },
         error: (err: HttpErrorResponse) => {
           const errorMessage = this.uri ? `Failed to restart device at ${this.uri}. ${err.message}` : `Failed to restart device. ${err.message}`;
-          this.toastr.error(errorMessage);
+          this.toastService.error(errorMessage);
         }
       });
   }

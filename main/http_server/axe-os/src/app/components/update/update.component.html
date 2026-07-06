@@ -7,7 +7,7 @@
         <h5>Current Version: {{(info$ | async)?.version}}</h5>
 
         @if (checkLatestRelease == false) {
-          <h3>Latest Release: <button (click)="handleReleaseCheck()" class="ml-2 px-3 py-1 bg-primary text-white rounded-lg hover:bg-opacity-90 font-medium transition-all duration-200 text-sm">Check</button></h3>
+          <h3>Latest Release: <button (click)="handleReleaseCheck()" class="ml-2 px-3 py-1 bg-primary text-white rounded-sm hover:bg-opacity-90 font-medium transition-all duration-200 text-sm">Check</button></h3>
           <app-modal #privacyModal [headline]="'Privacy Warning'">
             <p>
               Please note, this will connect to <strong>github.com</strong> to check for the latest release.
@@ -22,8 +22,8 @@
               <label for="ignoreWarning" class="cursor-pointer text-sm">Don't show again</label>
             </p>
             <div class="flex gap-3 mt-5">
-              <button (click)="continueReleaseCheck(ignoreWarningModel)" class="px-4 py-2 bg-primary text-white rounded-lg hover:bg-opacity-90 font-medium transition-all duration-200 text-sm">Continue</button>
-              <button class="px-4 py-2 bg-neutral-800 hover:bg-neutral-700 text-white rounded-lg font-medium transition-all duration-200 text-sm" (click)="privacyModal.isVisible = false">Cancel</button>
+              <button (click)="continueReleaseCheck(ignoreWarningModel)" class="px-4 py-2 bg-primary text-white rounded-sm hover:bg-opacity-90 font-medium transition-all duration-200 text-sm">Continue</button>
+              <button class="px-4 py-2 bg-neutral-800 hover:bg-neutral-700 text-white rounded-sm font-medium transition-all duration-200 text-sm" (click)="privacyModal.isVisible = false">Cancel</button>
             </div>
           </app-modal>
         } @else {
@@ -66,7 +66,7 @@
 
         <div class="flex flex-col items-start gap-2">
           <input #websiteInput type="file" accept=".bin" class="hidden" (change)="onWebsiteFileSelected($event)">
-          <button type="button" (click)="websiteInput.click()" class="px-4 py-2 bg-neutral-900 border border-neutral-800 hover:bg-neutral-800 text-white rounded-lg font-medium transition-all duration-200 focus:outline-none focus:ring-1 focus:ring-primary text-sm">
+          <button type="button" (click)="websiteInput.click()" class="px-4 py-2 bg-neutral-900 border border-neutral-800 hover:bg-neutral-800 text-white rounded-sm font-medium transition-all duration-200 focus:outline-none focus:ring-1 focus:ring-primary text-sm">
             Browse
           </button>
           <small class="text-neutral-500">(www.bin)</small>
@@ -79,7 +79,7 @@
         
         <div class="flex flex-col items-start gap-2">
           <input #firmwareInput type="file" accept=".bin" class="hidden" (change)="onFirmwareFileSelected($event)">
-          <button type="button" (click)="firmwareInput.click()" class="px-4 py-2 bg-neutral-900 border border-neutral-800 hover:bg-neutral-800 text-white rounded-lg font-medium transition-all duration-200 focus:outline-none focus:ring-1 focus:ring-primary text-sm">
+          <button type="button" (click)="firmwareInput.click()" class="px-4 py-2 bg-neutral-900 border border-neutral-800 hover:bg-neutral-800 text-white rounded-sm font-medium transition-all duration-200 focus:outline-none focus:ring-1 focus:ring-primary text-sm">
             Browse
           </button>
           <small class="text-neutral-500">(esp-miner.bin)</small>
@@ -118,7 +118,7 @@
       <div class="text-lg text-center text-white mb-4">{{ updateMessage }}</div>
       @if (updateTarget !== 'AxeOS') {
         <div>
-          <button (click)="progressModal.isVisible = false" class="px-4 py-2 bg-primary text-white rounded-lg hover:bg-opacity-90 font-medium transition-all duration-200 text-sm">Close</button>
+          <button (click)="progressModal.isVisible = false" class="px-4 py-2 bg-primary text-white rounded-sm hover:bg-opacity-90 font-medium transition-all duration-200 text-sm">Close</button>
         </div>
       }
     }
@@ -127,7 +127,7 @@
       <i class="pi pi-times-circle text-red-500" style="font-size: 3.5rem; margin-bottom: 1rem;"></i>
       <div class="text-lg text-center text-red-500 mb-4">{{ updateMessage }}</div>
       <div>
-        <button (click)="progressModal.isVisible = false" class="px-4 py-2 bg-primary text-white rounded-lg hover:bg-opacity-90 font-medium transition-all duration-200 text-sm">Close</button>
+        <button (click)="progressModal.isVisible = false" class="px-4 py-2 bg-primary text-white rounded-sm hover:bg-opacity-90 font-medium transition-all duration-200 text-sm">Close</button>
       </div>
     }
   </div>

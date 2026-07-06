@@ -1,6 +1,6 @@
 import { Component, ElementRef, Input, ViewChild, OnInit, OnDestroy, ChangeDetectionStrategy } from '@angular/core';
 import { Observable, Subject, takeUntil } from 'rxjs';
-import { ToastrService } from '../services/toast.service';
+import { ToastService } from '../services/toast.service';
 import { SystemApiService } from 'src/app/services/system.service';
 import { LiveDataService } from 'src/app/services/live-data.service';
 import { LayoutService } from './service/app.layout.service';
@@ -35,7 +35,7 @@ export class AppTopBarComponent implements OnInit, OnDestroy {
     public layoutService: LayoutService,
     private systemService: SystemApiService,
     private liveDataService: LiveDataService,
-    private toastr: ToastrService,
+    private toastService: ToastService,
     private sensitiveData: SensitiveData,
     public dashboardEdit: DashboardEditService,
   ) {
@@ -73,16 +73,16 @@ export class AppTopBarComponent implements OnInit, OnDestroy {
     action.subscribe({
       next: (response) => {
         this.isMiningPaused = newPausedState;
-        this.toastr.success(response.message);
+        this.toastService.success(response.message);
       },
-      error: () => this.toastr.error('Failed to change mining state')
+      error: () => this.toastService.error('Failed to change mining state')
     });
   }
 
   public restart() {
     this.systemService.restart().subscribe({
-      next: () => this.toastr.success('Device restarted'),
-      error: () => this.toastr.error('Restart failed')
+      next: () => this.toastService.success('Device restarted'),
+      error: () => this.toastService.error('Restart failed')
     });
   }
 }

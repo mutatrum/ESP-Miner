@@ -2,7 +2,7 @@ import { Component, OnInit, ViewChild, Input, OnDestroy, ElementRef, HostListene
 import { map, Observable, shareReplay, Subscription, switchMap, tap, first, Subject, takeUntil, BehaviorSubject, filter, combineLatest } from 'rxjs';
 import { HttpErrorResponse } from '@angular/common/http';
 import { FormBuilder, FormGroup, FormsModule, ReactiveFormsModule } from '@angular/forms';
-import { ToastrService } from '../../services/toast.service';
+import { ToastService } from '../../services/toast.service';
 import { DateAgoPipe } from 'src/app/pipes/date-ago.pipe';
 import { HashSuffixPipe } from 'src/app/pipes/hash-suffix.pipe';
 import { ByteSuffixPipe } from 'src/app/pipes/byte-suffix.pipe';
@@ -225,7 +225,7 @@ export class HomeComponent implements OnInit, OnDestroy {
     private quickLinkService: QuicklinkService,
     private titleService: Title,
     private loadingService: LoadingService,
-    private toastr: ToastrService,
+    private toastService: ToastService,
     private liveDataService: LiveDataService,
     private shareRejectReasonsService: ShareRejectionExplanationService,
     private storageService: LocalStorageService,
@@ -539,7 +539,7 @@ export class HomeComponent implements OnInit, OnDestroy {
           this.loadPreviousData();
         },
         error: (err: HttpErrorResponse) => {
-          this.toastr.error('Error.', `Could not save chart source. ${err.message}`);
+          this.toastService.error('Error.', `Could not save chart source. ${err.message}`);
         }
       });
   }
@@ -1009,10 +1009,10 @@ export class HomeComponent implements OnInit, OnDestroy {
       )
       .subscribe({
         next: () => {
-          this.toastr.success('Pool changed and device restarted');
+          this.toastService.success('Pool changed and device restarted');
         },
         error: (err: HttpErrorResponse) => {
-          this.toastr.error(`Error during pool change or device restart: ${err.message}`);
+          this.toastService.error(`Error during pool change or device restart: ${err.message}`);
         }
       });
   }
@@ -1024,10 +1024,10 @@ export class HomeComponent implements OnInit, OnDestroy {
       )
       .subscribe({
         next: () => {
-          this.toastr.success('Block found notification dismissed');
+          this.toastService.success('Block found notification dismissed');
         },
         error: (err: HttpErrorResponse) => {
-          this.toastr.error(`Error dismissing notification: ${err.message}`);
+          this.toastService.error(`Error dismissing notification: ${err.message}`);
         }
       });
   }

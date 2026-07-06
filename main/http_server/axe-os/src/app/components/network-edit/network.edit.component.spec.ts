@@ -1,7 +1,7 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { NetworkEditComponent } from './network.edit.component';
 import { provideHttpClient, withXhr } from '@angular/common/http';
-import { ToastrService } from 'src/app/services/toast.service';
+import { ToastService } from 'src/app/services/toast.service';
 import { DialogService } from 'src/app/services/dialog.service';
 
 describe('NetworkEditComponent', () => {
@@ -13,7 +13,7 @@ describe('NetworkEditComponent', () => {
       imports: [NetworkEditComponent],
       providers: [
         provideHttpClient(withXhr()),
-        { provide: ToastrService, useValue: { success: jasmine.createSpy(), error: jasmine.createSpy(), warning: jasmine.createSpy(), info: jasmine.createSpy() } },
+        { provide: ToastService, useValue: { success: jasmine.createSpy(), error: jasmine.createSpy(), warning: jasmine.createSpy(), info: jasmine.createSpy() } },
         DialogService
       ]
     });

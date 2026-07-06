@@ -1,6 +1,6 @@
 @if (info$ | async; as info) {
   @for (message of messages; track message.text) {
-    <div class="flex items-start gap-3 p-4 rounded-xl border mb-4 w-full"
+    <div class="flex items-start gap-3 p-4 rounded-sm border mb-4 w-full"
          [ngClass]="{
            'bg-red-950/20 border-red-900/50 text-red-200': message.severity === 'error',
            'bg-amber-950/20 border-amber-900/50 text-amber-200': message.severity === 'warn',
@@ -16,7 +16,7 @@
     </div>
   }
   @if (info.showNewBlock) {
-    <div class="bg-emerald-950/20 border border-emerald-900/50 text-emerald-200 w-full mb-4 py-4 rounded-xl">
+    <div class="bg-emerald-950/20 border border-emerald-900/50 text-emerald-200 w-full mb-4 py-4 rounded-sm">
       <div class="flex justify-between items-center w-full px-4">
         <span class="text-sm font-sans leading-none">Today is your lucky day! Your device has found {{ info.blockFound === 1 ? 'a block' : info.blockFound + ' blocks' }} 🎉</span>
         <button type="button" class="p-link text-neutral-400 hover:text-white transition-colors duration-150" style="line-height: 1;" (click)="dismissBlockFound()" title="Dismiss">
@@ -223,7 +223,7 @@
               <div class="flex flex-nowrap justify-between mb-4">
                 <select
                   formControlName="chartY1Data"
-                  class="bg-neutral-900 border border-neutral-800 text-white rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-primary w-40"
+                  class="bg-neutral-900 border border-neutral-800 text-white rounded-sm px-3 py-1.5 focus:outline-none focus:ring-1 focus:ring-primary w-40"
                 >
                   @for (option of chartDataSources; track option.value) {
                     <option [value]="option.value">{{ option.name }}</option>
@@ -231,7 +231,7 @@
                 </select>
                 <select
                   formControlName="chartY2Data"
-                  class="bg-neutral-900 border border-neutral-800 text-white rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-primary w-40"
+                  class="bg-neutral-900 border border-neutral-800 text-white rounded-sm px-3 py-1.5 focus:outline-none focus:ring-1 focus:ring-primary w-40"
                 >
                   @for (option of chartDataSources; track option.value) {
                     <option [value]="option.value">{{ option.name }}</option>
@@ -388,14 +388,14 @@
                     [attr.aria-label]="'Open pool dashboard in new tab'"
                     title="Open pool dashboard"
                     >
-                    <i class="pi pi-external-link"></i>
+                    <i class="pi pi-external-link text-xs"></i>
                   </a>
                 }
               </h4>
               <select
                 [(ngModel)]="activePoolLabel"
                 (change)="onPoolChange({ value: activePoolLabel })"
-                class="bg-neutral-900 border border-neutral-800 text-white rounded-lg px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-primary w-32 absolute right-0 top-0 mt-0"
+                class="bg-neutral-900 border border-neutral-800 text-white rounded-sm px-3 py-1.5 focus:outline-none focus:ring-1 focus:ring-primary w-32 absolute right-0 top-0 mt-0"
               >
                 @for (option of (pools$ | async) ?? []; track option.value) {
                   <option [value]="option.value">{{ option.label }}</option>

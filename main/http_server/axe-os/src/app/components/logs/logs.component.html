@@ -12,7 +12,7 @@
             </span>
             <input
               type="text"
-              class="w-full bg-neutral-900 border border-neutral-800 text-white rounded-lg pl-9 pr-4 py-2 focus:outline-none focus:ring-1 focus:ring-primary placeholder-neutral-500"
+              class="w-full bg-neutral-900 border border-neutral-800 text-white rounded-sm pl-9 pr-4 py-2 focus:outline-none focus:ring-1 focus:ring-primary placeholder-neutral-500"
               autocomplete="off"
               placeholder="Case-sensitive filter"
               id="filter"
@@ -20,14 +20,14 @@
           </div>
           <button
             type="button"
-            class="flex items-center justify-center p-2.5 rounded-lg border border-neutral-800 bg-neutral-900/50 hover:bg-neutral-800 text-white transition-all duration-200 focus:outline-none focus:ring-1 focus:ring-primary"
+            class="flex items-center justify-center p-2.5 rounded-sm border border-neutral-800 bg-neutral-900/50 hover:bg-neutral-800 text-white transition-all duration-200 focus:outline-none focus:ring-1 focus:ring-primary"
             (click)="stopScroll = !stopScroll"
             [title]="(stopScroll ? 'Start' : 'Stop') + ' Scrolling'">
             <i class="pi pi-{{stopScroll ? 'play' : 'pause'}} text-sm"></i>
           </button>
           <button
             type="button"
-            class="flex items-center justify-center p-2.5 rounded-lg border border-neutral-800 bg-neutral-900/50 hover:bg-neutral-800 text-white transition-all duration-200 focus:outline-none focus:ring-1 focus:ring-primary disabled:opacity-50"
+            class="flex items-center justify-center p-2.5 rounded-sm border border-neutral-800 bg-neutral-900/50 hover:bg-neutral-800 text-white transition-all duration-200 focus:outline-none focus:ring-1 focus:ring-primary disabled:opacity-50"
             [disabled]="loadingLogs"
             (click)="downloadLogs()"
             title="Download Logs">
@@ -35,7 +35,7 @@
           </button>
           <button
             type="button"
-            class="flex items-center justify-center p-2.5 rounded-lg border border-neutral-800 bg-neutral-900/50 hover:bg-neutral-800 text-white transition-all duration-200 focus:outline-none focus:ring-1 focus:ring-primary"
+            class="flex items-center justify-center p-2.5 rounded-sm border border-neutral-800 bg-neutral-900/50 hover:bg-neutral-800 text-white transition-all duration-200 focus:outline-none focus:ring-1 focus:ring-primary"
             (click)="clearLogs()"
             title="Clear Logs">
             <i class="pi pi-trash text-sm"></i>
