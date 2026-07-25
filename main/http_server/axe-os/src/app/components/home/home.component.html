@@ -196,7 +196,6 @@
                             {{info.bestSessionDiff | diffSuffix}}
                         </span>
                         <span class="text-secondary text-lg">session best</span>
-                        <span class="text-sm font-medium mb-3"> ({{ info.uptimeSeconds | dateAgo: { intervals: 2, strict:true, short:true } }})</span>
                     </div>
                 </div>
             </div>
@@ -588,15 +587,33 @@
                                         {{ i + 1 }}
                                     </td>
                                 <td *ngFor="let domain of asic?.domains; trackBy: trackByIndex"
-                                    [style.--heatmap-bg]="getHeatmapColor(domain, info.expectedHashrate)"
+                                    [style.--lightness]="getHeatmapLightness(domain, info.expectedHashrate)"
                                         [style.height]="(asicAmount <= 2 ? '2rem' : null)"
-                                        class="text-center">
+                                        class="heatmap-cell">
                                         <span class="text-xs">{{ domain | hashSuffix }}</span>
                                     </td>
                                 </tr>
                             </tbody>
                         </table>
                     </ng-container>
+                </div>
+            </div>
+        </div>
+
+        <!-- misc -->
+        <div class="grid-stack-item" gs-id="misc">
+            <div class="grid-stack-item-content">
+                <div class="card">
+                    <h4 class="white-space-nowrap overflow-hidden text-overflow-ellipsis">Misc</h4>
+
+                    <div class="flex flex-nowrap">
+                        <div class="col-fixed-width text-500">
+                            <span>Uptime</span>
+                        </div>
+                        <div>
+                            <span>{{ info.uptimeSeconds | dateAgo: { intervals: 2, strict:true, short:false } }}</span>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
