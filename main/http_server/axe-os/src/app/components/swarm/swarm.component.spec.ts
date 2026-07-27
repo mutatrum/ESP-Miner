@@ -93,10 +93,16 @@ describe('SwarmComponent', () => {
 
     // Hashing: device1, device4 (2 devices)
     expect(component.totals.hashingDevices).toBe(2);
+    // Idle: device3 (1 device)
+    expect(component.totals.idleDevices).toBe(1);
     // Paused: device2 (1 device)
     expect(component.totals.pausedDevices).toBe(1);
     // Non-accessible: device5 (1 device)
     expect(component.totals.notAccessibleDevices).toBe(1);
+
+    // Notifications
+    expect(component.getDeviceNotification(device5)).toEqual({ color: 'red', msg: 'Not accessible' });
+    expect(component.getDeviceNotification(device2)).toEqual({ color: 'yellow', msg: 'Paused' });
   });
 
   it('should render swarm list details and custom components when devices are present', () => {
@@ -128,5 +134,18 @@ describe('SwarmComponent', () => {
     // Verify that components inside *ngIf are rendered
     expect(element.querySelector('app-slider')).toBeTruthy();
     expect(element.querySelector('app-modal')).toBeTruthy();
+  });
+
+  it('should reset notAccessible to false when a device responds successfully', () => {
+    component.swarm = [{
+      address: '192.168.1.104',
+      connectionAddress: '192.168.1.104',
+      notAccessible: true,
+      hashRate: 0
+    }];
+
+    (component as any).getAllDeviceInfo(['192.168.1.104'], component.refreshErrorHandler, true).subscribe((result: any[]) => {
+      expect(result[0].notAccessible).toBeFalse();
+    });
   });
 });

@@ -8,7 +8,15 @@
             <div class="w-1/2 xl:w-1/4 px-2 mb-4">
                 <div class="card flex flex-col mb-0 h-full">
                     <span class="text-secondary font-medium mb-3">Total Devices</span>
-                    <div class="font-medium text-2xl">{{ totals.hashingDevices }}</div>
+                    <div class="font-medium text-2xl">{{ swarm.length }}</div>
+                    <div *ngIf="totals.hashingDevices < swarm.length" class="mt-1">
+                        <span class="text-green-500 font-medium">{{ totals.hashingDevices }} </span>
+                        <span class="text-secondary">hashing</span>
+                    </div>
+                    <div *ngIf="totals.idleDevices > 0" class="mt-1">
+                        <span class="text-orange-500 font-medium">{{ totals.idleDevices }} </span>
+                        <span class="text-secondary">idle</span>
+                    </div>
                     <div *ngIf="totals.pausedDevices > 0" class="mt-1">
                         <span class="text-yellow-500 font-medium">{{ totals.pausedDevices }} </span>
                         <span class="text-secondary">paused</span>
