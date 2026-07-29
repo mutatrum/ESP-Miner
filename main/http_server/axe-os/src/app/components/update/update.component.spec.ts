@@ -14,10 +14,9 @@ describe('UpdateComponent', () => {
 
   beforeEach(() => {
     TestBed.configureTestingModule({
-      declarations: [UpdateComponent, ModalComponent],
-      imports: [CheckboxComponent, FormsModule],
-      providers: [provideHttpClient(), provideToastr()]
-    });
+    imports: [CheckboxComponent, FormsModule, UpdateComponent, ModalComponent],
+    providers: [provideHttpClient(), provideToastr()]
+});
     fixture = TestBed.createComponent(UpdateComponent);
     component = fixture.componentInstance;
     fixture.detectChanges();

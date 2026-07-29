@@ -4,14 +4,18 @@ import { SystemApiService } from 'src/app/services/system.service';
 import { LoadingService } from 'src/app/services/loading.service';
 import { LocalStorageService } from 'src/app/local-storage.service';
 import { ISystemScoreboardEntry } from 'src/models/ISystemScoreboard';
+import { NgIf, NgFor, NgClass, NgStyle, AsyncPipe, DatePipe } from '@angular/common';
+import { TooltipDirective } from '../../directives/tooltip.directive';
+import { DateAgoPipe } from '../../pipes/date-ago.pipe';
+import { DiffSuffixPipe } from '../../pipes/diff-suffix.pipe';
 
 const SWARM_SORTING = 'SCOREBOARD_SORTING';
 
 @Component({
-  selector: 'app-scoreboard',
-  templateUrl: './scoreboard.component.html',
-  styleUrls: ['./scoreboard.component.scss'],
-  standalone: false
+    selector: 'app-scoreboard',
+    templateUrl: './scoreboard.component.html',
+    styleUrls: ['./scoreboard.component.scss'],
+    imports: [NgIf, NgFor, NgClass, NgStyle, TooltipDirective, AsyncPipe, DatePipe, DateAgoPipe, DiffSuffixPipe]
 })
 export class ScoreboardComponent implements OnInit, OnDestroy {
   public scoreboard$: Observable<ISystemScoreboardEntry[]>;

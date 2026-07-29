@@ -11,9 +11,9 @@ describe('NetworkEditComponent', () => {
 
   beforeEach(() => {
     TestBed.configureTestingModule({
-      declarations: [NetworkEditComponent],
-      providers: [provideHttpClient(), provideToastr(), DialogService]
-    });
+    imports: [NetworkEditComponent],
+    providers: [provideHttpClient(), provideToastr(), DialogService]
+});
     fixture = TestBed.createComponent(NetworkEditComponent);
     component = fixture.componentInstance;
     fixture.detectChanges();

@@ -2,7 +2,7 @@ import { Component, OnInit, ViewChild, Input, OnDestroy, ElementRef, HostListene
 import { map, Observable, shareReplay, Subscription, switchMap, tap, first, Subject, takeUntil, BehaviorSubject, filter, combineLatest } from 'rxjs';
 import { HttpErrorResponse } from '@angular/common/http';
 import { getHttpErrorMessage } from 'src/app/utils/error-handler';
-import { FormBuilder, FormGroup } from '@angular/forms';
+import { FormBuilder, FormGroup, FormsModule, ReactiveFormsModule } from '@angular/forms';
 import { ToastrService } from 'ngx-toastr';
 import { DateAgoPipe } from 'src/app/pipes/date-ago.pipe';
 import { HashSuffixPipe } from 'src/app/pipes/hash-suffix.pipe';
@@ -26,6 +26,16 @@ import { chartLabelKey } from 'src/models/enum/eChartLabel';
 import { LocalStorageService } from 'src/app/local-storage.service';
 import { GridStack, GridItemHTMLElement } from 'gridstack';
 import { DashboardEditService, WidgetDef } from 'src/app/services/dashboard-edit.service';
+import { NgIf, NgFor, NgClass, AsyncPipe, DecimalPipe } from '@angular/common';
+import { TooltipDirective } from '../../directives/tooltip.directive';
+import { TooltipTextIconComponent } from '../tooltip-text-icon/tooltip-text-icon.component';
+import { DropdownComponent } from '../dropdown/dropdown.component';
+import { ConfettiComponent } from '../confetti/confetti.component';
+import { DateAgoPipe as DateAgoPipe_1 } from '../../pipes/date-ago.pipe';
+import { HashSuffixPipe as HashSuffixPipe_1 } from '../../pipes/hash-suffix.pipe';
+import { DiffSuffixPipe as DiffSuffixPipe_1 } from '../../pipes/diff-suffix.pipe';
+import { AddressPipe } from '../../pipes/address.pipe';
+import { SatsPipe } from '../../pipes/sats.pipe';
 
 type PoolLabel = 'Primary' | 'Fallback';
 type ProtocolLabel = 'SV2 Standard Channel' | 'SV2 Extended Channel';
@@ -74,7 +84,7 @@ const WIDGET_DEFAULTS: WidgetDef[] = [
     selector: 'app-home',
     templateUrl: './home.component.html',
     styleUrls: ['./home.component.scss'],
-    standalone: false
+    imports: [NgIf, NgFor, TooltipDirective, TooltipTextIconComponent, NgClass, FormsModule, ReactiveFormsModule, DropdownComponent, AppChartComponent, ConfettiComponent, AsyncPipe, DecimalPipe, DateAgoPipe_1, HashSuffixPipe_1, DiffSuffixPipe_1, AddressPipe, SatsPipe]
 })
 export class HomeComponent implements OnInit, OnDestroy {
   public messages: ISystemMessage[] = [];

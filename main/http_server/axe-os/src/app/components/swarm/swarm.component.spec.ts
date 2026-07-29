@@ -24,12 +24,7 @@ describe('SwarmComponent', () => {
 
   beforeEach(() => {
     TestBed.configureTestingModule({
-      declarations: [
-        SwarmComponent,
-        ModalComponent,
-        TooltipTextIconComponent
-      ],
-      imports: [
+    imports: [
         ReactiveFormsModule,
         FormsModule,
         TooltipDirective,
@@ -39,13 +34,16 @@ describe('SwarmComponent', () => {
         DiffSuffixPipe,
         DateAgoPipe,
         AddressPipe,
-        SatsPipe
-      ],
-      providers: [
+        SatsPipe,
+        SwarmComponent,
+        ModalComponent,
+        TooltipTextIconComponent
+    ],
+    providers: [
         provideHttpClient(),
         provideToastr()
-      ]
-    });
+    ]
+});
     
     httpClient = TestBed.inject(HttpClient);
     spyOn(httpClient, 'get').and.callFake(((url: string) => {

@@ -1,10 +1,12 @@
 import { Component, Input, HostListener } from '@angular/core';
+import { NgIf, NgClass } from '@angular/common';
+import { TooltipDirective } from '../../directives/tooltip.directive';
 
 @Component({
     selector: 'tooltip-icon',
     templateUrl: './tooltip-icon.component.html',
     styleUrls: ['./tooltip-icon.component.scss'],
-    standalone: false
+    imports: [NgIf, TooltipDirective, NgClass]
 })
 export class TooltipIconComponent {
   @Input() tooltip: string = '';

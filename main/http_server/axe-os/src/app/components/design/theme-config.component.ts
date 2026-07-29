@@ -3,6 +3,9 @@ import { Subject } from 'rxjs';
 import { takeUntil } from 'rxjs/operators';
 import { LayoutService } from '../../layout/service/app.layout.service';
 import { ThemeService } from '../../services/theme.service';
+import { RadioButtonComponent } from '../radio-button/radio-button.component';
+import { FormsModule } from '@angular/forms';
+import { NgFor, NgIf } from '@angular/common';
 
 interface ThemeOption {
   name: string;
@@ -10,10 +13,10 @@ interface ThemeOption {
 }
 
 @Component({
-  selector: 'app-theme-config',
-  templateUrl: './theme-config.component.html',
-  styleUrls: ['./design-component.scss'],
-  standalone: false
+    selector: 'app-theme-config',
+    templateUrl: './theme-config.component.html',
+    styleUrls: ['./design-component.scss'],
+    imports: [RadioButtonComponent, FormsModule, NgFor, NgIf]
 })
 export class ThemeConfigComponent implements OnInit {
   selectedScheme: string;

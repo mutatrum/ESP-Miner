@@ -16,16 +16,15 @@ describe('ScoreboardComponent', () => {
 
   beforeEach(async () => {
     await TestBed.configureTestingModule({
-      declarations: [ScoreboardComponent],
-      imports: [CommonModule, TooltipDirective, DiffSuffixPipe, DateAgoPipe],
-      providers: [
+    imports: [CommonModule, TooltipDirective, DiffSuffixPipe, DateAgoPipe, ScoreboardComponent],
+    providers: [
         provideRouter([]),
         provideHttpClient(),
         SystemApiService,
         LoadingService,
         LocalStorageService
-      ]
-    })
+    ]
+})
     .compileComponents();
 
     fixture = TestBed.createComponent(ScoreboardComponent);

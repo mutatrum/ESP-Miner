@@ -1,12 +1,13 @@
 import { Component } from '@angular/core';
 import { Observable } from 'rxjs';
 import { LoadingService } from 'src/app/services/loading.service';
+import { NgIf, AsyncPipe } from '@angular/common';
 
 @Component({
     selector: 'app-loading',
     templateUrl: './loading.component.html',
     styleUrls: ['./loading.component.scss'],
-    standalone: false
+    imports: [NgIf, AsyncPipe]
 })
 export class LoadingComponent {
 

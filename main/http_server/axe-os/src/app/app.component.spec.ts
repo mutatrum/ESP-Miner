@@ -11,17 +11,16 @@ import { DialogListComponent } from './services/dialog.service';
 
 describe('AppComponent', () => {
   beforeEach(() => TestBed.configureTestingModule({
-    imports: [RouterModule],
-    declarations: [AppComponent, SnowflakesComponent, DialogListComponent],
+    imports: [AppComponent, RouterModule, SnowflakesComponent, DialogListComponent],
     providers: [
-      provideRouter([]),
-      LayoutService,
-      ThemeService,
-      LocalStorageService,
-      provideHttpClient(),
-      provideToastr()
+        provideRouter([]),
+        LayoutService,
+        ThemeService,
+        LocalStorageService,
+        provideHttpClient(),
+        provideToastr()
     ]
-  }));
+}));
 
   it('should create the app', () => {
     const fixture = TestBed.createComponent(AppComponent);

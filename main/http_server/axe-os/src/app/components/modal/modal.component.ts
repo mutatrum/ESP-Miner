@@ -1,10 +1,11 @@
 import { Component, Input, Output, EventEmitter } from '@angular/core';
+import { NgIf } from '@angular/common';
 
 @Component({
     selector: 'app-modal',
     templateUrl: './modal.component.html',
     styleUrls: ['./modal.component.scss'],
-    standalone: false
+    imports: [NgIf]
 })
 export class ModalComponent {
   private _isVisible = false;
