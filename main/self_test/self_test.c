@@ -44,6 +44,8 @@
 // Test Input Voltage
 #define INPUT_VOLTAGE_MARGIN 0.10f // +/- 10%
 
+#define MULTIPHASE_BUCK_MIN_CURRENT_A 1.0f
+
 // Test Difficulty
 #define DIFFICULTY 16
 
@@ -381,20 +383,14 @@ static esp_err_t test_power_consumption(GlobalState * GLOBAL_STATE)
     float power = 0;
     float current = 0;
 
-    uint8_t phase_count = 0;
-    if (GLOBAL_STATE->DEVICE_CONFIG.family.id == GAMMA_TURBO) {
-        phase_count = 2;
-    } else if (GLOBAL_STATE->DEVICE_CONFIG.family.id == GAMMA_HEX) {
-        phase_count = 4;
-    }
-
-    if (phase_count > 0 &&
+    uint8_t phase_count = VCORE_get_phase_count(GLOBAL_STATE);
+    if (phase_count > 1 &&
         TPS546_check_phase_currents(phase_count, MULTIPHASE_BUCK_MIN_CURRENT_A) != ESP_OK) {
         ESP_LOGE(TAG, "MULTIPHASE BUCK test failed!");
         self_test_show_message(GLOBAL_STATE, "BUCK:FAIL");
         return ESP_FAIL;
     }
-    
+
     Power_get_output(GLOBAL_STATE, &power, &current);
     ESP_LOGI(TAG, "Power: %.2f W (target: %.2f W, maximum: %.2f W)",
              power, target_power, maximum_power);

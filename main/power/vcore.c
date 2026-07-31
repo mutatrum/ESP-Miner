@@ -1,6 +1,8 @@
 #include "esp_log.h"
 #include <math.h>
 #include <stdio.h>
+#include "freertos/FreeRTOS.h"
+#include "freertos/task.h"
 
 #include "DS4432U.h"
 #include "INA260.h"
@@ -21,6 +23,34 @@
 
 static const char *TAG = "vcore";
 static bool vcore_initialized = false;
+
+static void log_tps546_config(const FamilyConfig *family, const TPS546_CONFIG *config)
+{
+    ESP_LOGI(TAG, "Selected TPS546 config for family=%s id=%d voltage_domains=%u",
+             family->name, (int)family->id, (unsigned)family->voltage_domains);
+    ESP_LOGI(TAG, "TPS546 init core: phase=0x%02X stack=0x%04X sync=0x%02X scale=%.3f vout=%.2f min=%.2f max=%.2f",
+             config->TPS546_INIT_PHASE,
+             config->TPS546_INIT_STACK_CONFIG,
+             config->TPS546_INIT_SYNC_CONFIG,
+             config->TPS546_INIT_SCALE_LOOP,
+             config->TPS546_INIT_VOUT_COMMAND,
+             config->TPS546_INIT_VOUT_MIN,
+             config->TPS546_INIT_VOUT_MAX);
+    ESP_LOGI(TAG, "TPS546 init VIN: on=%.2f off=%.2f uv_warn=%.2f ov_fault=%.2f",
+             config->TPS546_INIT_VIN_ON,
+             config->TPS546_INIT_VIN_OFF,
+             config->TPS546_INIT_VIN_UV_WARN_LIMIT,
+             config->TPS546_INIT_VIN_OV_FAULT_LIMIT);
+    ESP_LOGI(TAG, "TPS546 init IOUT: warn=%.2f fault=%.2f",
+             config->TPS546_INIT_IOUT_OC_WARN_LIMIT,
+             config->TPS546_INIT_IOUT_OC_FAULT_LIMIT);
+    ESP_LOGI(TAG, "TPS546 init COMPENSATION_CONFIG: %02X %02X %02X %02X %02X",
+             config->TPS546_INIT_COMPENSATION_CONFIG[0],
+             config->TPS546_INIT_COMPENSATION_CONFIG[1],
+             config->TPS546_INIT_COMPENSATION_CONFIG[2],
+             config->TPS546_INIT_COMPENSATION_CONFIG[3],
+             config->TPS546_INIT_COMPENSATION_CONFIG[4]);
+}
 
 static TPS546_CONFIG get_tps546_config(const FamilyConfig * family)
 {
@@ -182,6 +212,7 @@ static TPS546_CONFIG get_tps546_config(const FamilyConfig * family)
         config.TPS546_INIT_FREQUENCY = nvs_config_get_u16(NVS_CONFIG_TPS546_FREQUENCY);
     }
 
+    log_tps546_config(family, &config);
     return config;
 }
 
@@ -293,4 +324,12 @@ const char * VCORE_get_fault_string(GlobalState * GLOBAL_STATE)
         return TPS546_get_error_message();
     }
     return NULL;
+}
+
+uint8_t VCORE_get_phase_count(GlobalState * GLOBAL_STATE)
+{
+    if (GLOBAL_STATE->DEVICE_CONFIG.TPS546) {
+        return TPS546_get_phase_count();
+    }
+    return 1;
 }
