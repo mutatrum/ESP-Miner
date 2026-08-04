@@ -2,7 +2,7 @@
 """
 upload2device.py
 =================
-Upload ESP-Miner firmware (``esp-miner.bin``) and web UI archive (``www.bin``)
+Upload ESP-Miner firmware (``esp-miner.bin``) and optionally a custom web UI archive (``www.bin``)
 located in the local ``build/`` directory to one or more ESP-Miner devices over
 HTTP OTA endpoints defined in ``main/http_server/openapi.yaml``:
 
@@ -11,11 +11,19 @@ HTTP OTA endpoints defined in ``main/http_server/openapi.yaml``:
 
 Usage examples
 --------------
-1. Provide device IPs on the command-line:
+1. Upload firmware only (default, since Web UI is embedded):
 
     $ python3 upload2device.py 192.168.1.50 192.168.1.51
 
-2. Provide IPs via a file (one IP per line) and override build directory:
+2. Upload custom Web UI partition in addition to firmware:
+
+    $ python3 upload2device.py --custom-www 192.168.1.50
+
+3. Upload custom Web UI partition ONLY (skipping firmware):
+
+    $ python3 upload2device.py --www-only 192.168.1.50
+
+4. Provide IPs via a file and override build directory:
 
     $ python3 upload2device.py --file devices.txt --build-dir /tmp/build
 
@@ -107,24 +115,41 @@ def _verify_auth(ip: str, password: str | None = None) -> bool:
         return False
 
 
-def _process_device(ip: str, build_dir: pathlib.Path, password: str | None = None) -> bool:
-    """Upload web UI then firmware to *ip*. Return True if both succeed."""
+def _process_device(
+    ip: str,
+    build_dir: pathlib.Path,
+    password: str | None = None,
+    custom_www: bool = False,
+    www_only: bool = False,
+) -> bool:
+    """Upload web UI (if requested or www-only) and/or firmware to *ip*. Return True if successful."""
     if not _verify_auth(ip, password):
         return False
-    www_ok = _upload_binary(ip, build_dir / _WWW_BIN, _ENDPOINT_WWW, password)
-    if not www_ok:
-        return False
-    # Give device a moment to process first upload
-    import time
-    time.sleep(1)
+
+    www_path = build_dir / _WWW_BIN
+
+    if custom_www or www_only:
+        if not www_path.is_file():
+            flag_name = "--www-only" if www_only else "--custom-www"
+            print(f"[ERROR] {www_path.name} not found in build directory, but {flag_name} was requested.", file=sys.stderr)
+            return False
+        www_ok = _upload_binary(ip, www_path, _ENDPOINT_WWW, password)
+        if not www_ok:
+            return False
+        if www_only:
+            return True
+        # Give device a moment to process first upload
+        import time
+        time.sleep(1)
+
     firmware_ok = _upload_binary(ip, build_dir / _FIRMWARE_BIN, _ENDPOINT_FIRMWARE, password)
-    return www_ok and firmware_ok
+    return firmware_ok
 
 
 def _parse_args(argv: List[str] | None = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         prog="upload2device.py",
-        description="Upload esp-miner firmware and web UI to ESP-Miner devices over HTTP OTA.",
+        description="Upload esp-miner firmware and optional web UI to ESP-Miner devices over HTTP OTA.",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog=textwrap.dedent(
             """Examples:
@@ -132,6 +157,8 @@ def _parse_args(argv: List[str] | None = None) -> argparse.Namespace:
   python3 upload2device.py --file devices.txt
   python3 upload2device.py --build-dir /tmp/build 192.168.1.100
   python3 upload2device.py --password my-secure-password 192.168.1.50
+  python3 upload2device.py --build-dir /tmp/build --custom-www 192.168.1.100
+  python3 upload2device.py --www-only 192.168.1.100
 """,
         ),
     )
@@ -160,6 +187,18 @@ def _parse_args(argv: List[str] | None = None) -> argparse.Namespace:
         default=None,
         help="AxeOS administration password (optional, required if authentication is enabled)",
     )
+
+    upload_group = parser.add_mutually_exclusive_group()
+    upload_group.add_argument(
+        "--custom-www",
+        action="store_true",
+        help="Upload both the custom web UI partition image (www.bin) and firmware (esp-miner.bin)",
+    )
+    upload_group.add_argument(
+        "--www-only",
+        action="store_true",
+        help="Upload ONLY the custom web UI partition image (www.bin) and skip the firmware",
+    )
     return parser.parse_args(argv)
 
 
@@ -185,7 +224,7 @@ def main(argv: List[str] | None = None) -> None:
     overall_success = True
     for ip in ips:
         print(f"\n=== Processing device {ip} ===")
-        success = _process_device(ip, build_dir, password)
+        success = _process_device(ip, build_dir, password, args.custom_www, args.www_only)
         overall_success = overall_success and success
 
     sys.exit(0 if overall_success else 2)

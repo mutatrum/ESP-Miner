@@ -21,6 +21,7 @@ build/config/*
 
 # Test folder
 test/build/*
+test-ci/
 
 # CI build report
 main/http_server/axe-os/report.xml
