@@ -55,7 +55,7 @@ export class AuthService {
     return this.activePrompt.asObservable();
   }
 
-  public submitPrompt(result: any | null): void {
+  public submitPrompt(result: { username?: string; password?: string } | null): void {
     if (!this.activePrompt) {
       return;
     }

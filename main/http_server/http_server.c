@@ -176,7 +176,7 @@ esp_err_t HTTP_send_json(httpd_req_t * req, const cJSON * item, int * prebuffer_
     return ESP_ERR_NO_MEM;
 }
 
-esp_err_t HTTP_send_json_error(httpd_req_t * req, const char * status, const char * message)
+static esp_err_t HTTP_send_json_error(httpd_req_t * req, const char * status, const char * message)
 {
     httpd_resp_set_status(req, status);
     httpd_resp_set_type(req, "application/json");
@@ -324,18 +324,7 @@ static esp_err_t rest_api_common_handler(httpd_req_t * req)
         return ESP_OK;
     }
 
-    httpd_resp_set_status(req, "404 Not Found");
-
-    httpd_resp_set_type(req, "application/json");
-
-    cJSON * root = cJSON_CreateObject();
-    cJSON_AddStringToObject(root, "error", "unknown route");
-
-    esp_err_t res = HTTP_send_json(req, root, &api_common_prebuffer_len);
-
-    cJSON_Delete(root);
-
-    return res;
+    return HTTP_send_json_error(req, "404 Not Found", "unknown route");
 }
 
 static bool file_exists(const char *path) {
@@ -840,14 +829,14 @@ static esp_err_t PATCH_update_settings(httpd_req_t * req)
     int received = 0;
     if (total_len >= SCRATCH_BUFSIZE) {
         /* Respond with 500 Internal Server Error */
-        httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "content too long");
+        HTTP_send_json_error(req, "500 Internal Server Error", "content too long");
         return ESP_OK;
     }
     while (cur_len < total_len) {
         received = httpd_req_recv(req, buf + cur_len, total_len);
         if (received <= 0) {
             /* Respond with 500 Internal Server Error */
-            httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "Failed to post control value");
+            HTTP_send_json_error(req, "500 Internal Server Error", "Failed to post control value");
             return ESP_OK;
         }
         cur_len += received;
@@ -856,7 +845,7 @@ static esp_err_t PATCH_update_settings(httpd_req_t * req)
 
     cJSON * root = cJSON_Parse(buf);
     if (root == NULL) {
-        httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "Invalid JSON");
+        HTTP_send_json_error(req, "400 Bad Request", "Invalid JSON");
         return ESP_OK;
     }
 
@@ -872,7 +861,7 @@ static esp_err_t PATCH_update_settings(httpd_req_t * req)
         if (redirect_url) {
             free(redirect_url);
         }
-        httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "Wrong API input");
+        HTTP_send_json_error(req, "400 Bad Request", "Wrong API input");
         return ESP_OK;
     }
 
@@ -1023,33 +1012,33 @@ static esp_err_t PUT_system_pool(httpd_req_t *req)
 
     const char *last_slash = strrchr(req->uri, '/');
     if (!last_slash) {
-        return httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "Missing pool index");
+        return HTTP_send_json_error(req, "400 Bad Request", "Missing pool index");
     }
     int idx = atoi(last_slash + 1);
     if (idx < 0 || idx >= MAX_POOLS) {
-        return httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "Invalid pool index");
+        return HTTP_send_json_error(req, "400 Bad Request", "Invalid pool index");
     }
 
     int total_len = req->content_len;
     if (total_len <= 0 || total_len >= SCRATCH_BUFSIZE) {
-        return httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "Invalid request length");
+        return HTTP_send_json_error(req, "400 Bad Request", "Invalid request length");
     }
 
     char *buf = ((rest_server_context_t *)(req->user_ctx))->scratch;
     int received = httpd_req_recv(req, buf, total_len);
     if (received <= 0) {
-        return httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "Failed to receive request data");
+        return HTTP_send_json_error(req, "500 Internal Server Error", "Failed to receive request data");
     }
     buf[received] = '\0';
 
     cJSON *root = cJSON_Parse(buf);
     if (!root) {
-        return httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "Invalid JSON");
+        return HTTP_send_json_error(req, "400 Bad Request", "Invalid JSON");
     }
 
     if (!validate_pool_json(root, idx)) {
         cJSON_Delete(root);
-        return httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "Invalid pool configuration payload");
+        return HTTP_send_json_error(req, "400 Bad Request", "Invalid pool configuration payload");
     }
 
     update_pool_nvs(root, idx);
@@ -1076,18 +1065,18 @@ static esp_err_t DELETE_system_pool(httpd_req_t *req)
 
     const char *last_slash = strrchr(req->uri, '/');
     if (!last_slash) {
-        return httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "Missing pool index");
+        return HTTP_send_json_error(req, "400 Bad Request", "Missing pool index");
     }
     int idx = atoi(last_slash + 1);
     if (idx < 0 || idx >= MAX_POOLS) {
-        return httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "Invalid pool index");
+        return HTTP_send_json_error(req, "400 Bad Request", "Invalid pool index");
     }
 
     // Check if the index is selected as primary or fallback
     uint16_t prim = nvs_config_get_u16(NVS_CONFIG_PRIMARY_POOL_INDEX);
     uint16_t sec = nvs_config_get_u16(NVS_CONFIG_SECONDARY_POOL_INDEX);
     if (idx == prim || idx == sec) {
-        return httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "Cannot delete a pool that is currently selected as primary or fallback");
+        return HTTP_send_json_error(req, "400 Bad Request", "Cannot delete a pool that is currently selected as primary or fallback");
     }
 
     // Clear the slot in NVS
@@ -1207,50 +1196,50 @@ static esp_err_t POST_system_boot(httpd_req_t *req)
 
     size_t total_len = req->content_len;
     if (total_len == 0) {
-        return httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "Empty request body");
+        return HTTP_send_json_error(req, "400 Bad Request", "Empty request body");
     }
 
     char *buf = malloc(total_len + 1);
     if (!buf) {
-        return httpd_resp_send_500(req);
+        return HTTP_send_json_error(req, "500 Internal Server Error", "Memory allocation failed");
     }
 
     int ret = httpd_req_recv(req, buf, total_len);
     if (ret <= 0) {
         free(buf);
-        return httpd_resp_send_500(req);
+        return HTTP_send_json_error(req, "500 Internal Server Error", "Failed to receive request data");
     }
     buf[ret] = '\0';
 
     cJSON *root = cJSON_Parse(buf);
     free(buf);
     if (!root) {
-        return httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "Invalid JSON");
+        return HTTP_send_json_error(req, "400 Bad Request", "Invalid JSON");
     }
 
     cJSON *p_label = cJSON_GetObjectItem(root, "partition");
     if (!cJSON_IsString(p_label)) {
         cJSON_Delete(root);
-        return httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "Missing partition label");
+        return HTTP_send_json_error(req, "400 Bad Request", "Missing partition label");
     }
 
     const esp_partition_t *p = esp_partition_find_first(ESP_PARTITION_TYPE_APP, ESP_PARTITION_SUBTYPE_ANY, p_label->valuestring);
     if (p == NULL) {
         cJSON_Delete(root);
-        return httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "Partition not found");
+        return HTTP_send_json_error(req, "400 Bad Request", "Partition not found");
     }
 
     esp_app_desc_t app_desc;
     if (esp_ota_get_partition_description(p, &app_desc) != ESP_OK) {
         cJSON_Delete(root);
-        return httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "No valid firmware found on partition");
+        return HTTP_send_json_error(req, "400 Bad Request", "No valid firmware found on partition");
     }
 
     esp_err_t err = esp_ota_set_boot_partition(p);
     cJSON_Delete(root);
 
     if (err != ESP_OK) {
-        return httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "Failed to set boot partition");
+        return HTTP_send_json_error(req, "500 Internal Server Error", "Failed to set boot partition");
     }
 
     cJSON *resp = cJSON_CreateObject();
@@ -1430,7 +1419,7 @@ esp_err_t POST_WWW_update(httpd_req_t * req)
     }
 
     if (http_auth_validate(req) != ESP_OK) {
-        return ESP_FAIL;
+        return ESP_OK;
     }
 
     wifi_mode_t mode;
@@ -1520,7 +1509,7 @@ esp_err_t POST_OTA_update(httpd_req_t * req)
     }
 
     if (http_auth_validate(req) != ESP_OK) {
-        return ESP_FAIL;
+        return ESP_OK;
     }
 
     wifi_mode_t mode;

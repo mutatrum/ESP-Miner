@@ -9,6 +9,5 @@ typedef struct GlobalState GlobalState;
 
 esp_err_t start_rest_server(GlobalState * GLOBAL_STATE);
 esp_err_t HTTP_send_json(httpd_req_t * req, const cJSON * item, int * prebuffer_len);
-esp_err_t HTTP_send_json_error(httpd_req_t * req, const char * status, const char * message);
 
 #endif /* HTTP_SERVER_H_ */

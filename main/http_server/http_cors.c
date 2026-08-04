@@ -45,8 +45,8 @@ static uint32_t extract_origin_ip_addr(char *origin)
     if (host_start) {
         host_start += strlen(prefix); // Move past "http://"
 
-        // Extract the hostname portion (up to the next '/')
-        char *host_end = strchr(host_start, '/');
+        // Extract the hostname portion (up to the next '/' or ':')
+        char *host_end = strpbrk(host_start, "/:");
         size_t host_len = host_end ? (size_t)(host_end - host_start) : strlen(host_start);
         if (host_len < sizeof(host_str)) {
             strncpy(host_str, host_start, host_len);
@@ -84,7 +84,7 @@ static esp_err_t http_cors_set_headers(httpd_req_t * req)
         return ESP_FAIL;
     }
 
-    err = httpd_resp_set_hdr(req, "Access-Control-Allow-Headers", "Content-Type");
+    err = httpd_resp_set_hdr(req, "Access-Control-Allow-Headers", "Content-Type, Authorization");
     if (err != ESP_OK) {
         return ESP_FAIL;
     }
@@ -120,7 +120,6 @@ esp_err_t http_cors_check(httpd_req_t * req)
     }
 
     int sockfd = httpd_req_to_sockfd(req);
-    char ipstr[INET6_ADDRSTRLEN];
     struct sockaddr_in6 addr;   // esp_http_server uses IPv6 addressing
     socklen_t addr_size = sizeof(addr);
 
@@ -131,16 +130,11 @@ esp_err_t http_cors_check(httpd_req_t * req)
 
     uint32_t request_ip_addr = addr.sin6_addr.un.u32_addr[3];
 
-    // // Convert to IPv6 string
-    // inet_ntop(AF_INET, &addr.sin6_addr, ipstr, sizeof(ipstr));
-
-    // Convert to IPv4 string
-    inet_ntop(AF_INET, &request_ip_addr, ipstr, sizeof(ipstr));
-
     // Attempt to get the Origin header.
-    char origin[128];
-    uint32_t origin_ip_addr;
-    if (httpd_req_get_hdr_value_str(req, "Origin", origin, sizeof(origin)) == ESP_OK) {
+    char origin[128] = {0};
+    uint32_t origin_ip_addr = 0;
+    bool has_origin = (httpd_req_get_hdr_value_str(req, "Origin", origin, sizeof(origin)) == ESP_OK);
+    if (has_origin) {
         ESP_LOGD(TAG, "Origin header: %s", origin);
         origin_ip_addr = extract_origin_ip_addr(origin);
     } else {
@@ -152,17 +146,14 @@ esp_err_t http_cors_check(httpd_req_t * req)
         ESP_LOGD(TAG, "Origin and IP both in private range. Allowing.");
         return http_cors_set_headers(req);
     }
-    
+
     // If origin contains hostname (origin_ip_addr == 0), proceed to hostname validation
     if (origin_ip_addr == 0) {
         ESP_LOGD(TAG, "Origin contains hostname, proceeding to hostname validation");
     }
 
     // Check if Origin header matches the avahi hostname or is a local-network hostname
-    if (httpd_req_get_hdr_value_len(req, "Origin") > 0) {
-        httpd_req_get_hdr_value_str(req, "Origin", origin, sizeof(origin));
-        ESP_LOGD(TAG, "Origin header: %s", origin);
-
+    if (has_origin) {
         // Extract the host portion from the origin for local-hostname validation
         char host_str[128] = {0};
         const char *prefix = "http://";
