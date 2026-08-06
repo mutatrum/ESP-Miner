@@ -30,12 +30,7 @@ export interface ProgressBarMarker {
       }
     </div>
   `,
-  styles: [`
-    :host {
-      display: block;
-      width: 100%;
-    }
-  `]
+  styleUrl: './progressbar.component.scss'
 })
 export class ProgressbarComponent {
   @Input() value: number = 0;              // Current progress value (0 to 100)
