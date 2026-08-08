@@ -13,18 +13,18 @@
 #include "esp_log.h"
 #include "esp_system.h"
 #include "esp_timer.h"
-#include "esp_wifi.h"
 #include "esp_vfs.h"
+#include "esp_wifi.h"
 
 #include "dns_server.h"
 #include "esp_ota_ops.h"
-#include "esp_wifi.h"
 #include "lwip/inet.h"
 #include <arpa/inet.h>
 #include "lwip/sockets.h"
 
 #include "cJSON.h"
 #include "global_state.h"
+#include "ota_api.h"
 #include "nvs_config.h"
 #include "system.h"
 #include "connect.h"
@@ -1830,7 +1830,6 @@ esp_err_t POST_OTA_update(httpd_req_t * req)
 
     return ESP_OK;
 }
-
 // HTTP Error (404) Handler - Redirects all requests to the root page
 esp_err_t http_404_error_handler(httpd_req_t * req, httpd_err_code_t err)
 {
@@ -1999,9 +1998,9 @@ esp_err_t start_rest_server(GlobalState * GLOBAL_STATE)
     httpd_register_uri_handler(server, &update_post_ota_firmware);
 
     httpd_uri_t update_post_ota_www = {
-        .uri = "/api/system/OTAWWW", 
-        .method = HTTP_POST, 
-        .handler = POST_WWW_update,
+        .uri = "/api/system/OTAWWW",
+        .method = HTTP_POST,
+        .handler = POST_WWW_update
     };
     httpd_register_uri_handler(server, &update_post_ota_www);
 
