@@ -1,4 +1,5 @@
 import { HttpErrorResponse } from '@angular/common/http';
+import { getHttpErrorMessage } from 'src/app/utils/error-handler';
 import { Component, Input, OnInit } from '@angular/core';
 import { FormBuilder, FormGroup, FormArray, Validators, ValidatorFn, ValidationErrors, AbstractControl } from '@angular/forms';
 import { ToastrService } from 'ngx-toastr';
@@ -97,7 +98,8 @@ export class PoolComponent implements OnInit {
             stratumCert: '',
             stratumDecodeCoinbase: true,
             stratumV2ChannelType: 'extended',
-            stratumV2AuthorityPubkey: ''
+            stratumV2AuthorityPubkey: '',
+            stratumV2RequireAuth: false
           });
         }
         
@@ -116,7 +118,8 @@ export class PoolComponent implements OnInit {
             stratumCert: '',
             stratumDecodeCoinbase: true,
             stratumV2ChannelType: 'extended',
-            stratumV2AuthorityPubkey: ''
+            stratumV2AuthorityPubkey: '',
+            stratumV2RequireAuth: false
           });
         }
 
@@ -148,7 +151,8 @@ export class PoolComponent implements OnInit {
             stratumCert: [pool.stratumCert || ''],
             stratumDecodeCoinbase: [pool.stratumDecodeCoinbase == true, [Validators.required]],
             stratumV2ChannelType: [pool.stratumV2ChannelType || 'extended'],
-            stratumV2AuthorityPubkey: [pool.stratumV2AuthorityPubkey || '', [this.base58Validator()]]
+            stratumV2AuthorityPubkey: [pool.stratumV2AuthorityPubkey || '', [this.base58Validator()]],
+            stratumV2RequireAuth: [pool.stratumV2RequireAuth == true]
           });
         });
 
@@ -165,6 +169,11 @@ export class PoolComponent implements OnInit {
         this.previousPrim = info.primaryPoolIndex;
         this.previousSec = info.secondaryPoolIndex;
 
+        this.updatePoolDropdownOptions();
+        this.poolsArray.valueChanges.subscribe(() => {
+          this.updatePoolDropdownOptions();
+        });
+
         this.form.get('primaryPoolIndex')?.valueChanges.subscribe(primVal => {
           const secVal = this.form.get('secondaryPoolIndex')?.value;
           if (primVal === secVal) {
@@ -178,7 +187,7 @@ export class PoolComponent implements OnInit {
           const primVal = this.form.get('primaryPoolIndex')?.value;
           if (secVal === primVal) {
             this.form.get('primaryPoolIndex')?.setValue(this.previousSec, { emitEvent: false });
-            this.previousPrim = this.previousSec;
+            this.previousSec = secVal;
           }
           this.previousSec = secVal;
         });
@@ -189,9 +198,14 @@ export class PoolComponent implements OnInit {
     return this.form?.get('pools') as FormArray;
   }
 
-  get poolDropdownOptions(): IPoolDropdownOption[] {
-    if (!this.poolsArray) return [];
-    return this.poolsArray.controls.map((control) => {
+  public poolDropdownOptions: IPoolDropdownOption[] = [];
+
+  public updatePoolDropdownOptions(): void {
+    if (!this.poolsArray) {
+      this.poolDropdownOptions = [];
+      return;
+    }
+    const newOptions = this.poolsArray.controls.map((control) => {
       const id = control.get('id')?.value;
       const url = control.get('stratumURL')?.value || '';
       const proto = control.get('stratumProtocol')?.value || 'SV1';
@@ -201,6 +215,10 @@ export class PoolComponent implements OnInit {
         label: `Pool ${id + 1}: ${urlDisplay}`
       };
     });
+
+    if (JSON.stringify(newOptions) !== JSON.stringify(this.poolDropdownOptions)) {
+      this.poolDropdownOptions = newOptions;
+    }
   }
 
   setupTlsValidationForIndex(index: number) {
@@ -258,7 +276,8 @@ export class PoolComponent implements OnInit {
         stratumCert: [''],
         stratumDecodeCoinbase: [true, [Validators.required]],
         stratumV2ChannelType: ['extended'],
-        stratumV2AuthorityPubkey: ['', [this.base58Validator()]]
+        stratumV2AuthorityPubkey: ['', [this.base58Validator()]],
+        stratumV2RequireAuth: [false]
       });
 
       this.poolsArray.push(poolGroup);
@@ -332,8 +351,7 @@ export class PoolComponent implements OnInit {
           }
         },
         error: (err: HttpErrorResponse) => {
-          const errorMessage = this.uri ? `Could not save pool settings for ${this.uri}. ${err.message}` : `Could not save pool settings. ${err.message}`;
-          this.toastr.error(errorMessage);
+          this.toastr.error(`Could not save pool settings. ${getHttpErrorMessage(err, this.uri)}`);
           this.savedChanges = restartAlreadyPending;
         }
       });
@@ -358,8 +376,7 @@ export class PoolComponent implements OnInit {
           this.savedChanges = false;
         },
         error: (err: HttpErrorResponse) => {
-          const errorMessage = this.uri ? `Failed to restart device at ${this.uri}. ${err.message}` : `Failed to restart device. ${err.message}`;
-          this.toastr.error(errorMessage);
+          this.toastr.error(`Failed to restart device. ${getHttpErrorMessage(err, this.uri)}`);
         }
       });
   }

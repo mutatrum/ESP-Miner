@@ -58,7 +58,7 @@ static Settings settings[NVS_CONFIG_COUNT] = {
     [NVS_CONFIG_POOL]                                  = {.nvs_key_name = "pool",            .type = TYPE_STR,   .default_value = {.str = ""},                                          .rest_name = "pools",                              .min = 0,  .max = NVS_STR_LIMIT, .array_size = MAX_POOLS},
     [NVS_CONFIG_PRIMARY_POOL_INDEX]                    = {.nvs_key_name = "prim_idx",        .type = TYPE_U16,   .default_value = {.u16 = 0},                                           .rest_name = "primaryPoolIndex",                   .min = 0,  .max = MAX_POOLS - 1},
     [NVS_CONFIG_SECONDARY_POOL_INDEX]                  = {.nvs_key_name = "sec_idx",         .type = TYPE_U16,   .default_value = {.u16 = 1},                                           .rest_name = "secondaryPoolIndex",                 .min = 0,  .max = MAX_POOLS - 1},
-    [NVS_CONFIG_USE_FALLBACK_STRATUM]                  = {.nvs_key_name = "usefbstartum",    .type = TYPE_BOOL,  .default_value = {.b = true},                                          .rest_name = "useFallbackStratum",                 .min = 0,  .max = 1},
+    [NVS_CONFIG_USE_FALLBACK_STRATUM]                  = {.nvs_key_name = "usefbstartum",    .type = TYPE_BOOL,                                                                         .rest_name = "useFallbackStratum",                 .min = 0,  .max = 1},
 
     [NVS_CONFIG_ASIC_FREQUENCY]                        = {.nvs_key_name = "asicfrequency_f", .type = TYPE_FLOAT, .default_value = {.f   = CONFIG_ASIC_FREQUENCY},                       .rest_name = "frequency",                          .min = 1,  .max = UINT16_MAX},
     [NVS_CONFIG_ASIC_VOLTAGE]                          = {.nvs_key_name = "asicvoltage",     .type = TYPE_U16,   .default_value = {.u16 = CONFIG_ASIC_VOLTAGE},                         .rest_name = "coreVoltage",                        .min = 1,  .max = UINT16_MAX},
@@ -75,6 +75,8 @@ static Settings settings[NVS_CONFIG_COUNT] = {
     [NVS_CONFIG_MIN_FAN_SPEED]                         = {.nvs_key_name = "minfanspeed",     .type = TYPE_U16,   .default_value = {.u16 = 25},                                          .rest_name = "minFanSpeed",                        .min = 0,  .max = 99},
     [NVS_CONFIG_TEMP_TARGET]                           = {.nvs_key_name = "temptarget",      .type = TYPE_U16,   .default_value = {.u16 = 60},                                          .rest_name = "temptarget",                         .min = 35, .max = 66},
     [NVS_CONFIG_OVERHEAT_MODE]                         = {.nvs_key_name = "overheat_mode",   .type = TYPE_BOOL,                                                                         .rest_name = "overheat_mode",                      .min = 0,  .max = 0},
+
+    [NVS_CONFIG_USE_CUSTOM_WWW]                        = {.nvs_key_name = "use_custom_www",  .type = TYPE_BOOL,  .default_value = {.b = false},                                         .rest_name = "useCustomWWW",                       .min = 0, .max = 1},
 
     [NVS_CONFIG_STATISTICS_FREQUENCY]                  = {.nvs_key_name = "statsFrequency",  .type = TYPE_U16,                                                                          .rest_name = "statsFrequency",                     .min = 0,  .max = UINT16_MAX},
 

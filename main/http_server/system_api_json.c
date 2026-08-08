@@ -1,9 +1,13 @@
 #include <stdio.h>
+#include <string.h>
+#include "esp_partition.h"
+#include "esp_image_format.h"
 #include "esp_wifi.h"
 #include "esp_ota_ops.h"
 #include "esp_system.h"
 #include "esp_heap_caps.h"
 #include "esp_timer.h"
+#include "global_state.h"
 #include "system_api_json.h"
 #include "nvs_config.h"
 #include "sv2_protocol.h"
@@ -63,12 +67,14 @@ static void system_api_add_telemetry(cJSON *root, GlobalState *g) {
     cJSON_AddFloatToObject(root, "errorPercentage", g->SYSTEM_MODULE.error_percentage);
     cJSON_AddNumberToObject(root, "sharesAccepted", g->SYSTEM_MODULE.shares_accepted);
     cJSON_AddNumberToObject(root, "sharesRejected", g->SYSTEM_MODULE.shares_rejected);
+    cJSON_AddNumberToObject(root, "sharesPending", g->SYSTEM_MODULE.shares_pending);
     cJSON_AddNumberToObject(root, "bestDiff", g->SYSTEM_MODULE.best_nonce_diff);
     cJSON_AddNumberToObject(root, "bestSessionDiff", g->SYSTEM_MODULE.best_session_nonce_diff);
     cJSON_AddNumberToObject(root, "poolDifficulty", g->pool_difficulty);
     cJSON_AddFloatToObject(root, "responseTime", g->SYSTEM_MODULE.response_time);
     cJSON_AddNumberToObject(root, "responseShareBatch", g->SYSTEM_MODULE.response_share_batch);
     cJSON_AddFloatToObject(root, "processTime", g->SYSTEM_MODULE.process_time);
+    cJSON_AddNumberToObject(root, "workReceived", g->SYSTEM_MODULE.work_received);
 
     // Dynamic Block Info
     cJSON_AddNumberToObject(root, "blockFound", g->SYSTEM_MODULE.block_found);
@@ -175,7 +181,8 @@ static void system_api_add_config(cJSON *root, GlobalState *g) {
             cJSON_AddBoolToObject(p_obj, "stratumDecodeCoinbase", p->decode_coinbase_tx);
             cJSON_AddStringToObject(p_obj, "stratumV2ChannelType", p->sv2_channel_type == SV2_CHANNEL_STANDARD ? SV2_CHANNEL_TYPE_STANDARD : SV2_CHANNEL_TYPE_EXTENDED);
             cJSON_AddStringToObject(p_obj, "stratumV2AuthorityPubkey", p->sv2_authority_pubkey ? p->sv2_authority_pubkey : "");
-            
+            cJSON_AddBoolToObject(p_obj, "stratumV2RequireAuth", p->sv2_require_auth);
+
             cJSON_AddItemToArray(pools_arr, p_obj);
         }
     }
@@ -209,6 +216,7 @@ static void system_api_add_config(cJSON *root, GlobalState *g) {
     cJSON_AddStringToObject(root, "fallbackStratumV2ChannelType", sec_pool->sv2_channel_type == SV2_CHANNEL_STANDARD ? SV2_CHANNEL_TYPE_STANDARD : SV2_CHANNEL_TYPE_EXTENDED);
 
     // User Preferences
+    cJSON_AddNumberToObject(root, "useCustomWWW", nvs_config_get_bool(NVS_CONFIG_USE_CUSTOM_WWW) ? 1 : 0);
     cJSON_AddNumberToObject(root, "overclockEnabled", nvs_config_get_bool(NVS_CONFIG_OVERCLOCK_ENABLED) ? 1 : 0);
     char *disp_name = nvs_config_get_string(NVS_CONFIG_DISPLAY);
     cJSON_AddStringToObject(root, "display", disp_name ? disp_name : "");
@@ -294,18 +302,53 @@ static void system_api_add_block_info(cJSON *root, GlobalState *g) {
     }
 }
 
-cJSON* system_api_get_full_json(GlobalState *g) {
-    if (!g) return NULL;
+static void system_api_add_partitions(cJSON *root, GlobalState * GLOBAL_STATE) {
+    if (!root || !GLOBAL_STATE) return;
+
+    cJSON *partitions_array = cJSON_CreateArray();
+    cJSON_AddItemToObject(root, "partitions", partitions_array);
+
+    for (int i = 0; i < GLOBAL_STATE->SYSTEM_MODULE.cached_partitions_count; i++) {
+        cached_partition_t *cp = &GLOBAL_STATE->SYSTEM_MODULE.cached_partitions[i];
+        if (cp->part == NULL) continue;
+
+        cJSON *p_obj = cJSON_CreateObject();
+        cJSON_AddStringToObject(p_obj, "label", cp->part->label);
+        cJSON_AddBoolToObject(p_obj, "isCurrent", cp->isCurrent);
+        cJSON_AddBoolToObject(p_obj, "isFactory", cp->part->subtype == ESP_PARTITION_SUBTYPE_APP_FACTORY);
+
+        if (cp->version[0] != '\0') {
+            cJSON_AddStringToObject(p_obj, "version", cp->version);
+            cJSON_AddStringToObject(p_obj, "compileDate", cp->compileDate);
+            cJSON_AddStringToObject(p_obj, "compileTime", cp->compileTime);
+            if (cp->usagePercent >= 0) {
+                cJSON_AddNumberToObject(p_obj, "usagePercent", cp->usagePercent);
+            } else {
+                cJSON_AddNullToObject(p_obj, "usagePercent");
+            }
+        } else {
+            cJSON_AddNullToObject(p_obj, "version");
+            cJSON_AddNullToObject(p_obj, "compileDate");
+            cJSON_AddNullToObject(p_obj, "compileTime");
+            cJSON_AddNullToObject(p_obj, "usagePercent");
+        }
+        cJSON_AddItemToArray(partitions_array, p_obj);
+    }
+}
+
+cJSON* system_api_get_full_json(GlobalState * GLOBAL_STATE) {
+    if (!GLOBAL_STATE) return NULL;
     cJSON *root = cJSON_CreateObject();
     if (root == NULL) return NULL;
 
-    system_api_add_telemetry(root, g);
-    system_api_add_config(root, g);
-    system_api_add_hashrate_monitor(root, g);
+    system_api_add_telemetry(root, GLOBAL_STATE);
+    system_api_add_config(root, GLOBAL_STATE);
+    system_api_add_hashrate_monitor(root, GLOBAL_STATE);
+    system_api_add_partitions(root, GLOBAL_STATE);
 
     // Arrays that involve global state loops (not simple addition)
-    system_api_add_rejected_reasons(root, g);
-    system_api_add_block_info(root, g);
+    system_api_add_rejected_reasons(root, GLOBAL_STATE);
+    system_api_add_block_info(root, GLOBAL_STATE);
 
     return root;
 }
