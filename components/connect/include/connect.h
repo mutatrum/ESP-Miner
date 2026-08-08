@@ -8,7 +8,8 @@
 
 #include "esp_err.h"
 #include "esp_wifi_types.h"
-#include "global_state.h"
+
+typedef struct GlobalState GlobalState;
 
 // Structure to hold WiFi scan results
 typedef struct {

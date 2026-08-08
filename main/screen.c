@@ -532,8 +532,9 @@ static void screen_update_cb(lv_timer_t * timer)
 
     PowerManagementModule * power_management = &GLOBAL_STATE->POWER_MANAGEMENT_MODULE;
 
-    char *pool_url = module->is_using_fallback ? module->fallback_pool_url : module->pool_url;
-    if (strcmp(lv_label_get_text(pool_url_label), pool_url) != 0) {
+    uint16_t pool_idx = module->is_using_fallback ? module->secondary_pool_index : module->primary_pool_index;
+    char *pool_url = module->pools[pool_idx].url;
+    if (pool_url && strcmp(lv_label_get_text(pool_url_label), pool_url) != 0) {
         lv_label_set_text(pool_url_label, pool_url);
     }
 
@@ -546,9 +547,9 @@ static void screen_update_cb(lv_timer_t * timer)
         current_pool_response_time = module->response_time;
     }
 
-    if (current_pool_difficulty != module->pool_difficulty) {
-        lv_label_set_text_fmt(pool_difficulty_label, "Difficulty: %d", module->pool_difficulty);
-        current_pool_difficulty = module->pool_difficulty;
+    if (current_pool_difficulty != (int)GLOBAL_STATE->pool_difficulty) {
+        lv_label_set_text_fmt(pool_difficulty_label, "Difficulty: %d", (int)GLOBAL_STATE->pool_difficulty);
+        current_pool_difficulty = (int)GLOBAL_STATE->pool_difficulty;
     }
 
     if (current_hashrate != module->current_hashrate) {
@@ -713,13 +714,13 @@ static void uptime_update_cb(lv_timer_t * timer)
     }
 }
 
-esp_err_t screen_start(void * pvParameters)
+esp_err_t screen_start(GlobalState * global_state)
 {
+    GLOBAL_STATE = global_state;
     if (lvgl_port_lock(0)) {
         // screen_chars = lv_display_get_horizontal_resolution(NULL) / 6;
         screen_lines = lv_display_get_vertical_resolution(NULL) / 8;
 
-        GLOBAL_STATE = (GlobalState *) pvParameters;
         SystemModule * SYSTEM_MODULE = &GLOBAL_STATE->SYSTEM_MODULE;
 
         if (SYSTEM_MODULE->is_screen_active) {

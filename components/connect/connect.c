@@ -19,6 +19,7 @@
 #include "nvs_config.h"
 #include "esp_app_desc.h"
 #include "esp_mac.h"
+#include "setup_ble.h"
 
 // Maximum number of access points to scan
 #define MAX_AP_COUNT 20
@@ -546,7 +547,7 @@ esp_netif_t * wifi_init_softap(GlobalState * GLOBAL_STATE)
     esp_netif_t * esp_netif_ap = esp_netif_create_default_wifi_ap();
 
     uint8_t mac[6];
-    esp_wifi_get_mac(ESP_IF_WIFI_AP, mac);
+    esp_wifi_get_mac(WIFI_IF_AP, mac);
     // Format the last 4 bytes of the MAC address as a hexadecimal string
     snprintf(GLOBAL_STATE->SYSTEM_MODULE.ap_ssid, sizeof(GLOBAL_STATE->SYSTEM_MODULE.ap_ssid), "Bitaxe_%02X%02X", mac[4], mac[5]);
 
@@ -709,7 +710,6 @@ void connect_init(void * pvParameters)
 {
     GlobalState * GLOBAL_STATE = (GlobalState *) pvParameters;
     g_global_state = GLOBAL_STATE;
-
     ESP_ERROR_CHECK(esp_netif_init());
     ESP_ERROR_CHECK(esp_event_loop_create_default());
 
@@ -783,7 +783,12 @@ void connect_await_connection(void *pvParameters)
 
     // Wait for connection to be established
     ESP_LOGI(TAG, "Waiting for network connection...");
+    int setup_ble_grace_ms = 0;
     while (!GLOBAL_STATE->SYSTEM_MODULE.is_connected) {
+        if (GLOBAL_STATE->SYSTEM_MODULE.ap_enabled && setup_ble_grace_ms >= 5000) {
+            setup_ble_start(GLOBAL_STATE);
+        }
+        setup_ble_grace_ms += 100;
         vTaskDelay(100 / portTICK_PERIOD_MS);
     }
 
