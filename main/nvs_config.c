@@ -4,7 +4,6 @@
 #include "cJSON.h"
 #include <esp_err.h>
 #include "esp_log.h"
-#include "mbedtls/sha256.h"
 #include <nvs_flash.h>
 #include <nvs.h>
 #include <freertos/FreeRTOS.h>
@@ -570,7 +569,7 @@ void nvs_config_set_string(NvsConfigKey key, const char *value)
 
     if (key == NVS_CONFIG_AXEOS_PASSWORD && value && strlen(value) > 0) {
         unsigned char hash[32];
-        mbedtls_sha256((const unsigned char *)value, strlen(value), hash, 0);
+        sha256_bin((const uint8_t *)value, strlen(value), hash);
         bin2hex(hash, 32, hashed_hex, sizeof(hashed_hex));
         final_val = hashed_hex;
     }

@@ -3,8 +3,6 @@
 #include <string.h>
 #include <limits.h>
 #include <sys/param.h>
-#include "mbedtls/sha256.h"
-#include "mbedtls/base64.h"
 #include <sys/stat.h>
 #include <esp_heap_caps.h>
 

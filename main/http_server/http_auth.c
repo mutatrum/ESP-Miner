@@ -1,7 +1,7 @@
+#include <stdint.h>
 #include <string.h>
 #include "esp_log.h"
 #include "esp_http_server.h"
-#include "mbedtls/sha256.h"
 #include "mbedtls/base64.h"
 
 #include "http_auth.h"
@@ -48,33 +48,39 @@ static esp_err_t check_creds(const char *encoded_creds)
         return ESP_FAIL;
     }
 
+    char *stored_hash = nvs_config_get_string(NVS_CONFIG_AXEOS_PASSWORD);
+    if (!stored_hash || strlen(stored_hash) == 0) {
+        if (stored_hash) free(stored_hash);
+        return ESP_OK; // No password set
+    }
+
+    const char *password = NULL;
     unsigned char decoded[128] = {0};
     size_t decoded_len = 0;
-    int b64_ret = mbedtls_base64_decode(decoded, sizeof(decoded) - 1, &decoded_len, (const unsigned char *)encoded_creds, strlen(encoded_creds));
-    if (b64_ret != 0) {
-        return ESP_FAIL;
-    }
-    decoded[decoded_len] = '\0';
 
-    char *colon = strchr((char *)decoded, ':');
-    if (!colon) {
-        return ESP_FAIL;
+    if (mbedtls_base64_decode(decoded, sizeof(decoded) - 1, &decoded_len, (const unsigned char *)encoded_creds, strlen(encoded_creds)) == 0) {
+        decoded[decoded_len] = '\0';
+        char *colon = strchr((char *)decoded, ':');
+        if (colon) {
+            password = colon + 1;
+        }
     }
-    char *password = colon + 1;
+
+    if (!password) {
+        password = encoded_creds;
+    }
 
     unsigned char hash[32];
-    mbedtls_sha256((const unsigned char *)password, strlen(password), hash, 0);
+    sha256_bin((const uint8_t *)password, strlen(password), hash);
     char hashed_hex[65];
     bin2hex(hash, 32, hashed_hex, sizeof(hashed_hex));
 
-    char *stored_hash = nvs_config_get_string(NVS_CONFIG_AXEOS_PASSWORD);
     esp_err_t auth_result = ESP_FAIL;
-    if (stored_hash) {
-        if (strcmp(hashed_hex, stored_hash) == 0) {
-            auth_result = ESP_OK;
-        }
-        free(stored_hash);
+    if (strcmp(hashed_hex, stored_hash) == 0) {
+        auth_result = ESP_OK;
     }
+
+    free(stored_hash);
     return auth_result;
 }
 
@@ -115,29 +121,35 @@ esp_err_t http_auth_websocket_validate(httpd_req_t *req)
         return ESP_OK;
     }
 
-    size_t query_len = httpd_req_get_url_query_len(req) + 1;
-    char *query_buf = NULL;
-    bool auth_ok = false;
-    if (query_len > 1) {
-        query_buf = malloc(query_len);
-        if (query_buf && httpd_req_get_url_query_str(req, query_buf, query_len) == ESP_OK) {
-            char auth_val[128] = {0};
-            if (httpd_query_key_value(query_buf, "auth", auth_val, sizeof(auth_val)) == ESP_OK) {
-                if (check_creds(auth_val) == ESP_OK) {
-                    auth_ok = true;
-                }
+    // 1. Check HTTP Authorization header (automatically sent by browsers after Basic Auth)
+    char auth_header[128] = {0};
+    if (httpd_req_get_hdr_value_str(req, "Authorization", auth_header, sizeof(auth_header)) == ESP_OK) {
+        if (strncmp(auth_header, "Basic ", 6) == 0) {
+            if (check_creds(auth_header + 6) == ESP_OK) {
+                return ESP_OK;
             }
         }
+    }
+
+    // 2. Check "auth" URL query parameter
+    size_t query_len = httpd_req_get_url_query_len(req) + 1;
+    if (query_len > 1) {
+        char *query_buf = malloc(query_len);
         if (query_buf) {
+            if (httpd_req_get_url_query_str(req, query_buf, query_len) == ESP_OK) {
+                char auth_val[128] = {0};
+                if (httpd_query_key_value(query_buf, "auth", auth_val, sizeof(auth_val)) == ESP_OK) {
+                    if (check_creds(auth_val) == ESP_OK) {
+                        free(query_buf);
+                        return ESP_OK;
+                    }
+                }
+            }
             free(query_buf);
         }
     }
 
-    if (!auth_ok) {
-        ESP_LOGW(TAG, "WebSocket connection rejected: unauthorized");
-        return httpd_resp_send_err(req, HTTPD_401_UNAUTHORIZED, "Unauthorized");
-    }
-
-    return ESP_OK;
+    ESP_LOGW(TAG, "WebSocket connection rejected: unauthorized");
+    return httpd_resp_send_err(req, HTTPD_401_UNAUTHORIZED, "Unauthorized");
 }
 

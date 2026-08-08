@@ -94,7 +94,6 @@ PRIV_REQUIRES
     "tcp_transport"
     "esp_mm"
     "bt"
-    "mbedtls"
 
 EMBED_FILES "http_server/recovery_page.html"
 )
