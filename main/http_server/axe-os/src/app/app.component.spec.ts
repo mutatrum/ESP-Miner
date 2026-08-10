@@ -13,14 +13,14 @@ describe('AppComponent', () => {
   beforeEach(() => TestBed.configureTestingModule({
     imports: [AppComponent, RouterModule, SnowflakesComponent, DialogListComponent],
     providers: [
-        provideRouter([]),
-        LayoutService,
-        ThemeService,
-        LocalStorageService,
-        provideHttpClient(),
-        provideToastr()
+      provideRouter([]),
+      LayoutService,
+      ThemeService,
+      LocalStorageService,
+      provideHttpClient(),
+      provideToastr()
     ]
-}));
+  }));
 
   it('should create the app', () => {
     const fixture = TestBed.createComponent(AppComponent);

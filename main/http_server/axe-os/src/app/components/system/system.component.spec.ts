@@ -10,10 +10,10 @@ describe('SystemComponent', () => {
 
   beforeEach(async () => {
     await TestBed.configureTestingModule({
-    imports: [SystemComponent],
-    providers: [provideHttpClient(), provideToastr()]
-})
-    .compileComponents();
+      imports: [SystemComponent],
+      providers: [provideHttpClient(), provideToastr()]
+    })
+      .compileComponents();
 
     fixture = TestBed.createComponent(SystemComponent);
     component = fixture.componentInstance;

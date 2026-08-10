@@ -15,22 +15,22 @@ describe('LogsComponent', () => {
 
   beforeEach(async () => {
     await TestBed.configureTestingModule({
-    imports: [
+      imports: [
         CommonModule,
         ReactiveFormsModule,
         TooltipDirective,
         ANSIPipe,
         LogsComponent
-    ],
-    providers: [
+      ],
+      providers: [
         provideRouter([]),
         provideToastr(),
         provideHttpClient(),
         SystemApiService
-    ]
-})
-    .compileComponents();
-    
+      ]
+    })
+      .compileComponents();
+
     fixture = TestBed.createComponent(LogsComponent);
     component = fixture.componentInstance;
     fixture.detectChanges();

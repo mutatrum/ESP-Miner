@@ -147,7 +147,7 @@ describe('HomeComponent', () => {
 
   beforeEach(() => {
     TestBed.configureTestingModule({
-    imports: [
+      imports: [
         ReactiveFormsModule,
         FormsModule,
         NoopAnimationsModule,
@@ -165,8 +165,8 @@ describe('HomeComponent', () => {
         TooltipIconComponent,
         ConfettiComponent,
         SnowflakesComponent
-    ],
-    providers: [
+      ],
+      providers: [
         provideRouter([]),
         provideHttpClient(),
         provideToastr(),
@@ -180,8 +180,8 @@ describe('HomeComponent', () => {
         { provide: LocalStorageService, useValue: mockLocalStorageService },
         DashboardEditService,
         LayoutService
-    ]
-});
+      ]
+    });
     fixture = TestBed.createComponent(HomeComponent);
     component = fixture.componentInstance;
     fixture.detectChanges();
