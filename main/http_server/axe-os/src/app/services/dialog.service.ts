@@ -1,7 +1,6 @@
 import { Component, Injectable } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { Observable, Subject } from 'rxjs';
-import { NgFor } from '@angular/common';
 import { ModalComponent } from '../components/modal/modal.component';
 import { TooltipDirective } from '../directives/tooltip.directive';
 import { WifiIconComponent } from '../components/wifi-icon/wifi-icon.component';
@@ -55,25 +54,29 @@ export class DialogService {
 @Component({
     selector: 'app-dialog-list',
     template: `
-    <app-modal *ngFor="let dialog of dialogs"
-               [headline]="dialog.title"
-               [closable]="true"
-               (close)="closeDialog(dialog)"
-               [isVisible]="true">
-      <div class="flex flex-col gap-2 pt-2">
-        <button *ngFor="let option of dialog.options"
-                (click)="selectOption(dialog, option.value)"
-                class="w-full text-left !flex items-center !justify-start btn btn-secondary px-4 py-3 gap-3"
-                appTooltip="{{option.label}} ({{option.rssi}} dBm)"
-                tooltipPosition="bottom"
-        >
-          <span>{{option.label}}</span>
-          <wifi-icon [rssi]="option.rssi" />
-        </button>
-      </div>
-    </app-modal>
+    @for (dialog of dialogs; track dialog) {
+      <app-modal
+        [headline]="dialog.title"
+        [closable]="true"
+        (close)="closeDialog(dialog)"
+        [isVisible]="true">
+        <div class="flex flex-col gap-2 pt-2">
+          @for (option of dialog.options; track option) {
+            <button
+              (click)="selectOption(dialog, option.value)"
+              class="w-full text-left !flex items-center !justify-start btn btn-secondary px-4 py-3 gap-3"
+              appTooltip="{{option.label}} ({{option.rssi}} dBm)"
+              tooltipPosition="bottom"
+              >
+              <span>{{option.label}}</span>
+              <wifi-icon [rssi]="option.rssi" />
+            </button>
+          }
+        </div>
+      </app-modal>
+    }
   `,
-    imports: [NgFor, ModalComponent, TooltipDirective, WifiIconComponent]
+    imports: [ModalComponent, TooltipDirective, WifiIconComponent]
 })
 export class DialogListComponent {
   public dialogs: DialogInstance[] = [];
