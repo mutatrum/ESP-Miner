@@ -1,5 +1,6 @@
 #include "filesystem.h"
 #include "global_state.h"
+#include "nvs_config.h"
 #include "esp_log.h"
 #include "esp_spiffs.h"
 #include "esp_vfs.h"
@@ -8,6 +9,12 @@ static const char * TAG = "filesystem";
 
 esp_err_t filesystem_init(GlobalState * GLOBAL_STATE)
 {
+    if (!nvs_config_get_bool(NVS_CONFIG_USE_CUSTOM_WWW)) {
+        ESP_LOGI(TAG, "Custom WWW disabled, skipping SPIFFS filesystem mount");
+        GLOBAL_STATE->filesystem_is_available = false;
+        return ESP_OK;
+    }
+
     esp_vfs_spiffs_conf_t conf = {.base_path = "", .partition_label = NULL, .max_files = 5, .format_if_mount_failed = false};
     esp_err_t ret = esp_vfs_spiffs_register(&conf);
 

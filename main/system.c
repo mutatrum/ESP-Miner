@@ -300,11 +300,7 @@ esp_err_t SYSTEM_init_peripherals(GlobalState * GLOBAL_STATE) {
 
     ret = filesystem_init(GLOBAL_STATE);
     if (ret != ESP_OK) {
-        self_test_show_message(GLOBAL_STATE, "FILESYS:FAIL");
-        ESP_LOGE(TAG, "Filesystem init failed");
-        if (GLOBAL_STATE->SELF_TEST_MODULE.is_active) {
-            return ret;
-        }
+        ESP_LOGW(TAG, "Filesystem init failed (SPIFFS www partition unavailable)");
     }
 
     // Initialize the core voltage regulator
