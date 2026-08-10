@@ -14,9 +14,8 @@ SRCS
 INCLUDE_DIRS 
     "include"
 
-PRIV_INCLUDE_DIRS
-    "../../main"
-    "../../main/tasks"
+PRIV_REQUIRES
+    "main"
 
 REQUIRES 
     "freertos"
