@@ -15,12 +15,12 @@ export interface ProgressBarMarker {
     <div class="relative w-full">
       <!-- Progress Bar Track -->
       <div class="w-full bg-progressbar rounded-sm overflow-hidden" [ngClass]="heightClass">
-        <div class="bg-progressbar-value h-full transition-all duration-300" [style.width.%]="value"></div>
+        <div class="bg-progressbar-value h-full transition-[width] duration-300" [style.width.%]="progressValue"></div>
       </div>
 
       <!-- Optional Markers -->
       @for (marker of markers; track $index) {
-        @if (marker.visible !== false) {
+        @if (marker.visible !== false && marker.value >= 0) {
           <div class="progressbar-marker" [style.left]="'round(' + marker.value + '%, 1px)'">
             <small class="progressbar-marker-label">
               {{ marker.label }}
@@ -36,4 +36,11 @@ export class ProgressbarComponent {
   @Input() value: number = 0;              // Current progress value (0 to 100)
   @Input() markers: ProgressBarMarker[] = []; // Optional marker lines
   @Input() heightClass: string = 'h-[6px]';  // Custom height class (e.g. h-6 for updates)
+
+  get progressValue(): number {
+    if (!this.value || isNaN(this.value) || this.value < 0) {
+      return 0;
+    }
+    return Math.min(100, this.value);
+  }
 }
