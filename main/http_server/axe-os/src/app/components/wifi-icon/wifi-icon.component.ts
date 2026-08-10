@@ -1,11 +1,11 @@
 import { Component, Input } from '@angular/core';
-import { NgClass, NgFor } from '@angular/common';
+import { NgClass } from '@angular/common';
 
 @Component({
     selector: 'wifi-icon',
     templateUrl: './wifi-icon.component.html',
     styleUrls: ['./wifi-icon.component.scss'],
-    imports: [NgClass, NgFor]
+    imports: [NgClass]
 })
 export class WifiIconComponent {
   @Input() rssi: number = 0;

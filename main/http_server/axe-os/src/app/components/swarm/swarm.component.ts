@@ -8,7 +8,7 @@ import { LayoutService } from "../../layout/service/app.layout.service";
 import { SystemApiService } from 'src/app/services/system.service';
 import { SystemInfo as ISystemInfo } from 'src/app/generated/models';
 import { ModalComponent } from '../modal/modal.component';
-import { NgIf, NgFor, NgStyle, NgClass, DecimalPipe } from '@angular/common';
+import { NgStyle, NgClass, DecimalPipe } from '@angular/common';
 import { TooltipDirective } from '../../directives/tooltip.directive';
 import { SliderComponent } from '../slider/slider.component';
 import { EditComponent } from '../edit/edit.component';
@@ -51,10 +51,10 @@ type SwarmDevice = {
 };
 
 @Component({
-    selector: 'app-swarm',
-    templateUrl: './swarm.component.html',
-    styleUrls: ['./swarm.component.scss'],
-    imports: [NgIf, NgFor, FormsModule, TooltipDirective, NgStyle, NgClass, ReactiveFormsModule, SliderComponent, ModalComponent, EditComponent, DecimalPipe, DateAgoPipe, HashSuffixPipe, DiffSuffixPipe]
+  selector: 'app-swarm',
+  templateUrl: './swarm.component.html',
+  styleUrls: ['./swarm.component.scss'],
+  imports: [FormsModule, TooltipDirective, NgStyle, NgClass, ReactiveFormsModule, SliderComponent, ModalComponent, EditComponent, DecimalPipe, DateAgoPipe, HashSuffixPipe, DiffSuffixPipe]
 })
 export class SwarmComponent implements OnInit, OnDestroy {
 

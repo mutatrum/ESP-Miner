@@ -26,19 +26,16 @@ import { chartLabelKey } from 'src/models/enum/eChartLabel';
 import { LocalStorageService } from 'src/app/local-storage.service';
 import { GridStack, GridItemHTMLElement } from 'gridstack';
 import { DashboardEditService, WidgetDef } from 'src/app/services/dashboard-edit.service';
-import { NgIf, NgFor, NgClass, AsyncPipe, DecimalPipe } from '@angular/common';
+import { NgClass, AsyncPipe, DecimalPipe } from '@angular/common';
 import { TooltipDirective } from '../../directives/tooltip.directive';
 import { TooltipTextIconComponent } from '../tooltip-text-icon/tooltip-text-icon.component';
 import { DropdownComponent } from '../dropdown/dropdown.component';
 import { ConfettiComponent } from '../confetti/confetti.component';
-import { DateAgoPipe as DateAgoPipe_1 } from '../../pipes/date-ago.pipe';
-import { HashSuffixPipe as HashSuffixPipe_1 } from '../../pipes/hash-suffix.pipe';
-import { DiffSuffixPipe as DiffSuffixPipe_1 } from '../../pipes/diff-suffix.pipe';
 import { AddressPipe } from '../../pipes/address.pipe';
 import { SatsPipe } from '../../pipes/sats.pipe';
+import { NgTemplateOutlet } from '@angular/common';
 
 type PoolLabel = 'Primary' | 'Fallback';
-type ProtocolLabel = 'SV2 Standard Channel' | 'SV2 Extended Channel';
 type MessageType =
   | 'SYSTEM_INFO_ERROR'
   | 'MINING_PAUSED'
@@ -81,10 +78,27 @@ const WIDGET_DEFAULTS: WidgetDef[] = [
 ];
 
 @Component({
-    selector: 'app-home',
-    templateUrl: './home.component.html',
-    styleUrls: ['./home.component.scss'],
-    imports: [NgIf, NgFor, TooltipDirective, TooltipTextIconComponent, NgClass, FormsModule, ReactiveFormsModule, DropdownComponent, AppChartComponent, ConfettiComponent, AsyncPipe, DecimalPipe, DateAgoPipe_1, HashSuffixPipe_1, DiffSuffixPipe_1, AddressPipe, SatsPipe]
+  selector: 'app-home',
+  templateUrl: './home.component.html',
+  styleUrls: ['./home.component.scss'],
+  imports: [
+    TooltipDirective,
+    TooltipTextIconComponent,
+    NgClass,
+    NgTemplateOutlet,
+    FormsModule,
+    ReactiveFormsModule,
+    DropdownComponent,
+    AppChartComponent,
+    ConfettiComponent,
+    AsyncPipe,
+    DecimalPipe,
+    DateAgoPipe,
+    HashSuffixPipe,
+    DiffSuffixPipe,
+    AddressPipe,
+    SatsPipe
+  ]
 })
 export class HomeComponent implements OnInit, OnDestroy {
   public messages: ISystemMessage[] = [];

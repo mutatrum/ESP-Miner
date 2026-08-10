@@ -9,17 +9,17 @@ import { LiveDataService } from 'src/app/services/live-data.service';
 import { LocalStorageService } from 'src/app/local-storage.service';
 import { ModalComponent } from '../modal/modal.component';
 import { SystemInfo } from 'src/app/generated/models';
-import { NgIf, NgFor, NgClass, AsyncPipe } from '@angular/common';
+import { NgClass, AsyncPipe } from '@angular/common';
 import { CheckboxComponent } from '../checkbox/checkbox.component';
 import { FormsModule } from '@angular/forms';
 
 const IGNORE_RELEASE_CHECK_WARNING = 'IGNORE_RELEASE_CHECK_WARNING';
 
 @Component({
-    selector: 'app-update',
-    templateUrl: './update.component.html',
-    styleUrls: ['./update.component.scss'],
-    imports: [NgIf, ModalComponent, CheckboxComponent, NgFor, FormsModule, NgClass, AsyncPipe]
+  selector: 'app-update',
+  templateUrl: './update.component.html',
+  styleUrls: ['./update.component.scss'],
+  imports: [ModalComponent, CheckboxComponent, FormsModule, NgClass, AsyncPipe]
 })
 export class UpdateComponent {
 

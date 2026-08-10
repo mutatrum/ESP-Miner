@@ -9,7 +9,7 @@ import { LoadingService } from 'src/app/services/loading.service';
 import { DateAgoPipe } from 'src/app/pipes/date-ago.pipe';
 import { ByteSuffixPipe } from 'src/app/pipes/byte-suffix.pipe';
 import { SystemInfo as ISystemInfo, SystemAsic as ISystemASIC, GenericResponse, } from 'src/app/generated/models';
-import { NgIf, NgFor, NgClass, AsyncPipe } from '@angular/common';
+import { NgClass, AsyncPipe } from '@angular/common';
 import { TooltipDirective } from '../../directives/tooltip.directive';
 
 type TableRow = {
@@ -28,9 +28,9 @@ type CombinedData = {
 };
 
 @Component({
-    selector: 'app-system',
-    templateUrl: './system.component.html',
-    imports: [NgIf, NgFor, NgClass, TooltipDirective, AsyncPipe]
+  selector: 'app-system',
+  templateUrl: './system.component.html',
+  imports: [NgClass, TooltipDirective, AsyncPipe]
 })
 export class SystemComponent implements OnInit, OnDestroy {
   public systemRows$: Observable<TableRow[]>;

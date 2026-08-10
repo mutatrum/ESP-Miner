@@ -8,16 +8,16 @@ import { SensitiveData } from 'src/app/services/sensitive-data.service';
 import { DashboardEditService } from 'src/app/services/dashboard-edit.service';
 import { SystemInfo as ISystemInfo } from 'src/app/generated/models';
 import { RouterLink } from '@angular/router';
-import { NgIf, NgClass, NgFor, AsyncPipe } from '@angular/common';
+import { NgClass, AsyncPipe } from '@angular/common';
 import { TooltipDirective } from '../directives/tooltip.directive';
 import { WifiIconComponent } from '../components/wifi-icon/wifi-icon.component';
 import { CheckboxComponent } from '../components/checkbox/checkbox.component';
 import { FormsModule } from '@angular/forms';
 
 @Component({
-    selector: 'app-topbar',
-    templateUrl: './app.topbar.component.html',
-    imports: [RouterLink, NgIf, TooltipDirective, NgClass, WifiIconComponent, NgFor, CheckboxComponent, FormsModule, AsyncPipe]
+  selector: 'app-topbar',
+  templateUrl: './app.topbar.component.html',
+  imports: [RouterLink, TooltipDirective, NgClass, WifiIconComponent, CheckboxComponent, FormsModule, AsyncPipe]
 })
 export class AppTopBarComponent implements OnInit, OnDestroy {
   private destroy$ = new Subject<void>();
