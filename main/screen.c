@@ -645,12 +645,12 @@ void screen_button_press()
     }
 }
 
-esp_err_t screen_start(void * pvParameters)
+esp_err_t screen_start(GlobalState * global_state)
 {
+    GLOBAL_STATE = global_state;
     if (lvgl_port_lock(0)) {
         screen_lines = lv_display_get_vertical_resolution(NULL) / 8;
 
-        GLOBAL_STATE = (GlobalState *) pvParameters;
         SystemModule * SYSTEM_MODULE = &GLOBAL_STATE->SYSTEM_MODULE;
 
         if (SYSTEM_MODULE->is_screen_active) {

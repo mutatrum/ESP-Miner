@@ -66,10 +66,16 @@ static void handle_efficiency(GlobalState *GLOBAL_STATE, char *temp, size_t ts, 
 
 static void handle_pool_url(GlobalState *GLOBAL_STATE, char *temp, size_t ts, char **dst, size_t *remaining)
 {
-    const char *pool = GLOBAL_STATE->SYSTEM_MODULE.is_using_fallback
-        ? GLOBAL_STATE->SYSTEM_MODULE.fallback_pool_url
-        : GLOBAL_STATE->SYSTEM_MODULE.pool_url;
+    uint16_t pool_idx = GLOBAL_STATE->SYSTEM_MODULE.is_using_fallback
+        ? GLOBAL_STATE->SYSTEM_MODULE.secondary_pool_index
+        : GLOBAL_STATE->SYSTEM_MODULE.primary_pool_index;
+    const char *pool = GLOBAL_STATE->SYSTEM_MODULE.pools[pool_idx].url;
     append_string(dst, remaining, pool);
+}
+
+static void handle_pool_diff(GlobalState *GLOBAL_STATE, char *temp, size_t ts, char **dst, size_t *remaining)
+{
+    append_formatted(dst, remaining, temp, ts, "%.0f", GLOBAL_STATE->pool_difficulty);
 }
 
 static void handle_rssi(GlobalState *GLOBAL_STATE, char *temp, size_t ts, char **dst, size_t *remaining)
@@ -179,7 +185,7 @@ static const var_entry_t variables[] = {
     { "fan2_rpm",          VAR_TYPE_UINT16,       offsetof(GlobalState, POWER_MANAGEMENT_MODULE.fan2_rpm),          "%u",   NULL },
 
     { "pool_url",          VAR_TYPE_CUSTOM,       0,                                                                NULL,   handle_pool_url },
-    { "pool_diff",         VAR_TYPE_UINT16,       offsetof(GlobalState, SYSTEM_MODULE.pool_difficulty),             "%u",   NULL },
+    { "pool_diff",         VAR_TYPE_CUSTOM,       0,                                                                NULL,   handle_pool_diff },
     { "response_time",     VAR_TYPE_FLOAT,        offsetof(GlobalState, SYSTEM_MODULE.response_time),               "%.2f", NULL },
     { "pool_connection_info", VAR_TYPE_STRING_ARRAY, offsetof(GlobalState, SYSTEM_MODULE.pool_connection_info),     NULL,   NULL },
     { "is_using_fallback_stratum", VAR_TYPE_CUSTOM, 0,                                                              NULL,   handle_is_using_fallback_stratum },
