@@ -13,13 +13,15 @@ import { AsyncPipe } from '@angular/common';
 import { CheckboxComponent } from '../checkbox/checkbox.component';
 import { FormsModule } from '@angular/forms';
 
+import { ProgressbarComponent } from '../progressbar/progressbar.component';
+
 const IGNORE_RELEASE_CHECK_WARNING = 'IGNORE_RELEASE_CHECK_WARNING';
 
 @Component({
   selector: 'app-update',
   templateUrl: './update.component.html',
   styleUrls: ['./update.component.scss'],
-  imports: [ModalComponent, CheckboxComponent, FormsModule, AsyncPipe]
+  imports: [ModalComponent, CheckboxComponent, ProgressbarComponent, FormsModule, AsyncPipe]
 })
 export class UpdateComponent {
 

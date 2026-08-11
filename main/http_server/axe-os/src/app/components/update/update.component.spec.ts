@@ -4,6 +4,7 @@ import { UpdateComponent } from './update.component';
 import { ModalComponent } from '../modal/modal.component';
 import { CheckboxComponent } from '../checkbox/checkbox.component';
 import { FormsModule } from '@angular/forms';
+import { ProgressbarComponent } from '../progressbar/progressbar.component';
 import { provideHttpClient, HttpErrorResponse } from '@angular/common/http';
 import { provideToastr } from 'ngx-toastr';
 import { getHttpErrorMessage } from 'src/app/utils/error-handler';
@@ -14,7 +15,7 @@ describe('UpdateComponent', () => {
 
   beforeEach(() => {
     TestBed.configureTestingModule({
-      imports: [CheckboxComponent, FormsModule, UpdateComponent, ModalComponent],
+      imports: [CheckboxComponent, ProgressbarComponent, FormsModule, UpdateComponent, ModalComponent],
       providers: [provideHttpClient(), provideToastr()]
     });
     fixture = TestBed.createComponent(UpdateComponent);
