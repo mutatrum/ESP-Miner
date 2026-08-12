@@ -9,14 +9,14 @@
       <table class="solo-chance-table w-full">
         <thead class="font-semibold">
           <tr>
-            <th>Difficulty</th> 
-            <th>
+            <th class="text-left">Difficulty</th> 
+            <th class="text-left">
               <tooltip-text-icon
                 text="Type"
                 tooltip="Special difficulty types and their meanings"
               />
             </th>
-            <th>
+            <th class="text-left">
               <tooltip-text-icon
                 text="Time to Find"
                 tooltip="Expected time to find one share at current hashrate"
@@ -24,37 +24,43 @@
             </th>
             <th class="text-center">
               <tooltip-text-icon
-                text="10 min"
+                text="Minute"
+                tooltip="Probability or expected count in 1 minute"
+              />
+            </th>
+            <th class="text-center">
+              <tooltip-text-icon
+                text="Block"
                 tooltip="Probability or expected count in 10 minutes (average Bitcoin block time)"
               />
             </th>
             <th class="text-center">
               <tooltip-text-icon
-                text="1 Hour"
+                text="Hour"
                 tooltip="Probability or expected count in 1 hour"
               />
             </th>
             <th class="text-center">
               <tooltip-text-icon
-                text="1 Day"
+                text="Day"
                 tooltip="Probability or expected count in 24 hours"
               />
             </th>
             <th class="text-center">
               <tooltip-text-icon
-                text="1 Week"
+                text="Week"
                 tooltip="Probability or expected count in 7 days"
               />
             </th>
             <th class="text-center">
               <tooltip-text-icon
-                text="1 Month"
+                text="Month"
                 tooltip="Probability or expected count in 30 days"
               />
             </th>
             <th class="text-center">
               <tooltip-text-icon
-                text="1 Year"
+                text="Year"
                 tooltip="Probability or expected count in 365 days"
               />
             </th>
@@ -63,10 +69,10 @@
         <tbody>
           @for (row of rows; track row.key) {
             <tr>
-              <td>
+              <td class="text-left">
                 <span class="font-medium">{{ row.difficulty | diffSuffix: row.digits }}</span>
               </td>
-              <td>
+              <td class="text-left">
                 @if (row.label) {
                   <div class="flex items-center gap-2">
                     <span class="badge">{{ row.label }}</span>
@@ -76,7 +82,8 @@
                   </div>
                 }
               </td>
-              <td>{{ formatDuration(row.timeToFind) }}</td>
+              <td class="text-left">{{ formatDuration(row.timeToFind) }}</td>
+              <td class="text-center">{{ row.oneMin }}</td>
               <td class="text-center">{{ row.tenMin }}</td>
               <td class="text-center">{{ row.hour }}</td>
               <td class="text-center">{{ row.day }}</td>

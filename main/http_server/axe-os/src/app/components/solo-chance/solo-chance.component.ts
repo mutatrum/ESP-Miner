@@ -11,6 +11,7 @@ interface DifficultyRow {
   label?: string;
   tooltip?: string;
   timeToFind: number;
+  oneMin: string;
   tenMin: string;
   hour: string;
   day: string;
@@ -31,7 +32,8 @@ export class SoloChanceComponent implements OnInit, OnDestroy {
   private destroy$ = new Subject<void>();
 
   // Time periods in seconds
-  private readonly TIME_10MIN = 600;
+  private readonly TIME_1MIN  = 60;
+  private readonly TIME_10MIN = this.TIME_1MIN * 10;
   private readonly TIME_HOUR  = this.TIME_10MIN * 6;
   private readonly TIME_DAY   = this.TIME_HOUR * 24;
   private readonly TIME_WEEK  = this.TIME_DAY * 7;
@@ -161,6 +163,7 @@ export class SoloChanceComponent implements OnInit, OnDestroy {
         label: diff.label,
         tooltip: diff.tooltip,
         timeToFind: this.calculateTimeToFind(diff.value, hashRate),
+        oneMin: this.formatProbability(diff.value, hashRate, this.TIME_1MIN),
         tenMin: this.formatProbability(diff.value, hashRate, this.TIME_10MIN),
         hour: this.formatProbability(diff.value, hashRate, this.TIME_HOUR),
         day: this.formatProbability(diff.value, hashRate, this.TIME_DAY),
@@ -207,21 +210,28 @@ export class SoloChanceComponent implements OnInit, OnDestroy {
     const expectedOccurrences = this.calculateExpectedOccurrences(difficulty, hashRate, timeSeconds);
     
     if (expectedOccurrences >= 1000000) {
-      return `${(expectedOccurrences / 1e6).toFixed(1)}M×`;
+      return `${(expectedOccurrences / 1000000).toFixed(1)}M×`;
     } else if (expectedOccurrences >= 1000) {
       return `${(expectedOccurrences / 1000).toFixed(1)}K×`;
     } else if (expectedOccurrences >= 100) {
       return `${Math.round(expectedOccurrences)}×`;
     } else if (expectedOccurrences >= 10) {
       return `${expectedOccurrences.toFixed(1)}×`;
-    } else if (expectedOccurrences >= 1) {
-      return `${expectedOccurrences.toFixed(2)}×`;
     } else {
       // Calculate probability using Poisson distribution
       const probability = 1 - Math.exp(-expectedOccurrences);
+      const percent = probability * 100;
       
-      if (probability >= 0.00000001) {
-        return `${(probability * 100).toPrecision(2)}%`;
+      if (percent > 99.99) {
+        return `${percent.toFixed(3)}%`;
+      } else if (percent > 99.9) {
+        return `${percent.toFixed(2)}%`;
+      } else if (percent >= 1) {
+        return `${percent.toFixed(1)}%`;
+      } else if (percent >= 0.01) {
+        return `${percent.toFixed(2)}%`;
+      } else if (percent >= 0.000001) {
+        return `${percent.toPrecision(2)}%`;
       } else {
         return '<0.000001%';
       }
