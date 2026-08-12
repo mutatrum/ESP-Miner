@@ -7,6 +7,13 @@ import { FormsModule, ReactiveFormsModule } from '@angular/forms';
 import { BrowserModule } from '@angular/platform-browser';
 import { BrowserAnimationsModule } from '@angular/platform-browser/animations';
 import { ToastrModule } from 'ngx-toastr';
+import { TooltipDirective } from './directives/tooltip.directive';
+import { CheckboxComponent } from './components/checkbox/checkbox.component';
+import { RadioButtonComponent } from './components/radio-button/radio-button.component';
+import { SliderComponent } from './components/slider/slider.component';
+import { AppChartComponent } from './components/chart/app-chart.component';
+import { DropdownComponent } from './components/dropdown/dropdown.component';
+import { ProgressbarComponent } from './components/progressbar/progressbar.component';
 
 import { AppRoutingModule } from './app-routing.module';
 import { AppComponent } from './app.component';
@@ -38,16 +45,10 @@ import { HashSuffixPipe } from './pipes/hash-suffix.pipe';
 import { DiffSuffixPipe } from './pipes/diff-suffix.pipe';
 import { AddressPipe } from './pipes/address.pipe';
 import { SatsPipe } from './pipes/sats.pipe';
-import { PrimeNGModule } from './prime-ng.module';
-import { MessageModule } from 'primeng/message';
-import { TooltipModule } from 'primeng/tooltip';
-import { DialogModule } from 'primeng/dialog';
-import { DialogService as PrimeDialogService } from 'primeng/dynamicdialog';
 import { DialogService, DialogListComponent } from './services/dialog.service';
 
 const components = [
   AppComponent,
-  EditComponent,
   NetworkEditComponent,
   HomeComponent,
   ModalComponent,
@@ -56,7 +57,6 @@ const components = [
   ConfettiComponent,
   SnowflakesComponent,
   NetworkComponent,
-  SettingsComponent,
   LogsComponent,
   SystemComponent,
   UpdateComponent,
@@ -67,19 +67,11 @@ const components = [
   declarations: [
     ...components,
 
-    ANSIPipe,
-    DateAgoPipe,
     SwarmComponent,
     SoloChanceComponent,
     ScoreboardComponent,
-    SettingsComponent,
-    HashSuffixPipe,
-    DiffSuffixPipe,
-    AddressPipe,
-    SatsPipe,
     ThemeConfigComponent,
     DesignComponent,
-    PoolComponent,
     DialogListComponent
   ],
   imports: [
@@ -92,18 +84,28 @@ const components = [
     }),
     BrowserAnimationsModule,
     CommonModule,
-    PrimeNGModule,
     AppLayoutModule,
-    MessageModule,
-    TooltipModule,
-    DialogModule
+    TooltipDirective,
+    CheckboxComponent,
+    DropdownComponent,
+    RadioButtonComponent,
+    SliderComponent,
+    AppChartComponent,
+    EditComponent,
+    SettingsComponent,
+    ProgressbarComponent,
+    ANSIPipe,
+    DateAgoPipe,
+    HashSuffixPipe,
+    DiffSuffixPipe,
+    AddressPipe,
+    SatsPipe,
   ],
   providers: [
     { provide: LocationStrategy, useClass: HashLocationStrategy },
     { provide: ApiConfiguration, useValue: { rootUrl: '' } },
     Api,
     DialogService,
-    PrimeDialogService,
     provideHttpClient()
   ],
   bootstrap: [AppComponent]
