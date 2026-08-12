@@ -1,11 +1,13 @@
 import { Component, OnInit, OnDestroy } from '@angular/core';
-import { Observable, Subject, interval, startWith, switchMap, takeUntil } from 'rxjs';
-import { SystemApiService } from 'src/app/services/system.service';
+import { Observable, Subject, takeUntil } from 'rxjs';
+import { LiveDataService } from 'src/app/services/live-data.service';
 import { LoadingService } from 'src/app/services/loading.service';
 import { SystemInfo as ISystemInfo } from 'src/app/generated/models';
 
 interface DifficultyRow {
+  key: string;
   difficulty: number;
+  digits?: number;
   label?: string;
   tooltip?: string;
   timeToFind: number;
@@ -37,17 +39,14 @@ export class SoloChanceComponent implements OnInit, OnDestroy {
   private readonly TIME_MONTH = this.TIME_YEAR / 12;
 
   constructor(
-    private systemService: SystemApiService,
+    private liveDataService: LiveDataService,
     private loadingService: LoadingService
   ) {}
 
   ngOnInit(): void {
     this.loadingService.loading$.next(true);
     
-    // Fetch immediately, then poll every 5 seconds like the dashboard
-    this.info$ = interval(5000).pipe(
-      startWith(0), // Emit immediately on subscription
-      switchMap(() => this.systemService.getInfo()),
+    this.info$ = this.liveDataService.info$.pipe(
       takeUntil(this.destroy$)
     );
     
@@ -65,17 +64,18 @@ export class SoloChanceComponent implements OnInit, OnDestroy {
   private generateRows(info: ISystemInfo): void {
     const hashRate = info.expectedHashrate; // in GH/s
     
-    const difficulties: Array<{ value: number; label?: string; tooltip?: string;  }> = [];
+    const difficulties: Array<{ key: string; value: number; digits?: number; label?: string; tooltip?: string; }> = [];
     
     let diff = 1;
     while (diff < (info.networkDifficulty ?? 1e14)) {
-      difficulties.push({value: diff});
+      difficulties.push({ key: `fixed_${diff}`, value: diff, digits: 0 });
       diff *= 1e3;
     }
     
     const expectedReachedDifficulty = this.calculateExpectedReachedDifficulty(hashRate, info.uptimeSeconds);
     if (expectedReachedDifficulty) {
       difficulties.push({
+        key: 'uptime',
         value: expectedReachedDifficulty,
         label: '⌚ Uptime',
         tooltip: 'Expected difficulty reached with current hashrate and session uptime',
@@ -86,6 +86,7 @@ export class SoloChanceComponent implements OnInit, OnDestroy {
       const expectedTotalReachedDifficulty = this.calculateExpectedReachedDifficulty(hashRate, info.totalUptimeSeconds);
       if (expectedTotalReachedDifficulty) {
         difficulties.push({
+          key: 'totalUptime',
           value: expectedTotalReachedDifficulty,
           label: '📅 Total Uptime',
           tooltip: 'Expected difficulty reached with current hashrate and total uptime',
@@ -96,6 +97,7 @@ export class SoloChanceComponent implements OnInit, OnDestroy {
     // Add dynamic difficulties
     if (info.poolDifficulty > 0) {
       difficulties.push({
+        key: 'pool',
         value: info.poolDifficulty,
         label: '🎯 Pool',
         tooltip: 'Your current pool difficulty setting',
@@ -104,6 +106,7 @@ export class SoloChanceComponent implements OnInit, OnDestroy {
     
     if (info.bestSessionDiff > 0) {
       difficulties.push({
+        key: 'sessionBest',
         value: info.bestSessionDiff,
         label: '🏆 Session Best',
         tooltip: 'Best difficulty found since system boot',
@@ -112,6 +115,7 @@ export class SoloChanceComponent implements OnInit, OnDestroy {
     
     if (info.bestDiff > 0) {
       difficulties.push({
+        key: 'allTimeBest',
         value: info.bestDiff,
         label: '🥇 All-time Best',
         tooltip: 'Best difficulty ever found by this device',
@@ -120,9 +124,10 @@ export class SoloChanceComponent implements OnInit, OnDestroy {
     
     if (info.networkDifficulty && info.networkDifficulty > 0) {
       difficulties.push({
+        key: 'network',
         value: info.networkDifficulty,
         label: '🎰 Network',
-        tooltip: 'Current Bitcoin network difficulty (finding this = solo block!)',
+        tooltip: 'Current Bitcoin network difficulty. Finding this means your miner solved a block!',
       });
     }
     
@@ -130,8 +135,8 @@ export class SoloChanceComponent implements OnInit, OnDestroy {
     difficulties.sort((a, b) => a.value - b.value);
     
     // Remove duplicates - if a labeled row has the same difficulty as a fixed row, keep only the labeled one
-    const uniqueDifficulties: Array<{ value: number; label?: string; tooltip?: string }> = [];
-    const seenDifficulties = new Map<number, { value: number; label?: string; tooltip?: string }>();
+    const uniqueDifficulties: Array<{ key: string; value: number; digits?: number; label?: string; tooltip?: string }> = [];
+    const seenDifficulties = new Map<number, { key: string; value: number; digits?: number; label?: string; tooltip?: string }>();
     
     difficulties.forEach(item => {
       const existing = seenDifficulties.get(item.value);
@@ -150,7 +155,9 @@ export class SoloChanceComponent implements OnInit, OnDestroy {
     // Generate rows
     this.rows = uniqueDifficulties.map(diff => {
       return {
+        key: diff.key,
         difficulty: diff.value,
+        digits: diff.digits,
         label: diff.label,
         tooltip: diff.tooltip,
         timeToFind: this.calculateTimeToFind(diff.value, hashRate),
