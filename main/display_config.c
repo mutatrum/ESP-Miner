@@ -103,7 +103,7 @@ static void handle_signal(GlobalState *GLOBAL_STATE, char *temp, size_t ts, char
 
 static void handle_uptime(GlobalState *GLOBAL_STATE, char *temp, size_t ts, char **dst, size_t *remaining)
 {
-    uint64_t uptime_us = esp_timer_get_time() - GLOBAL_STATE->SYSTEM_MODULE.start_time;
+    uint64_t uptime_us = esp_timer_get_time() - GLOBAL_STATE->SYSTEM_MODULE.start_time_us;
     uint32_t total_seconds = uptime_us / 1000000;
 
     unsigned long days    = total_seconds / 86400;

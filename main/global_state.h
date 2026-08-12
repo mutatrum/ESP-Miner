@@ -69,7 +69,7 @@ typedef struct SystemModule
     float hashrate_10m;
     float hashrate_1h;
     float error_percentage;
-    int64_t start_time;
+    int64_t start_time_us;
     uint64_t shares_accepted;
     uint64_t shares_rejected;
     uint16_t shares_pending;
@@ -116,6 +116,7 @@ typedef struct SystemModule
     char * version;
     char * axeOSVersion;
     Scoreboard scoreboard;
+    uint64_t uptime_seconds;
     cached_partition_t cached_partitions[3];
     int cached_partitions_count;
     char mdns_hostname[64];
@@ -176,6 +177,7 @@ typedef struct GlobalState
     bool new_set_mining_difficulty_msg;
     uint32_t version_mask;
     bool new_stratum_version_rolling_msg;
+    bool reset_extranonce2;
 
     esp_transport_handle_t transport;
     portMUX_TYPE stratum_mux;

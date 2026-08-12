@@ -645,6 +645,7 @@ void screen_button_press()
     }
 }
 
+
 esp_err_t screen_start(GlobalState * global_state)
 {
     GLOBAL_STATE = global_state;

@@ -79,6 +79,7 @@ static Settings settings[NVS_CONFIG_COUNT] = {
     [NVS_CONFIG_OVERHEAT_MODE]                         = {.nvs_key_name = "overheat_mode",   .type = TYPE_BOOL,                                                                         .rest_name = "overheat_mode",                      .min = 0,  .max = 0},
 
     [NVS_CONFIG_USE_CUSTOM_WWW]                        = {.nvs_key_name = "use_custom_www",  .type = TYPE_BOOL,  .default_value = {.b = false},                                         .rest_name = "useCustomWWW",                       .min = 0, .max = 1},
+    [NVS_CONFIG_LAST_FW_FINGERPRINT]                   = {.nvs_key_name = "last_fw_fp",      .type = TYPE_STR,   .default_value = {.str = ""}},
 
     [NVS_CONFIG_STATISTICS_FREQUENCY]                  = {.nvs_key_name = "statsFrequency",  .type = TYPE_U16,                                                                          .rest_name = "statsFrequency",                     .min = 0,  .max = UINT16_MAX},
 
@@ -106,6 +107,9 @@ static Settings settings[NVS_CONFIG_COUNT] = {
     [NVS_CONFIG_TPS546]                                = {.nvs_key_name = "TPS546",          .type = TYPE_BOOL},
     [NVS_CONFIG_TMP1075]                               = {.nvs_key_name = "TMP1075",         .type = TYPE_BOOL},
     [NVS_CONFIG_POWER_CONSUMPTION_TARGET]              = {.nvs_key_name = "power_cons_tgt",  .type = TYPE_U16},
+    [NVS_CONFIG_TOTAL_UPTIME]                          = {.nvs_key_name = "total_uptime",    .type = TYPE_U64},
+    [NVS_CONFIG_CUMULATIVE_HASHES_HIGH]                = {.nvs_key_name = "cum_hashes_hi",   .type = TYPE_U64},
+    [NVS_CONFIG_CUMULATIVE_HASHES_LOW]                 = {.nvs_key_name = "cum_hashes_lo",   .type = TYPE_U64},
     [NVS_CONFIG_SELF_TEST_TEMP_TARGET]                 = {.nvs_key_name = "selftest_temp",   .type = TYPE_U16,   .default_value = {.u16 = 65}},
     [NVS_CONFIG_SELF_TEST_TEMP_WARMUP]                 = {.nvs_key_name = "selftest_warm",   .type = TYPE_U16,   .default_value = {.u16 = 55}},
     [NVS_CONFIG_SELF_TEST_TEMP_MAX]                    = {.nvs_key_name = "selftest_max",    .type = TYPE_U16,   .default_value = {.u16 = 70}},
