@@ -20,7 +20,8 @@ interface DifficultyRow {
 @Component({
   selector: 'app-solo-chance',
   templateUrl: './solo-chance.component.html',
-  styleUrls: ['./solo-chance.component.scss']
+  styleUrls: ['./solo-chance.component.scss'],
+  standalone: false
 })
 export class SoloChanceComponent implements OnInit, OnDestroy {
   public info$!: Observable<ISystemInfo>;
@@ -77,8 +78,19 @@ export class SoloChanceComponent implements OnInit, OnDestroy {
       difficulties.push({
         value: expectedReachedDifficulty,
         label: '⌚ Uptime',
-        tooltip: 'Expected difficulty reached with current hashrate and uptime',
+        tooltip: 'Expected difficulty reached with current hashrate and session uptime',
       });
+    }
+
+    if (info.totalUptimeSeconds && info.totalUptimeSeconds > 0) {
+      const expectedTotalReachedDifficulty = this.calculateExpectedReachedDifficulty(hashRate, info.totalUptimeSeconds);
+      if (expectedTotalReachedDifficulty) {
+        difficulties.push({
+          value: expectedTotalReachedDifficulty,
+          label: '📅 Total Uptime',
+          tooltip: 'Expected difficulty reached with current hashrate and total uptime',
+        });
+      }
     }
 
     // Add dynamic difficulties
