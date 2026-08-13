@@ -7,7 +7,6 @@ import { LoadingService } from 'src/app/services/loading.service';
 import { SystemApiService } from 'src/app/services/system.service';
 import { LiveDataService } from 'src/app/services/live-data.service';
 import { first } from 'rxjs';
-import { NgClass } from '@angular/common';
 import { DropdownComponent } from '../dropdown/dropdown.component';
 import { TooltipDirective } from '../../directives/tooltip.directive';
 import { TooltipTextIconComponent } from '../tooltip-text-icon/tooltip-text-icon.component';
@@ -37,7 +36,7 @@ interface IPoolDropdownOption {
 @Component({
   selector: 'app-pool',
   templateUrl: './pool.component.html',
-  imports: [FormsModule, ReactiveFormsModule, DropdownComponent, NgClass, TooltipDirective, TooltipTextIconComponent, RadioButtonComponent, CheckboxComponent]
+  imports: [FormsModule, ReactiveFormsModule, DropdownComponent, TooltipDirective, TooltipTextIconComponent, RadioButtonComponent, CheckboxComponent]
 })
 export class PoolComponent implements OnInit {
   public form!: FormGroup;

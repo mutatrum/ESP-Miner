@@ -23,7 +23,7 @@ import { eChartLabel, ChartUnitGroups, chartLabelValue, chartLabelKey } from 'sr
 import { LocalStorageService } from 'src/app/local-storage.service';
 import { GridStack, GridItemHTMLElement } from 'gridstack';
 import { DashboardEditService, WidgetDef } from 'src/app/services/dashboard-edit.service';
-import { NgClass, AsyncPipe, DecimalPipe } from '@angular/common';
+import { AsyncPipe, DecimalPipe } from '@angular/common';
 import { TooltipDirective } from '../../directives/tooltip.directive';
 import { TooltipTextIconComponent } from '../tooltip-text-icon/tooltip-text-icon.component';
 import { DropdownComponent } from '../dropdown/dropdown.component';
@@ -84,7 +84,6 @@ const WIDGET_DEFAULTS: WidgetDef[] = [
   imports: [
     TooltipDirective,
     TooltipTextIconComponent,
-    NgClass,
     NgTemplateOutlet,
     FormsModule,
     ReactiveFormsModule,

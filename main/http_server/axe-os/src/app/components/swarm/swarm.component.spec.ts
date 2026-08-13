@@ -88,7 +88,7 @@ describe('SwarmComponent', () => {
 
     const element = fixture.nativeElement;
 
-    // Verify that components inside *ngIf are rendered
+    // Verify that components inside the @if block are rendered
     expect(element.querySelector('app-slider')).toBeTruthy();
     expect(element.querySelector('app-modal')).toBeTruthy();
   });

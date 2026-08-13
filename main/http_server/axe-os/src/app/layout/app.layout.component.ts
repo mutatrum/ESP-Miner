@@ -5,14 +5,13 @@ import { SensitiveData } from 'src/app/services/sensitive-data.service';
 import { LayoutService } from "./service/app.layout.service";
 import { AppSidebarComponent } from "./app.sidebar.component";
 import { AppTopBarComponent } from './app.topbar.component';
-import { NgClass } from '@angular/common';
 import { AppFooterComponent } from './app.footer.component';
 import { LoadingComponent } from '../components/loading/loading.component';
 
 @Component({
   selector: 'app-layout',
   templateUrl: './app.layout.component.html',
-  imports: [NgClass, AppTopBarComponent, AppSidebarComponent, RouterOutlet, AppFooterComponent, LoadingComponent]
+  imports: [AppTopBarComponent, AppSidebarComponent, RouterOutlet, AppFooterComponent, LoadingComponent]
 })
 export class AppLayoutComponent implements OnDestroy {
     private destroy$ = new Subject<void>();

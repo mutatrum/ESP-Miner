@@ -4,7 +4,6 @@ import { Subscription } from 'rxjs';
 import { ToastrService } from 'ngx-toastr';
 import { WebsocketService } from 'src/app/services/web-socket.service';
 import { SystemApiService } from 'src/app/services/system.service';
-import { NgClass } from '@angular/common';
 import { TooltipDirective } from '../../directives/tooltip.directive';
 import { ANSIPipe } from '../../pipes/ansi.pipe';
 
@@ -12,7 +11,7 @@ import { ANSIPipe } from '../../pipes/ansi.pipe';
   selector: 'app-logs',
   templateUrl: './logs.component.html',
   styleUrl: './logs.component.scss',
-  imports: [FormsModule, ReactiveFormsModule, TooltipDirective, NgClass, ANSIPipe]
+  imports: [FormsModule, ReactiveFormsModule, TooltipDirective, ANSIPipe]
 })
 export class LogsComponent implements OnInit, OnDestroy, AfterViewChecked {
   public loadingLogs: boolean = false;

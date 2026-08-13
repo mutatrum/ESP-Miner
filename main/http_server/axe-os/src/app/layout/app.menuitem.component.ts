@@ -5,7 +5,6 @@ import { Subscription } from 'rxjs';
 import { filter } from 'rxjs/operators';
 import { MenuService } from './app.menu.service';
 import { LayoutService } from './service/app.layout.service';
-import { NgClass } from '@angular/common';
 
 @Component({
   // eslint-disable-next-line @angular-eslint/component-selector
@@ -22,7 +21,7 @@ import { NgClass } from '@angular/common';
       transition('collapsed <=> expanded', animate('400ms cubic-bezier(0.86, 0, 0.07, 1)'))
     ])
   ],
-  imports: [NgClass, RouterLinkActive, RouterLink, AppMenuitemComponent]
+  imports: [RouterLinkActive, RouterLink, AppMenuitemComponent]
 })
 export class AppMenuitemComponent implements OnInit, OnDestroy {
 
