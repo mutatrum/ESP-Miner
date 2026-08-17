@@ -103,6 +103,9 @@ void app_main(void)
         return;
     }
 
+    // Check firmware version migration (resets useCustomWWW on update/downgrade)
+    SYSTEM_check_firmware_migration();
+
     // Confirm app validity for OTA rollback
     const esp_partition_t *running = esp_ota_get_running_partition();
     esp_ota_img_states_t ota_state;
@@ -158,13 +161,13 @@ void app_main(void)
         ESP_LOGE(TAG, "Critical peripheral initialization failure (%s). Entering degraded mode.", esp_err_to_name(GLOBAL_STATE.SELF_TEST_MODULE.system_init_ret));
     }
     
+    // Read version info (from SPIFFS if custom WWW is active)
+    SYSTEM_init_versions(&GLOBAL_STATE);
+
     if (!GLOBAL_STATE.SELF_TEST_MODULE.is_active) {
         // start the API for AxeOS
         start_rest_server(&GLOBAL_STATE);
     }
-
-    // After mounting SPIFFS
-    SYSTEM_init_versions(&GLOBAL_STATE);
 
     // Pre-cache partition descriptions and space usage percentage
     SYSTEM_init_partitions(&GLOBAL_STATE);
@@ -195,6 +198,14 @@ void app_main(void)
 
     queue_init(&GLOBAL_STATE.stratum_queue);
 
+    // The self-test feeds create_jobs_task a hardcoded stratum V1 mock job.
+    // SYSTEM_init_system() picked the protocol from the configured pool, so pin
+    // V1 here — before create_jobs_task latches it — or an SV2-configured device
+    // would cast the mock mining_notify to sv2_job_t.
+    if (GLOBAL_STATE.SELF_TEST_MODULE.is_active) {
+        GLOBAL_STATE.stratum_protocol = STRATUM_PROTOCOL_V1;
+    }
+
     if (system_init_ret == ESP_OK) {
         if (asic_initialize(&GLOBAL_STATE, ASIC_INIT_COLD_BOOT, 0) == 0) {
             if (!GLOBAL_STATE.SELF_TEST_MODULE.is_active) {
@@ -220,9 +231,11 @@ void app_main(void)
         }
     }
 
-    protocol_coordinator_init(&GLOBAL_STATE);
-    if (xTaskCreateWithCaps(protocol_coordinator_task, "protocol coord", 3072, (void *) &GLOBAL_STATE, 5, NULL, MALLOC_CAP_SPIRAM) != pdPASS) {
-        ESP_LOGE(TAG, "Error creating protocol coordinator task");
+    if (!GLOBAL_STATE.SELF_TEST_MODULE.is_active) {
+        protocol_coordinator_init(&GLOBAL_STATE);
+        if (xTaskCreateWithCaps(protocol_coordinator_task, "protocol coord", 3072, (void *) &GLOBAL_STATE, 5, NULL, MALLOC_CAP_SPIRAM) != pdPASS) {
+            ESP_LOGE(TAG, "Error creating protocol coordinator task");
+        }
     }
 
     if (GLOBAL_STATE.SELF_TEST_MODULE.is_active) {

@@ -10,6 +10,7 @@ import { provideRouter } from '@angular/router';
 import { AppChartComponent } from 'src/app/components/chart/app-chart.component';
 import { TooltipDirective } from 'src/app/directives/tooltip.directive';
 import { DropdownComponent } from 'src/app/components/dropdown/dropdown.component';
+import { ProgressbarComponent } from 'src/app/components/progressbar/progressbar.component';
 import { BehaviorSubject, of } from 'rxjs';
 
 import { HashSuffixPipe } from 'src/app/pipes/hash-suffix.pipe';
@@ -18,6 +19,7 @@ import { DateAgoPipe } from 'src/app/pipes/date-ago.pipe';
 import { AddressPipe } from 'src/app/pipes/address.pipe';
 import { SatsPipe } from 'src/app/pipes/sats.pipe';
 import { ByteSuffixPipe } from 'src/app/pipes/byte-suffix.pipe';
+import { HeatmapLightnessPipe } from 'src/app/pipes/heatmap-lightness.pipe';
 
 import { TooltipTextIconComponent } from 'src/app/components/tooltip-text-icon/tooltip-text-icon.component';
 import { TooltipIconComponent } from 'src/app/components/tooltip-icon/tooltip-icon.component';
@@ -160,13 +162,15 @@ describe('HomeComponent', () => {
         NoopAnimationsModule,
         AppChartComponent,
         DropdownComponent,
+        ProgressbarComponent,
         TooltipDirective,
         HashSuffixPipe,
         DiffSuffixPipe,
         DateAgoPipe,
         AddressPipe,
         SatsPipe,
-        ByteSuffixPipe
+        ByteSuffixPipe,
+        HeatmapLightnessPipe
       ],
       providers: [
         provideRouter([]),
