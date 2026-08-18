@@ -48,7 +48,7 @@ static int noise_recv_exact(esp_transport_handle_t transport, uint8_t *buf, int 
     while (received < len) {
         int r = esp_transport_read(transport, (char *)buf + received, len - received, timeout_ms);
         if (r <= 0) {
-            ESP_LOGE(TAG, "recv failed: r=%d", r);
+            ESP_LOGD(TAG, "recv returned: r=%d", r);
             return -1;
         }
         received += r;
@@ -60,7 +60,7 @@ static int noise_send_all(esp_transport_handle_t transport, const uint8_t *buf, 
 {
     int ret = esp_transport_write(transport, (const char *)buf, len, TRANSPORT_TIMEOUT_MS);
     if (ret < 0) {
-        ESP_LOGE(TAG, "send failed: ret=%d", ret);
+        ESP_LOGD(TAG, "send returned: ret=%d", ret);
         return -1;
     }
     return 0;

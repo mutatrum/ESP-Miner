@@ -282,14 +282,14 @@ void BM1397_send_work(GlobalState * GLOBAL_STATE, bm_job * next_bm_job)
     // (which snapshots active_jobs[job_id] under the same lock) can never observe
     // or copy a slot we are freeing/replacing here. valid_jobs is set inside the
     // same critical section so validity and the pointer stay consistent.
-    pthread_mutex_lock(&GLOBAL_STATE->valid_jobs_lock);
+    pthread_mutex_lock(&GLOBAL_STATE->ASIC_TASK_MODULE.valid_jobs_lock);
     if (GLOBAL_STATE->ASIC_TASK_MODULE.active_jobs[job.job_id] != NULL)
     {
         free_bm_job(GLOBAL_STATE->ASIC_TASK_MODULE.active_jobs[job.job_id]);
     }
     GLOBAL_STATE->ASIC_TASK_MODULE.active_jobs[job.job_id] = next_bm_job;
-    GLOBAL_STATE->valid_jobs[job.job_id] = 1;
-    pthread_mutex_unlock(&GLOBAL_STATE->valid_jobs_lock);
+    GLOBAL_STATE->ASIC_TASK_MODULE.valid_jobs[job.job_id] = 1;
+    pthread_mutex_unlock(&GLOBAL_STATE->ASIC_TASK_MODULE.valid_jobs_lock);
 
     #if BM1397_DEBUG_JOBS
     ESP_LOGI(TAG, "Send Job: %02X", job.job_id);
@@ -330,16 +330,16 @@ task_result *BM1397_process_work(GlobalState * GLOBAL_STATE)
     // replace this slot from the create-jobs task, so dereferencing ->version /
     // ->version_mask without the lock is a use-after-free. Snapshot both fields,
     // then unlock and roll the version outside the critical section.
-    pthread_mutex_lock(&GLOBAL_STATE->valid_jobs_lock);
-    if (GLOBAL_STATE->valid_jobs[rx_job_id] == 0 || GLOBAL_STATE->ASIC_TASK_MODULE.active_jobs[rx_job_id] == NULL)
+    pthread_mutex_lock(&GLOBAL_STATE->ASIC_TASK_MODULE.valid_jobs_lock);
+    if (GLOBAL_STATE->ASIC_TASK_MODULE.valid_jobs[rx_job_id] == 0 || GLOBAL_STATE->ASIC_TASK_MODULE.active_jobs[rx_job_id] == NULL)
     {
-        pthread_mutex_unlock(&GLOBAL_STATE->valid_jobs_lock);
+        pthread_mutex_unlock(&GLOBAL_STATE->ASIC_TASK_MODULE.valid_jobs_lock);
         ESP_LOGW(TAG, "Invalid job nonce found, id=%d", rx_job_id);
         return NULL;
     }
     uint32_t rolled_version = GLOBAL_STATE->ASIC_TASK_MODULE.active_jobs[rx_job_id]->version;
     uint32_t version_mask = GLOBAL_STATE->ASIC_TASK_MODULE.active_jobs[rx_job_id]->version_mask;
-    pthread_mutex_unlock(&GLOBAL_STATE->valid_jobs_lock);
+    pthread_mutex_unlock(&GLOBAL_STATE->ASIC_TASK_MODULE.valid_jobs_lock);
 
     for (int i = 0; i < rx_midstate_index; i++)
     {

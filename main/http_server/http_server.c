@@ -38,6 +38,8 @@
 #include "mdns.h"
 #include "http_server.h"
 #include "embedded_web_ui.h"
+#include "sv2_protocol.h"
+#include "tasks/stratum_task.h"
 #include "websocket.h"
 #include "websocket_log.h"
 #include "websocket_api.h"
@@ -997,6 +999,14 @@ bool check_settings_and_update(const cJSON * const root, char **redirect_url)
             }
         }
 
+        uint16_t old_prim_idx = GLOBAL_STATE->SYSTEM_MODULE.primary_pool_index;
+        uint16_t old_sec_idx = GLOBAL_STATE->SYSTEM_MODULE.secondary_pool_index;
+        bool old_use_fallback = GLOBAL_STATE->SYSTEM_MODULE.use_fallback_stratum;
+        bool old_is_fallback = GLOBAL_STATE->SYSTEM_MODULE.is_using_fallback;
+        uint16_t active_idx_before = old_is_fallback ? old_sec_idx : old_prim_idx;
+        bool active_pool_config_modified = false;
+        bool primary_pool_config_modified = false;
+
         // Save pools array to NVS
         if (pools_item && cJSON_IsArray(pools_item)) {
             int size = cJSON_GetArraySize(pools_item);
@@ -1007,8 +1017,58 @@ bool check_settings_and_update(const cJSON * const root, char **redirect_url)
                     int idx = id_item->valueint;
                     if (idx >= 0 && idx < MAX_POOLS) {
                         update_pool_nvs(pool_item, idx);
+                        if (idx == active_idx_before) {
+                            active_pool_config_modified = true;
+                        }
+                        if (idx == old_prim_idx) {
+                            primary_pool_config_modified = true;
+                        }
                     }
                 }
+            }
+        }
+
+        bool pool_settings_changed = (pools_item != NULL) ||
+                                     (cJSON_GetObjectItem(root, "primaryPoolIndex") != NULL) ||
+                                     (cJSON_GetObjectItem(root, "secondaryPoolIndex") != NULL) ||
+                                     (cJSON_GetObjectItem(root, "useFallbackStratum") != NULL);
+        if (pool_settings_changed) {
+            SYSTEM_reload_pool_config(GLOBAL_STATE);
+
+            cJSON *use_fallback_item = cJSON_GetObjectItem(root, "useFallbackStratum");
+            if (use_fallback_item) {
+                GLOBAL_STATE->SYSTEM_MODULE.is_using_fallback = GLOBAL_STATE->SYSTEM_MODULE.use_fallback_stratum;
+            }
+
+            uint16_t new_prim_idx = GLOBAL_STATE->SYSTEM_MODULE.primary_pool_index;
+            uint16_t new_sec_idx = GLOBAL_STATE->SYSTEM_MODULE.secondary_pool_index;
+            bool new_use_fallback = GLOBAL_STATE->SYSTEM_MODULE.use_fallback_stratum;
+
+            bool active_pool_changed = false;
+            bool primary_changed_while_fallback = false;
+
+            if (use_fallback_item && (new_use_fallback != old_use_fallback)) {
+                active_pool_changed = true;
+            } else if (!old_is_fallback) {
+                // Active pool is Primary
+                if (new_prim_idx != old_prim_idx || active_pool_config_modified) {
+                    active_pool_changed = true;
+                }
+            } else {
+                // Active pool is Fallback
+                if (new_sec_idx != old_sec_idx || active_pool_config_modified) {
+                    active_pool_changed = true;
+                }
+                if (new_prim_idx != old_prim_idx || primary_pool_config_modified) {
+                    primary_changed_while_fallback = true;
+                }
+            }
+
+            if (active_pool_changed) {
+                stratum_request_reconnect();
+            } else if (primary_changed_while_fallback && !new_use_fallback) {
+                // Primary pool config or index changed while running on automatic fallback: trigger immediate probe!
+                stratum_trigger_heartbeat_check();
             }
         }
     }
@@ -1094,9 +1154,8 @@ static esp_err_t PATCH_update_settings(httpd_req_t * req)
         }
     }
 
-    // Create response JSON
-    cJSON *response = cJSON_CreateObject();
     if (redirect_url) {
+        cJSON *response = cJSON_CreateObject();
         cJSON_AddStringToObject(response, "status", "success");
         cJSON *redirect = cJSON_CreateObject();
         cJSON_AddStringToObject(redirect, "url", redirect_url);
@@ -1273,6 +1332,19 @@ static esp_err_t PUT_system_pool(httpd_req_t *req)
     update_pool_nvs(root, idx);
     cJSON_Delete(root);
 
+    SYSTEM_reload_pool_config(GLOBAL_STATE);
+
+    uint16_t prim_idx = GLOBAL_STATE->SYSTEM_MODULE.primary_pool_index;
+    uint16_t sec_idx = GLOBAL_STATE->SYSTEM_MODULE.secondary_pool_index;
+    bool is_fallback = GLOBAL_STATE->SYSTEM_MODULE.is_using_fallback;
+    uint16_t active_idx = is_fallback ? sec_idx : prim_idx;
+
+    if (idx == active_idx) {
+        stratum_request_reconnect();
+    } else if (idx == prim_idx && is_fallback && !GLOBAL_STATE->SYSTEM_MODULE.use_fallback_stratum) {
+        stratum_trigger_heartbeat_check();
+    }
+
     cJSON *resp = cJSON_CreateObject();
     cJSON_AddStringToObject(resp, "message", "Pool updated successfully");
     httpd_resp_set_type(req, "application/json");
@@ -1314,6 +1386,7 @@ static esp_err_t DELETE_system_pool(httpd_req_t *req)
 
     // Reload in global state memory
     SYSTEM_load_pool_from_nvs(GLOBAL_STATE, idx);
+    SYSTEM_reload_pool_config(GLOBAL_STATE);
 
     cJSON *resp = cJSON_CreateObject();
     cJSON_AddStringToObject(resp, "message", "Pool cleared successfully");

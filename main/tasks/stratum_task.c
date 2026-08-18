@@ -1,0 +1,266 @@
+#include "esp_log.h"
+#include "esp_timer.h"
+#include "esp_transport.h"
+#include "esp_transport_tcp.h"
+#include "freertos/FreeRTOS.h"
+#include "freertos/task.h"
+#include "global_state.h"
+#include "stratum_task.h"
+#include "stratum_v1_client.h"
+#include "stratum_v2_client.h"
+#include "stratum_api.h"
+#include "connect.h"
+#include "system.h"
+#include "work_queue.h"
+#include <sys/socket.h>
+
+#include <string.h>
+
+#define TAG "stratum_task"
+#define TRANSPORT_TIMEOUT_MS 5000
+#define MAX_RETRY_ATTEMPTS 3
+#define HEARTBEAT_INTERVAL_MS 60000
+#define INITIAL_HEARTBEAT_DELAY_MS 10000
+#define RECOVERY_PROBE_INTERVAL_MS 30000
+#define BUFFER_SIZE 1024
+
+static GlobalState *s_global_state = NULL;
+static volatile bool s_should_reconnect = false;
+
+void stratum_request_reconnect(void)
+{
+    s_should_reconnect = true;
+    if (s_global_state) {
+        taskENTER_CRITICAL(&s_global_state->stratum_mux);
+        esp_transport_handle_t transport = s_global_state->transport;
+        taskEXIT_CRITICAL(&s_global_state->stratum_mux);
+        if (transport) {
+            int sock = esp_transport_get_socket(transport);
+            if (sock >= 0) {
+                shutdown(sock, SHUT_RDWR);
+            }
+        }
+    }
+}
+
+static bool probe_pool_sv2(const char *url, uint16_t port)
+{
+    if (url == NULL || url[0] == '\0' || port == 0) return false;
+
+    esp_transport_handle_t probe = esp_transport_tcp_init();
+    if (!probe) return false;
+
+    esp_err_t err = esp_transport_connect(probe, url, port, TRANSPORT_TIMEOUT_MS);
+    esp_transport_close(probe);
+    esp_transport_destroy(probe);
+
+    return (err == ESP_OK);
+}
+
+static bool probe_pool_v1(GlobalState *gs, const char *url, uint16_t port,
+                          tls_mode tls, char *cert, const char *user, const char *pass)
+{
+    if (url == NULL || url[0] == '\0' || port == 0) return false;
+
+    esp_transport_handle_t transport = STRATUM_V1_transport_init(tls, cert);
+    if (!transport) return false;
+
+    esp_err_t err = esp_transport_connect(transport, url, port, TRANSPORT_TIMEOUT_MS);
+    if (err != ESP_OK) {
+        esp_transport_close(transport);
+        esp_transport_destroy(transport);
+        return false;
+    }
+
+    int send_uid = 1;
+    STRATUM_V1_subscribe(transport, send_uid++, gs->DEVICE_CONFIG.family.asic.name);
+    STRATUM_V1_authorize(transport, send_uid++, user, pass);
+
+    char recv_buffer[BUFFER_SIZE];
+    memset(recv_buffer, 0, BUFFER_SIZE);
+    int bytes_received = esp_transport_read(transport, recv_buffer, BUFFER_SIZE - 1, TRANSPORT_TIMEOUT_MS);
+
+    esp_transport_close(transport);
+    esp_transport_destroy(transport);
+
+    return (bytes_received > 0 && strstr(recv_buffer, "mining.notify") != NULL);
+}
+
+bool stratum_probe_pool(GlobalState *gs, uint16_t pool_idx)
+{
+    PoolConfig *pool = &gs->SYSTEM_MODULE.pools[pool_idx];
+    if (!pool->url || pool->url[0] == '\0' || pool->port == 0) return false;
+
+    if (pool->protocol == STRATUM_PROTOCOL_V2) {
+        return probe_pool_sv2(pool->url, pool->port);
+    }
+    return probe_pool_v1(gs, pool->url, pool->port, pool->tls, pool->cert, pool->user, pool->pass);
+}
+
+static void reset_share_stats(GlobalState *gs)
+{
+    for (int i = 0; i < gs->SYSTEM_MODULE.rejected_reason_stats_count; i++) {
+        gs->SYSTEM_MODULE.rejected_reason_stats[i].count = 0;
+        gs->SYSTEM_MODULE.rejected_reason_stats[i].message[0] = '\0';
+    }
+    gs->SYSTEM_MODULE.rejected_reason_stats_count = 0;
+    gs->SYSTEM_MODULE.shares_accepted = 0;
+    gs->SYSTEM_MODULE.shares_rejected = 0;
+    gs->SYSTEM_MODULE.work_received = 0;
+}
+
+static esp_timer_handle_t s_heartbeat_timer = NULL;
+
+static void heartbeat_timer_callback(void *arg)
+{
+    GlobalState *gs = (GlobalState *)arg;
+    if (!gs) return;
+
+    if (gs->SYSTEM_MODULE.is_using_fallback &&
+        !gs->SYSTEM_MODULE.use_fallback_stratum &&
+        wifi_is_connected()) {
+
+        uint16_t prim_idx = gs->SYSTEM_MODULE.primary_pool_index;
+        ESP_LOGD(TAG, "Heartbeat: probing primary pool %u...", prim_idx);
+        if (stratum_probe_pool(gs, prim_idx)) {
+            ESP_LOGI(TAG, "Primary pool %u is back online! Switching from fallback.", prim_idx);
+            gs->SYSTEM_MODULE.is_using_fallback = false;
+            stratum_request_reconnect();
+        }
+    }
+}
+
+void stratum_trigger_heartbeat_check(void)
+{
+    if (s_global_state) {
+        heartbeat_timer_callback(s_global_state);
+    }
+}
+
+void stratum_task(void *pvParameters)
+{
+    GlobalState *GLOBAL_STATE = (GlobalState *)pvParameters;
+    s_global_state = GLOBAL_STATE;
+
+    int consecutive_pool_failures = 0;
+    int retry_attempts = 0;
+
+    ESP_LOGI(TAG, "Unified Stratum Task started");
+
+    // Periodic heartbeat timer to probe primary pool while running fallback
+    const esp_timer_create_args_t timer_args = {
+        .callback = &heartbeat_timer_callback,
+        .arg = GLOBAL_STATE,
+        .name = "stratum_heartbeat"
+    };
+    esp_timer_create(&timer_args, &s_heartbeat_timer);
+    if (s_heartbeat_timer) {
+        esp_timer_start_periodic(s_heartbeat_timer, HEARTBEAT_INTERVAL_MS * 1000ULL);
+    }
+
+    while (1) {
+        if (!GLOBAL_STATE->ASIC_initalized) {
+            vTaskDelay(1000 / portTICK_PERIOD_MS);
+            continue;
+        }
+
+        if (!wifi_is_connected()) {
+            ESP_LOGI(TAG, "WiFi disconnected, waiting...");
+            vTaskDelay(5000 / portTICK_PERIOD_MS);
+            continue;
+        }
+
+        uint16_t prim_idx = GLOBAL_STATE->SYSTEM_MODULE.primary_pool_index;
+        uint16_t sec_idx = GLOBAL_STATE->SYSTEM_MODULE.secondary_pool_index;
+        bool has_fallback = (GLOBAL_STATE->SYSTEM_MODULE.pools[sec_idx].url != NULL &&
+                             GLOBAL_STATE->SYSTEM_MODULE.pools[sec_idx].url[0] != '\0');
+
+        int threshold = has_fallback ? 2 : 1;
+
+        if (s_should_reconnect) {
+            consecutive_pool_failures = 0;
+            retry_attempts = 0;
+            s_should_reconnect = false;
+        }
+
+        if (consecutive_pool_failures == 0) {
+            if (GLOBAL_STATE->SYSTEM_MODULE.use_fallback_stratum) {
+                GLOBAL_STATE->SYSTEM_MODULE.is_using_fallback = has_fallback;
+            }
+        }
+
+        // Paused state when all configured pools have exhausted retries
+        if (consecutive_pool_failures >= threshold) {
+            GLOBAL_STATE->SYSTEM_MODULE.pools_unavailable = true;
+            ESP_LOGW(TAG, "All configured pools unreachable, pausing mining to conserve power.");
+            vTaskDelay(pdMS_TO_TICKS(RECOVERY_PROBE_INTERVAL_MS));
+
+            if (!wifi_is_connected()) continue;
+
+            bool prefer_fallback = GLOBAL_STATE->SYSTEM_MODULE.use_fallback_stratum && has_fallback;
+            uint16_t first_idx = prefer_fallback ? sec_idx : prim_idx;
+            uint16_t second_idx = prefer_fallback ? prim_idx : sec_idx;
+
+            if (stratum_probe_pool(GLOBAL_STATE, first_idx)) {
+                ESP_LOGI(TAG, "Pool %u reachable, resuming mining", first_idx);
+                GLOBAL_STATE->SYSTEM_MODULE.pools_unavailable = false;
+                GLOBAL_STATE->SYSTEM_MODULE.is_using_fallback = (first_idx == sec_idx);
+                consecutive_pool_failures = 0;
+                retry_attempts = 0;
+                queue_clear(&GLOBAL_STATE->stratum_queue);
+                reset_share_stats(GLOBAL_STATE);
+            } else if (has_fallback && stratum_probe_pool(GLOBAL_STATE, second_idx)) {
+                ESP_LOGI(TAG, "Pool %u reachable, resuming mining", second_idx);
+                GLOBAL_STATE->SYSTEM_MODULE.pools_unavailable = false;
+                GLOBAL_STATE->SYSTEM_MODULE.is_using_fallback = (second_idx == sec_idx);
+                consecutive_pool_failures = 0;
+                retry_attempts = 0;
+                queue_clear(&GLOBAL_STATE->stratum_queue);
+                reset_share_stats(GLOBAL_STATE);
+            }
+            continue;
+        }
+
+        uint16_t active_idx = GLOBAL_STATE->SYSTEM_MODULE.is_using_fallback ? sec_idx : prim_idx;
+        stratum_protocol_t protocol = GLOBAL_STATE->SYSTEM_MODULE.pools[active_idx].protocol;
+
+        s_should_reconnect = false;
+        esp_err_t err;
+
+        if (protocol == STRATUM_PROTOCOL_V2) {
+            err = stratum_v2_run(GLOBAL_STATE, active_idx, &s_should_reconnect);
+        } else {
+            err = stratum_v1_run(GLOBAL_STATE, active_idx, &s_should_reconnect);
+        }
+
+        if (err == ESP_OK || s_should_reconnect) {
+            // Clean disconnect, mode switch, or reconnect requested
+            consecutive_pool_failures = 0;
+            retry_attempts = 0;
+            GLOBAL_STATE->SYSTEM_MODULE.pools_unavailable = false;
+            queue_clear(&GLOBAL_STATE->stratum_queue);
+            reset_share_stats(GLOBAL_STATE);
+            s_should_reconnect = false;
+        } else {
+            retry_attempts++;
+            ESP_LOGW(TAG, "Pool %u (%s) connection failed (attempt %d/%d)",
+                     active_idx, GLOBAL_STATE->SYSTEM_MODULE.pools[active_idx].url,
+                     retry_attempts, MAX_RETRY_ATTEMPTS);
+
+            if (retry_attempts >= MAX_RETRY_ATTEMPTS) {
+                consecutive_pool_failures++;
+                retry_attempts = 0;
+
+                if (has_fallback) {
+                    GLOBAL_STATE->SYSTEM_MODULE.is_using_fallback = !GLOBAL_STATE->SYSTEM_MODULE.is_using_fallback;
+                    ESP_LOGI(TAG, "Switching to %s pool (%s)",
+                             GLOBAL_STATE->SYSTEM_MODULE.is_using_fallback ? "fallback" : "primary",
+                             GLOBAL_STATE->SYSTEM_MODULE.pools[GLOBAL_STATE->SYSTEM_MODULE.is_using_fallback ? sec_idx : prim_idx].url);
+                    queue_clear(&GLOBAL_STATE->stratum_queue);
+                    reset_share_stats(GLOBAL_STATE);
+                }
+            }
+            vTaskDelay(2000 / portTICK_PERIOD_MS);
+        }
+    }
+}

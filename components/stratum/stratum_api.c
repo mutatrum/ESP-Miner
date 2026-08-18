@@ -51,6 +51,20 @@ float STRATUM_V1_get_response_time_ms(int request_id, int64_t receive_time_us)
     return response_time;
 }
 
+// #include "mbedtls/ssl_ciphersuites.h"
+
+// static const int STRATUM_TLS_CIPHERSUITES[] = {
+//     /* TLS 1.3 Hardware-Accelerated AES-GCM */
+//     MBEDTLS_TLS1_3_AES_128_GCM_SHA256,
+//     MBEDTLS_TLS1_3_AES_256_GCM_SHA384,
+//     /* TLS 1.2 Hardware-Accelerated ECDHE + AES-GCM */
+//     MBEDTLS_TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256,
+//     MBEDTLS_TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,
+//     MBEDTLS_TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384,
+//     MBEDTLS_TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384,
+//     0,
+// };
+
 esp_transport_handle_t STRATUM_V1_transport_init(tls_mode tls, char * cert)
 {
     esp_transport_handle_t transport;
@@ -69,6 +83,7 @@ esp_transport_handle_t STRATUM_V1_transport_init(tls_mode tls, char * cert)
             ESP_LOGE(TAG, "Failed to initialize SSL transport");
             return NULL;
         }
+        // esp_transport_ssl_set_ciphersuites_list(transport, STRATUM_TLS_CIPHERSUITES);
         switch(tls){
             case BUNDLED_CRT:
                 ESP_LOGI(TAG, "Using default cert bundle");
@@ -758,4 +773,21 @@ int STRATUM_V1_configure_version_rolling(esp_transport_handle_t transport, int s
     debug_stratum_tx(configure_msg);
 
     return esp_transport_write(transport, configure_msg, strlen(configure_msg), TRANSPORT_TIMEOUT_MS);
+}
+
+stratum_protocol_t stratum_protocol_from_string(const char *s)
+{
+    if (!s) return STRATUM_PROTOCOL_UNKNOWN;
+    if (strcmp(s, STRATUM_V1) == 0) return STRATUM_PROTOCOL_V1;
+    if (strcmp(s, STRATUM_V2) == 0) return STRATUM_PROTOCOL_V2;
+    return STRATUM_PROTOCOL_UNKNOWN;
+}
+
+const char *stratum_protocol_to_string(stratum_protocol_t p)
+{
+    switch (p) {
+        case STRATUM_PROTOCOL_V1: return STRATUM_V1;
+        case STRATUM_PROTOCOL_V2: return STRATUM_V2;
+        default: return "unknown";
+    }
 }

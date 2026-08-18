@@ -5,6 +5,7 @@
 #include <stdbool.h>
 #include <sys/time.h>
 #include <esp_transport.h>
+#include "miner_job.h"
 
 #define MAX_MERKLE_BRANCHES 32
 #define HASH_SIZE 32
@@ -29,6 +30,18 @@ typedef enum
     CLIENT_SHOW_MESSAGE,
     CLIENT_GET_VERSION,
 } stratum_method;
+
+typedef enum {
+    STRATUM_PROTOCOL_UNKNOWN = 0,
+    STRATUM_PROTOCOL_V1 = 1,
+    STRATUM_PROTOCOL_V2 = 2,
+} stratum_protocol_t;
+
+#define STRATUM_V1 "SV1"
+#define STRATUM_V2 "SV2"
+
+stratum_protocol_t stratum_protocol_from_string(const char *s);
+const char *stratum_protocol_to_string(stratum_protocol_t p);
 
 typedef enum
 {
@@ -72,6 +85,19 @@ typedef struct StratumApiV1Message
     char *show_message;
     char *version_string;
 } StratumApiV1Message;
+
+#define SV1_MAX_ACTIVE_JOB_IDS 16
+
+typedef struct sv1_conn {
+    int send_uid;
+    double pool_difficulty;
+    uint32_t version_mask;
+    uint8_t extranonce1[32];
+    uint8_t extranonce1_len;
+    uint8_t extranonce2_len;
+    char active_job_ids[SV1_MAX_ACTIVE_JOB_IDS][MAX_JOB_ID_LEN];
+    int active_job_ids_count;
+} sv1_conn_t;
 
 typedef struct RequestTiming
 {

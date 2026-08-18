@@ -17,7 +17,6 @@
 #include "hashrate_monitor_task.h"
 #include "cjson_utils.h"
 #include "statistics_task.h"
-#include "stratum_v2_task.h"
 
 
 static const char *get_reset_reason_str(esp_reset_reason_t reason)
@@ -71,7 +70,7 @@ static void system_api_add_telemetry(cJSON *root, GlobalState *g) {
     cJSON_AddNumberToObject(root, "sharesPending", g->SYSTEM_MODULE.shares_pending);
     cJSON_AddNumberToObject(root, "bestDiff", g->SYSTEM_MODULE.best_nonce_diff);
     cJSON_AddNumberToObject(root, "bestSessionDiff", g->SYSTEM_MODULE.best_session_nonce_diff);
-    cJSON_AddNumberToObject(root, "poolDifficulty", g->pool_difficulty);
+    cJSON_AddNumberToObject(root, "poolDifficulty", g->SYSTEM_MODULE.pool_difficulty);
     cJSON_AddFloatToObject(root, "responseTime", g->SYSTEM_MODULE.response_time);
     cJSON_AddNumberToObject(root, "responseShareBatch", g->SYSTEM_MODULE.response_share_batch);
     cJSON_AddFloatToObject(root, "processTime", g->SYSTEM_MODULE.process_time);
