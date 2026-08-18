@@ -230,14 +230,7 @@ void STRATUM_V1_reset_message(StratumApiV1Message *message)
         free(message->version_string);
         message->version_string = NULL;
     }
-    if (message->mining_notification) {
-        // mining_notification is usually handled by ownership transfer in stratum_task.c
-        // but if it wasn't enqueued, we must free it here to avoid leaks.
-        // In most cases where it *is* enqueued, the caller should have NULLed the pointer
-        // after enqueuing.
-        STRATUM_V1_free_mining_notify(message->mining_notification);
-        message->mining_notification = NULL;
-    }
+    memset(&message->mining_notification, 0, sizeof(miner_job_t));
     message->method = METHOD_UNKNOWN;
     message->message_id = -1;
     message->response_success = false;
@@ -278,60 +271,69 @@ static bool parse_mining_notify(cJSON *json, StratumApiV1Message *message)
         return false;
     }
 
-    mining_notify *new_work = calloc(1, sizeof(mining_notify));
-    if (!new_work) {
-        ESP_LOGE(TAG, "Memory allocation failed for mining_notify");
-        return false;
-    }
-
     cJSON *job_id_item = cJSON_GetArrayItem(params, 0);
-    if (!job_id_item || !cJSON_IsString(job_id_item)) {
-        ESP_LOGE(TAG, "Invalid job_id in mining.notify");
-        free(new_work);
+    cJSON *prev_hash_item = cJSON_GetArrayItem(params, 1);
+    cJSON *c1_item = cJSON_GetArrayItem(params, 2);
+    cJSON *c2_item = cJSON_GetArrayItem(params, 3);
+    cJSON *merkle_branch = cJSON_GetArrayItem(params, 4);
+    cJSON *version_item = cJSON_GetArrayItem(params, 5);
+    cJSON *nbits_item = cJSON_GetArrayItem(params, 6);
+    cJSON *ntime_item = cJSON_GetArrayItem(params, 7);
+
+    if (!job_id_item || !cJSON_IsString(job_id_item) ||
+        !prev_hash_item || !cJSON_IsString(prev_hash_item) ||
+        !c1_item || !cJSON_IsString(c1_item) ||
+        !c2_item || !cJSON_IsString(c2_item) ||
+        !version_item || !cJSON_IsString(version_item) ||
+        !nbits_item || !cJSON_IsString(nbits_item) ||
+        !ntime_item || !cJSON_IsString(ntime_item)) {
+        ESP_LOGE(TAG, "Invalid string fields in mining.notify");
         return false;
     }
 
-    new_work->job_id = strdup(job_id_item->valuestring);
-    new_work->prev_block_hash = strdup(cJSON_GetArrayItem(params, 1)->valuestring);
-    new_work->coinbase_1 = strdup(cJSON_GetArrayItem(params, 2)->valuestring);
-    new_work->coinbase_2 = strdup(cJSON_GetArrayItem(params, 3)->valuestring);
-
-    cJSON *merkle_branch = cJSON_GetArrayItem(params, 4);
     if (!merkle_branch || !cJSON_IsArray(merkle_branch)) {
         ESP_LOGE(TAG, "Invalid merkle_branch in mining.notify");
-        free(new_work->job_id);
-        free(new_work->prev_block_hash);
-        free(new_work->coinbase_1);
-        free(new_work->coinbase_2);
-        free(new_work);
         return false;
     }
-    new_work->n_merkle_branches = cJSON_GetArraySize(merkle_branch);
-    if (new_work->n_merkle_branches > MAX_MERKLE_BRANCHES) {
-        ESP_LOGE(TAG, "Too many Merkle branches: %zu", new_work->n_merkle_branches);
-        free(new_work->job_id);
-        free(new_work->prev_block_hash);
-        free(new_work->coinbase_1);
-        free(new_work->coinbase_2);
-        free(new_work);
+
+    miner_job_t *job = &message->mining_notification;
+    memset(job, 0, sizeof(miner_job_t));
+    job->type = JOB_TYPE_V1;
+
+    strlcpy(job->job_id, job_id_item->valuestring, sizeof(job->job_id));
+
+    hex2bin(prev_hash_item->valuestring, job->prev_hash, 32);
+    reverse_endianness_per_word(job->prev_hash);
+
+    size_t c1_len = strlen(c1_item->valuestring) / 2;
+    if (c1_len > sizeof(job->coinbase_prefix)) c1_len = sizeof(job->coinbase_prefix);
+    hex2bin(c1_item->valuestring, job->coinbase_prefix, c1_len);
+    job->coinbase_prefix_len = (uint16_t)c1_len;
+
+    size_t c2_len = strlen(c2_item->valuestring) / 2;
+    if (c2_len > sizeof(job->coinbase_suffix)) c2_len = sizeof(job->coinbase_suffix);
+    hex2bin(c2_item->valuestring, job->coinbase_suffix, c2_len);
+    job->coinbase_suffix_len = (uint16_t)c2_len;
+
+    size_t count = cJSON_GetArraySize(merkle_branch);
+    if (count > MAX_MERKLE_BRANCHES) {
+        ESP_LOGE(TAG, "Too many Merkle branches: %zu", count);
         return false;
     }
-    new_work->merkle_branches = malloc(HASH_SIZE * new_work->n_merkle_branches);
-    for (size_t i = 0; i < new_work->n_merkle_branches; i++) {
-        hex2bin(cJSON_GetArrayItem(merkle_branch, i)->valuestring, new_work->merkle_branches + HASH_SIZE * i, HASH_SIZE);
+    job->merkle_path_count = (uint8_t)count;
+    for (size_t i = 0; i < count; i++) {
+        cJSON *branch = cJSON_GetArrayItem(merkle_branch, i);
+        if (branch && cJSON_IsString(branch)) {
+            hex2bin(branch->valuestring, job->merkle_path[i], 32);
+        }
     }
 
-    new_work->version = strtoul(cJSON_GetArrayItem(params, 5)->valuestring, NULL, 16);
-    new_work->target = strtoul(cJSON_GetArrayItem(params, 6)->valuestring, NULL, 16);
-    new_work->ntime = strtoul(cJSON_GetArrayItem(params, 7)->valuestring, NULL, 16);
+    job->version = strtoul(version_item->valuestring, NULL, 16);
+    job->nbits = strtoul(nbits_item->valuestring, NULL, 16);
+    job->ntime = strtoul(ntime_item->valuestring, NULL, 16);
+    job->clean_jobs = cJSON_IsTrue(cJSON_GetArrayItem(params, params_count - 1));
 
-    // params can be variable length
-    int paramsLength = cJSON_GetArraySize(params);
-    int value = cJSON_IsTrue(cJSON_GetArrayItem(params, paramsLength - 1));
-    new_work->clean_jobs = value;
-
-    message->mining_notification = new_work;
-    ESP_LOGD(TAG, "Parsed mining.notify: job_id=%s, clean_jobs=%d", new_work->job_id, new_work->clean_jobs);
+    ESP_LOGD(TAG, "Parsed mining.notify: job_id=%s, clean_jobs=%d", job->job_id, job->clean_jobs);
     return true;
 }
 
@@ -615,15 +617,7 @@ bool STRATUM_V1_parse(StratumApiV1Message *message, const char *stratum_json)
     return result;
 }
 
-void STRATUM_V1_free_mining_notify(mining_notify * mining_notify)
-{
-    free(mining_notify->job_id);
-    free(mining_notify->prev_block_hash);
-    free(mining_notify->coinbase_1);
-    free(mining_notify->coinbase_2);
-    free(mining_notify->merkle_branches);
-    free(mining_notify);
-}
+
 
 static void stamp_tx(int request_id, uint64_t timestamp_us)
 {

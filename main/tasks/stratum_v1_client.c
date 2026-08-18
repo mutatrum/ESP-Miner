@@ -35,15 +35,13 @@ static bool add_active_job_id(char active_job_ids[][MAX_JOB_ID_LEN], int *count,
         }
     }
     if (*count < SV1_MAX_ACTIVE_JOB_IDS) {
-        strncpy(active_job_ids[*count], job_id, MAX_JOB_ID_LEN - 1);
-        active_job_ids[*count][MAX_JOB_ID_LEN - 1] = '\0';
+        strlcpy(active_job_ids[*count], job_id, MAX_JOB_ID_LEN);
         (*count)++;
     } else {
         for (int i = 1; i < SV1_MAX_ACTIVE_JOB_IDS; i++) {
             memcpy(active_job_ids[i - 1], active_job_ids[i], MAX_JOB_ID_LEN);
         }
-        strncpy(active_job_ids[SV1_MAX_ACTIVE_JOB_IDS - 1], job_id, MAX_JOB_ID_LEN - 1);
-        active_job_ids[SV1_MAX_ACTIVE_JOB_IDS - 1][MAX_JOB_ID_LEN - 1] = '\0';
+        strlcpy(active_job_ids[SV1_MAX_ACTIVE_JOB_IDS - 1], job_id, MAX_JOB_ID_LEN);
     }
     return true;
 }
@@ -245,34 +243,36 @@ esp_err_t stratum_v1_run(GlobalState *GLOBAL_STATE, uint16_t pool_idx, volatile 
                 break;
 
             case MINING_NOTIFY: {
-                mining_notify *notify = stratum_api_v1_message.mining_notification;
+                miner_job_t *notify_job = &stratum_api_v1_message.mining_notification;
                 bool is_duplicate = false;
-                if (notify && notify->job_id) {
-                    if (notify->clean_jobs) {
+                if (notify_job->job_id[0] != '\0') {
+                    if (notify_job->clean_jobs) {
                         clear_active_job_ids(s_v1_conn->active_job_ids, &s_v1_conn->active_job_ids_count);
                     }
-                    is_duplicate = !add_active_job_id(s_v1_conn->active_job_ids, &s_v1_conn->active_job_ids_count, notify->job_id);
+                    is_duplicate = !add_active_job_id(s_v1_conn->active_job_ids, &s_v1_conn->active_job_ids_count, notify_job->job_id);
                 }
 
                 if (is_duplicate) {
-                    ESP_LOGW(TAG, "Ignoring duplicate notify for job %s", notify ? notify->job_id : "unknown");
-                    STRATUM_V1_free_mining_notify(notify);
-                    stratum_api_v1_message.mining_notification = NULL;
+                    ESP_LOGW(TAG, "Ignoring duplicate notify for job %s", notify_job->job_id);
                 } else {
                     GLOBAL_STATE->SYSTEM_MODULE.work_received++;
-                    SYSTEM_notify_new_ntime(GLOBAL_STATE, notify->ntime);
-                    if (notify->clean_jobs && (GLOBAL_STATE->stratum_queue.count > 0)) {
+                    SYSTEM_notify_new_ntime(GLOBAL_STATE, notify_job->ntime);
+                    if (notify_job->clean_jobs && (GLOBAL_STATE->stratum_queue.count > 0)) {
                         SYSTEM_clean_jobs_queue(GLOBAL_STATE);
                     }
                     if (GLOBAL_STATE->stratum_queue.count == QUEUE_SIZE) {
                         queue_dequeue(&GLOBAL_STATE->stratum_queue);
                     }
                     miner_job_t *job = miner_job_pool_next();
-                    miner_job_from_v1_notify(job, notify, s_v1_conn->extranonce1, s_v1_conn->extranonce1_len,
-                                             s_v1_conn->extranonce2_len, (uint8_t)pool_idx,
-                                             s_v1_conn->pool_difficulty, s_v1_conn->version_mask);
-                    STRATUM_V1_free_mining_notify(notify);
-                    stratum_api_v1_message.mining_notification = NULL;
+                    *job = *notify_job;
+                    job->pool_id = (uint8_t)pool_idx;
+                    job->pool_diff = s_v1_conn->pool_difficulty;
+                    job->version_mask = s_v1_conn->version_mask;
+                    job->extranonce1_len = s_v1_conn->extranonce1_len;
+                    if (s_v1_conn->extranonce1_len > 0) {
+                        memcpy(job->extranonce1, s_v1_conn->extranonce1, s_v1_conn->extranonce1_len);
+                    }
+                    job->extranonce2_len = s_v1_conn->extranonce2_len;
 
                     queue_enqueue(&GLOBAL_STATE->stratum_queue, job);
                 }

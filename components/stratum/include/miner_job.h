@@ -49,17 +49,9 @@ typedef struct {
     uint8_t          merkle_root[32];
 } miner_job_t;
 
-typedef struct mining_notify mining_notify;
-
 // Pre-allocated ring buffer pool helpers
 void miner_job_pool_init(void);
 miner_job_t *miner_job_pool_next(void);
-
-// Convert a V1 mining_notify (hex strings) into a binary miner_job_t
-void miner_job_from_v1_notify(miner_job_t *dest, const mining_notify *notify,
-                              const uint8_t *extranonce1, uint8_t extranonce1_len,
-                              uint8_t extranonce2_len, uint8_t pool_id,
-                              double pool_diff, uint32_t version_mask);
 
 static inline bool miner_job_is_rollable(const miner_job_t *job)
 {

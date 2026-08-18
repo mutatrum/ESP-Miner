@@ -532,10 +532,15 @@ void self_test_task(void * pvParameters)
     if (msg.method == MINING_NOTIFY) {
         ESP_LOGI(TAG, "Enqueuing mock work into stratum_queue");
         miner_job_t *job = miner_job_pool_next();
-        miner_job_from_v1_notify(job, msg.mining_notification, extranonce1_bin, e1_len,
-                                 e2_len, 0,
-                                 mock_diff, mock_version_mask);
-        STRATUM_V1_free_mining_notify(msg.mining_notification);
+        *job = msg.mining_notification;
+        job->pool_id = 0;
+        job->pool_diff = mock_diff;
+        job->version_mask = mock_version_mask;
+        job->extranonce1_len = (uint8_t)e1_len;
+        if (e1_len > 0) {
+            memcpy(job->extranonce1, extranonce1_bin, e1_len);
+        }
+        job->extranonce2_len = (uint8_t)e2_len;
         queue_enqueue(&GLOBAL_STATE->stratum_queue, job);
     } else {
         ESP_LOGE(TAG, "Failed to parse mock mining notification");

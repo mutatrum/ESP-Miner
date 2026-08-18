@@ -50,20 +50,6 @@ typedef enum
     CUSTOM_CRT = 2,
 } tls_mode;
 
-typedef struct mining_notify
-{
-    char *job_id;
-    char *prev_block_hash;
-    char *coinbase_1;
-    char *coinbase_2;
-    uint8_t *merkle_branches;
-    size_t n_merkle_branches;
-    uint32_t version;
-    uint32_t target;
-    uint32_t ntime;
-    bool clean_jobs;
-} mining_notify;
-
 typedef struct StratumApiV1Message
 {
     char *extranonce_str;
@@ -74,7 +60,7 @@ typedef struct StratumApiV1Message
     stratum_method method;
 
     // mining.notify
-    mining_notify *mining_notification;
+    miner_job_t mining_notification;
     // mining.set_difficulty
     double new_difficulty;
     // mining.set_version_mask
@@ -116,8 +102,6 @@ int STRATUM_V1_subscribe(esp_transport_handle_t transport, int send_uid, const c
 bool STRATUM_V1_parse(StratumApiV1Message *message, const char *stratum_json);
 
 void STRATUM_V1_reset_message(StratumApiV1Message *message);
-
-void STRATUM_V1_free_mining_notify(mining_notify *mining_notify);
 
 int STRATUM_V1_authorize(esp_transport_handle_t transport, int send_uid, const char *username, const char *pass);
 
