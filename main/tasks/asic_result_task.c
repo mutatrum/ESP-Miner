@@ -7,9 +7,7 @@
 #include "utils.h"
 #include "global_state.h"
 #include "mining.h"
-#include "stratum_api.h"
-#include "stratum_v1_client.h"
-#include "stratum_v2_client.h"
+#include "stratum_task.h"
 #include "hashrate_monitor_task.h"
 #include "asic.h"
 #include "freertos/task.h"
@@ -77,23 +75,12 @@ void ASIC_result_task(void *pvParameters)
         uint32_t version_bits = asic_result->rolled_version ^ active_job->version;
         if (nonce_diff >= active_job->pool_diff)
         {
-            if (active_job->job_type == JOB_TYPE_SV2_STANDARD || active_job->job_type == JOB_TYPE_SV2_EXTENDED) {
-                int ret = stratum_v2_submit_share(GLOBAL_STATE, active_job, asic_result->nonce, asic_result->rolled_version);
-                if (ret < 0) {
-                    ESP_LOGW(TAG, "Failed to submit SV2 share (ret=%d, errno=%d: %s)",
-                             ret, errno, strerror(errno));
-                }
-            } else {
-                uint64_t sent_time_us = 0;
-                int ret = stratum_v1_submit_share(GLOBAL_STATE, active_job, asic_result->nonce, asic_result->rolled_version, &sent_time_us);
-                if (ret < 0) {
-                    ESP_LOGW(TAG, "Unable to write share to socket (ret: %d, errno %d: %s)", ret, errno, strerror(errno));
-                    // stratum_task recv loop will detect a broken connection on its next read and handle reconnection
-                } else if (sent_time_us > 0) {
-                    float process_time = (sent_time_us - asic_result->timestamp_us) / 1000.0f;
-                    GLOBAL_STATE->SYSTEM_MODULE.process_time = process_time;
-                    ESP_LOGI(TAG, "Processing time: %0.1f ms", process_time);
-                }
+            uint64_t sent_time_us = 0;
+            int ret = stratum_submit_share(GLOBAL_STATE, active_job, asic_result->nonce, asic_result->rolled_version, &sent_time_us);
+            if (ret >= 0 && sent_time_us > 0) {
+                float process_time = (sent_time_us - asic_result->timestamp_us) / 1000.0f;
+                GLOBAL_STATE->SYSTEM_MODULE.process_time = process_time;
+                ESP_LOGI(TAG, "Processing time: %0.1f ms", process_time);
             }
         }
 

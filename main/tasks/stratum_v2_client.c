@@ -137,67 +137,40 @@ static void stratum_v2_track_submit(GlobalState *GLOBAL_STATE, uint32_t sequence
     stratum_v2_update_pending_shares(GLOBAL_STATE);
 }
 
-static int stratum_v2_submit_share_standard(GlobalState *GLOBAL_STATE, uint32_t job_id, uint32_t nonce,
-                                            uint32_t ntime, uint32_t version)
-{
-    if (!GLOBAL_STATE->transport || !s_v2_conn || !s_v2_conn->noise_ctx) {
-        return -1;
-    }
-
-    sv2_conn_t *conn = s_v2_conn;
-    uint8_t buf[SV2_FRAME_HEADER_SIZE + 24];
-
-    uint32_t sequence_number = conn->sequence_number++;
-    int len = sv2_build_submit_shares_standard(buf, sizeof(buf),
-                                                conn->channel_id,
-                                                sequence_number,
-                                                job_id, nonce, ntime, version);
-    if (len < 0) return -1;
-
-    stratum_v2_track_submit(GLOBAL_STATE, sequence_number);
-    return sv2_noise_send(conn->noise_ctx, GLOBAL_STATE->transport, buf, len);
-}
-
-static int stratum_v2_submit_share_extended(GlobalState *GLOBAL_STATE, uint32_t job_id,
-                                             uint32_t nonce, uint32_t ntime, uint32_t version,
-                                             const uint8_t *extranonce, uint8_t extranonce_len)
-{
-    if (!GLOBAL_STATE->transport || !s_v2_conn || !s_v2_conn->noise_ctx) {
-        return -1;
-    }
-
-    sv2_conn_t *conn = s_v2_conn;
-    uint8_t buf[SV2_FRAME_HEADER_SIZE + 24 + 1 + 32];
-
-    uint32_t sequence_number = conn->sequence_number++;
-    int len = sv2_build_submit_shares_extended(buf, sizeof(buf),
-                                                conn->channel_id,
-                                                sequence_number,
-                                                job_id, nonce, ntime, version,
-                                                extranonce, extranonce_len);
-    if (len < 0) return -1;
-
-    stratum_v2_track_submit(GLOBAL_STATE, sequence_number);
-    return sv2_noise_send(conn->noise_ctx, GLOBAL_STATE->transport, buf, len);
-}
-
-int stratum_v2_submit_share(GlobalState *GLOBAL_STATE, const bm_job *active_job, uint32_t nonce, uint32_t rolled_version)
+int stratum_v2_submit_share(GlobalState *GLOBAL_STATE, const bm_job *active_job,
+                            uint32_t nonce, uint32_t rolled_version, uint64_t *sent_time_us)
 {
     if (!GLOBAL_STATE || !active_job || !s_v2_conn || !GLOBAL_STATE->transport || !s_v2_conn->noise_ctx) {
         return -1;
     }
-    uint32_t sv2_job_id = (uint32_t)strtoul(active_job->jobid, NULL, 10);
-    if (active_job->job_type == JOB_TYPE_SV2_EXTENDED) {
-        uint8_t en2_len = (uint8_t)(strlen(active_job->extranonce2) / 2);
-        uint8_t extranonce_2[32] = {0};
+
+    uint8_t extranonce_2[32];
+    uint8_t en2_len = 0;
+
+    if (active_job->job_type == JOB_TYPE_SV2_EXTENDED && active_job->extranonce2) {
+        en2_len = (uint8_t)(strlen(active_job->extranonce2) / 2);
+        if (en2_len > sizeof(extranonce_2)) en2_len = sizeof(extranonce_2);
         hex2bin(active_job->extranonce2, extranonce_2, en2_len);
-        return stratum_v2_submit_share_extended(GLOBAL_STATE, sv2_job_id, nonce,
-                                               active_job->ntime, rolled_version,
-                                               extranonce_2, en2_len);
-    } else {
-        return stratum_v2_submit_share_standard(GLOBAL_STATE, sv2_job_id, nonce,
-                                                active_job->ntime, rolled_version);
     }
+
+    sv2_conn_t *conn = s_v2_conn;
+    uint8_t buf[SV2_SUBMIT_SHARES_MAX_FRAME_SIZE];
+
+    uint32_t sv2_job_id = (uint32_t)strtoul(active_job->jobid, NULL, 10);
+    uint32_t sequence_number = conn->sequence_number++;
+    int len = sv2_build_submit_shares(buf, sizeof(buf),
+                                      conn->channel_id,
+                                      sequence_number,
+                                      sv2_job_id, nonce, active_job->ntime, rolled_version,
+                                      en2_len > 0 ? extranonce_2 : NULL, en2_len);
+    if (len < 0) return -1;
+
+    stratum_v2_track_submit(GLOBAL_STATE, sequence_number);
+    int ret = sv2_noise_send(conn->noise_ctx, GLOBAL_STATE->transport, buf, len);
+    if (sent_time_us) {
+        *sent_time_us = esp_timer_get_time();
+    }
+    return ret;
 }
 
 static void stratum_v2_enqueue_job(GlobalState *GLOBAL_STATE, sv2_conn_t *conn,

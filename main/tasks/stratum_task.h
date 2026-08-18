@@ -17,4 +17,8 @@ bool stratum_probe_pool(GlobalState *gs, uint16_t pool_idx);
 // Promptly trigger a heartbeat check of the primary pool (e.g. when primary config changes while on fallback).
 void stratum_trigger_heartbeat_check(void);
 
+// Submit a found share to the active pool (dispatches to SV1 or SV2).
+int stratum_submit_share(GlobalState *GLOBAL_STATE, const bm_job *active_job,
+                         uint32_t nonce, uint32_t rolled_version, uint64_t *sent_time_us);
+
 #endif /* STRATUM_TASK_H_ */

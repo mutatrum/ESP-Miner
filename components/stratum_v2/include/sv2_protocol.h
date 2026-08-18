@@ -31,6 +31,10 @@
 
 #define SV2_MAX_MERKLE_BRANCHES 20
 
+// Submit shares frame sizing (6-byte header + 24-byte payload + optional 1-byte len + 32-byte extranonce)
+#define SV2_SUBMIT_SHARES_PAYLOAD_SIZE 24
+#define SV2_SUBMIT_SHARES_MAX_FRAME_SIZE (SV2_FRAME_HEADER_SIZE + SV2_SUBMIT_SHARES_PAYLOAD_SIZE + 1 + 32)
+
 // Extension type flag for channel messages
 #define SV2_CHANNEL_MSG_FLAG 0x8000
 
@@ -112,10 +116,11 @@ int sv2_build_open_standard_mining_channel(uint8_t *buf, size_t buf_len,
                                            const char *user_identity,
                                            float nominal_hash_rate);
 
-int sv2_build_submit_shares_standard(uint8_t *buf, size_t buf_len,
-                                     uint32_t channel_id, uint32_t sequence_number,
-                                     uint32_t job_id, uint32_t nonce,
-                                     uint32_t ntime, uint32_t version);
+int sv2_build_submit_shares(uint8_t *buf, size_t buf_len,
+                            uint32_t channel_id, uint32_t sequence_number,
+                            uint32_t job_id, uint32_t nonce, uint32_t ntime,
+                            uint32_t version, const uint8_t *extranonce,
+                            uint8_t extranonce_len);
 
 // --- Message parsers (return 0 on success, -1 on error) ---
 
@@ -155,12 +160,6 @@ int sv2_parse_submit_shares_error(const uint8_t *payload, uint32_t len,
 int sv2_build_open_extended_mining_channel(uint8_t *buf, size_t buf_len,
                                            uint32_t request_id, const char *user_identity,
                                            float nominal_hash_rate, uint16_t min_extranonce_size);
-
-int sv2_build_submit_shares_extended(uint8_t *buf, size_t buf_len,
-                                     uint32_t channel_id, uint32_t sequence_number,
-                                     uint32_t job_id, uint32_t nonce, uint32_t ntime,
-                                     uint32_t version, const uint8_t *extranonce,
-                                     uint8_t extranonce_len);
 
 int sv2_parse_open_extended_channel_success(const uint8_t *payload, uint32_t len,
                                             uint32_t *request_id, uint32_t *channel_id,

@@ -187,18 +187,19 @@ int sv2_build_open_standard_mining_channel(uint8_t *buf, size_t buf_len,
     return total;
 }
 
-int sv2_build_submit_shares_standard(uint8_t *buf, size_t buf_len,
-                                     uint32_t channel_id, uint32_t sequence_number,
-                                     uint32_t job_id, uint32_t nonce,
-                                     uint32_t ntime, uint32_t version)
+int sv2_build_submit_shares(uint8_t *buf, size_t buf_len,
+                            uint32_t channel_id, uint32_t sequence_number,
+                            uint32_t job_id, uint32_t nonce, uint32_t ntime,
+                            uint32_t version, const uint8_t *extranonce,
+                            uint8_t extranonce_len)
 {
-    // Payload: 6 * u32 = 24 bytes
-    int payload_len = 24;
+    bool is_extended = (extranonce != NULL && extranonce_len > 0);
+    int payload_len = SV2_SUBMIT_SHARES_PAYLOAD_SIZE + (is_extended ? (1 + extranonce_len) : 0);
     int total = SV2_FRAME_HEADER_SIZE + payload_len;
     if ((size_t)total > buf_len) return -1;
 
-    // Channel message: extension_type has bit 15 set
-    sv2_encode_frame_header(buf, SV2_CHANNEL_MSG_FLAG, SV2_MSG_SUBMIT_SHARES_STANDARD, (uint32_t)payload_len);
+    uint8_t msg_type = is_extended ? SV2_MSG_SUBMIT_SHARES_EXTENDED : SV2_MSG_SUBMIT_SHARES_STANDARD;
+    sv2_encode_frame_header(buf, SV2_CHANNEL_MSG_FLAG, msg_type, (uint32_t)payload_len);
 
     int pos = 0;
     uint8_t *payload = buf + SV2_FRAME_HEADER_SIZE;
@@ -207,7 +208,12 @@ int sv2_build_submit_shares_standard(uint8_t *buf, size_t buf_len,
     write_u32_le(payload + pos, job_id);          pos += 4;
     write_u32_le(payload + pos, nonce);           pos += 4;
     write_u32_le(payload + pos, ntime);           pos += 4;
-    write_u32_le(payload + pos, version);
+    write_u32_le(payload + pos, version);         pos += 4;
+
+    if (is_extended) {
+        payload[pos++] = extranonce_len;
+        memcpy(payload + pos, extranonce, extranonce_len);
+    }
 
     return total;
 }
@@ -379,37 +385,6 @@ int sv2_build_open_extended_mining_channel(uint8_t *buf, size_t buf_len,
     return total;
 }
 
-int sv2_build_submit_shares_extended(uint8_t *buf, size_t buf_len,
-                                     uint32_t channel_id, uint32_t sequence_number,
-                                     uint32_t job_id, uint32_t nonce, uint32_t ntime,
-                                     uint32_t version, const uint8_t *extranonce,
-                                     uint8_t extranonce_len)
-{
-    // Payload: 6 * u32(24) + B0_32(1 + extranonce_len)
-    int payload_len = 24 + 1 + extranonce_len;
-    int total = SV2_FRAME_HEADER_SIZE + payload_len;
-    if ((size_t)total > buf_len) return -1;
-
-    // Channel message: extension_type has bit 15 set
-    sv2_encode_frame_header(buf, SV2_CHANNEL_MSG_FLAG, SV2_MSG_SUBMIT_SHARES_EXTENDED, (uint32_t)payload_len);
-
-    int pos = 0;
-    uint8_t *payload = buf + SV2_FRAME_HEADER_SIZE;
-    write_u32_le(payload + pos, channel_id);      pos += 4;
-    write_u32_le(payload + pos, sequence_number); pos += 4;
-    write_u32_le(payload + pos, job_id);          pos += 4;
-    write_u32_le(payload + pos, nonce);           pos += 4;
-    write_u32_le(payload + pos, ntime);           pos += 4;
-    write_u32_le(payload + pos, version);         pos += 4;
-
-    // extranonce: B0_32 (1 byte length + data)
-    payload[pos++] = extranonce_len;
-    if (extranonce_len > 0) {
-        memcpy(payload + pos, extranonce, extranonce_len);
-    }
-
-    return total;
-}
 
 int sv2_parse_open_extended_channel_success(const uint8_t *payload, uint32_t len,
                                             uint32_t *request_id, uint32_t *channel_id,

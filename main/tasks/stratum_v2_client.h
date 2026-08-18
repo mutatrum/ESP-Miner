@@ -13,6 +13,6 @@ esp_err_t stratum_v2_run(GlobalState *GLOBAL_STATE, uint16_t pool_idx, volatile 
 
 void stratum_v2_close_connection(GlobalState *GLOBAL_STATE);
 int stratum_v2_submit_share(GlobalState *GLOBAL_STATE, const bm_job *active_job,
-                            uint32_t nonce, uint32_t rolled_version);
+                            uint32_t nonce, uint32_t rolled_version, uint64_t *sent_time_us);
 
 #endif // STRATUM_V2_CLIENT_H_

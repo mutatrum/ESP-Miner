@@ -13,7 +13,7 @@
 #include "system.h"
 #include "work_queue.h"
 #include <sys/socket.h>
-
+#include <errno.h>
 #include <string.h>
 
 #define TAG "stratum_task"
@@ -263,4 +263,25 @@ void stratum_task(void *pvParameters)
             vTaskDelay(2000 / portTICK_PERIOD_MS);
         }
     }
+}
+
+int stratum_submit_share(GlobalState *GLOBAL_STATE, const bm_job *active_job,
+                         uint32_t nonce, uint32_t rolled_version, uint64_t *sent_time_us)
+{
+    if (!GLOBAL_STATE || !active_job) {
+        return -1;
+    }
+
+    int ret;
+    if (active_job->job_type == JOB_TYPE_SV2_STANDARD || active_job->job_type == JOB_TYPE_SV2_EXTENDED) {
+        ret = stratum_v2_submit_share(GLOBAL_STATE, active_job, nonce, rolled_version, sent_time_us);
+    } else {
+        ret = stratum_v1_submit_share(GLOBAL_STATE, active_job, nonce, rolled_version, sent_time_us);
+    }
+
+    if (ret < 0) {
+        ESP_LOGW(TAG, "Failed to submit share to socket (ret: %d, errno %d: %s)", ret, errno, strerror(errno));
+        // stratum_task recv loop will detect a broken connection on its next read and handle reconnection
+    }
+    return ret;
 }
