@@ -3,6 +3,7 @@
 #include "unity.h"
 #include "coinbase_decoder.h"
 #include "stratum_api.h"
+#include "utils.h"
 
 TEST_CASE("Varint decode single byte", "[coinbase_decoder]")
 {

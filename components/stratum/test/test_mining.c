@@ -110,6 +110,7 @@ TEST_CASE("Validate bm job construction", "[mining]")
 {
     miner_job_t mjob = { 0 };
     hex2bin("bf44fd3513dc7b837d60e5c628b572b448d204a8000007490000000000000000", mjob.prev_hash, 32);
+    reverse_endianness_per_word(mjob.prev_hash);
     mjob.version = 0x20000004;
     mjob.nbits = 0x1705dd01;
     mjob.ntime = 0x64658bd8;
