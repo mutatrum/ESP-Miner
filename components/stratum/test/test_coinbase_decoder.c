@@ -297,4 +297,10 @@ TEST_CASE("Decode via miner_job_t directly", "[coinbase_decoder]")
     esp_err_t err = coinbase_process_miner_job(&job, "", true, &result);
     TEST_ASSERT_EQUAL(ESP_OK, err);
     TEST_ASSERT_EQUAL(965663, result.block_height);
+
+    // Test NULL user_address handling (PR hardening)
+    mining_notification_result_t null_user_result = { 0 };
+    esp_err_t err_null = coinbase_process_miner_job(&job, NULL, true, &null_user_result);
+    TEST_ASSERT_EQUAL(ESP_OK, err_null);
+    TEST_ASSERT_EQUAL(965663, null_user_result.block_height);
 }

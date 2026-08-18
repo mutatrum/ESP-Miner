@@ -20,10 +20,17 @@
 #include <string.h>
 #include <stdlib.h>
 #include <stdbool.h>
+#include <math.h>
+#include <time.h>
 
 #define TRANSPORT_TIMEOUT_MS 5000
 #define BUFFER_SIZE 1024
 #define MAX_EXTRANONCE_2_LEN 32
+#define MAX_JSON_RPC_BUFFER_SIZE (32 * 1024)
+#define MIN_POOL_DIFFICULTY 0.0001
+#define MAX_POOL_DIFFICULTY 4294967295.0
+#define BITCOIN_GENESIS_NTIME 1231006505
+#define MAX_ERROR_MSG_LEN 256
 static const char * TAG = "stratum_api";
 
 static char * json_rpc_buffer = NULL;
@@ -128,7 +135,7 @@ void cleanup_stratum_buffer()
     }
 }
 
-static void realloc_json_buffer(size_t len)
+static bool realloc_json_buffer(size_t len)
 {
     size_t old, new;
 
@@ -136,22 +143,26 @@ static void realloc_json_buffer(size_t len)
     new = old + len + 1;
 
     if (new < json_rpc_buffer_size) {
-        return;
+        return true;
+    }
+
+    if (new > MAX_JSON_RPC_BUFFER_SIZE) {
+        ESP_LOGE(TAG, "JSON-RPC line exceeds maximum buffer size (%d bytes)", MAX_JSON_RPC_BUFFER_SIZE);
+        return false;
     }
 
     new = new + (BUFFER_SIZE - (new % BUFFER_SIZE));
     void * new_sockbuf = realloc(json_rpc_buffer, new);
 
     if (new_sockbuf == NULL) {
-        fprintf(stderr, "Error: realloc failed in recalloc_sock()\n");
-        ESP_LOGI(TAG, "Restarting System because of ERROR: realloc failed in recalloc_sock");
-        vTaskDelay(1000 / portTICK_PERIOD_MS);
-        esp_restart();
+        ESP_LOGE(TAG, "Error: realloc failed in realloc_json_buffer");
+        return false;
     }
 
     json_rpc_buffer = new_sockbuf;
     memset(json_rpc_buffer + old, 0, new - old);
     json_rpc_buffer_size = new;
+    return true;
 }
 
 char * STRATUM_V1_receive_jsonrpc_line(esp_transport_handle_t transport)
@@ -190,7 +201,11 @@ char * STRATUM_V1_receive_jsonrpc_line(esp_transport_handle_t transport)
             return NULL;
         }
         if (nbytes > 0) {
-            realloc_json_buffer(nbytes);
+            if (!realloc_json_buffer(nbytes)) {
+                free(json_rpc_buffer);
+                json_rpc_buffer = NULL;
+                return NULL;
+            }
             strncat(json_rpc_buffer, recv_buffer, nbytes);
         }
     }
@@ -291,6 +306,29 @@ static bool parse_mining_notify(cJSON *json, StratumApiV1Message *message)
         return false;
     }
 
+    if (job_id_item->valuestring[0] == '\0') {
+        ESP_LOGE(TAG, "Empty job_id in mining.notify");
+        return false;
+    }
+
+    if (strlen(prev_hash_item->valuestring) != 64) {
+        ESP_LOGE(TAG, "Invalid prev_hash length in mining.notify (expected 64, got %zu)",
+                 strlen(prev_hash_item->valuestring));
+        return false;
+    }
+
+    size_t c1_str_len = strlen(c1_item->valuestring);
+    if (c1_str_len == 0 || c1_str_len % 2 != 0) {
+        ESP_LOGE(TAG, "Invalid coinbase_1 hex length in mining.notify: %zu", c1_str_len);
+        return false;
+    }
+
+    size_t c2_str_len = strlen(c2_item->valuestring);
+    if (c2_str_len % 2 != 0) {
+        ESP_LOGE(TAG, "Invalid coinbase_2 hex length in mining.notify: %zu", c2_str_len);
+        return false;
+    }
+
     if (!merkle_branch || !cJSON_IsArray(merkle_branch)) {
         ESP_LOGE(TAG, "Invalid merkle_branch in mining.notify");
         return false;
@@ -305,12 +343,12 @@ static bool parse_mining_notify(cJSON *json, StratumApiV1Message *message)
     hex2bin(prev_hash_item->valuestring, job->prev_hash, 32);
     reverse_endianness_per_word(job->prev_hash);
 
-    size_t c1_len = strlen(c1_item->valuestring) / 2;
+    size_t c1_len = c1_str_len / 2;
     if (c1_len > sizeof(job->coinbase_prefix)) c1_len = sizeof(job->coinbase_prefix);
     hex2bin(c1_item->valuestring, job->coinbase_prefix, c1_len);
     job->coinbase_prefix_len = (uint16_t)c1_len;
 
-    size_t c2_len = strlen(c2_item->valuestring) / 2;
+    size_t c2_len = c2_str_len / 2;
     if (c2_len > sizeof(job->coinbase_suffix)) c2_len = sizeof(job->coinbase_suffix);
     hex2bin(c2_item->valuestring, job->coinbase_suffix, c2_len);
     job->coinbase_suffix_len = (uint16_t)c2_len;
@@ -323,15 +361,31 @@ static bool parse_mining_notify(cJSON *json, StratumApiV1Message *message)
     job->merkle_path_count = (uint8_t)count;
     for (size_t i = 0; i < count; i++) {
         cJSON *branch = cJSON_GetArrayItem(merkle_branch, i);
-        if (branch && cJSON_IsString(branch)) {
-            hex2bin(branch->valuestring, job->merkle_path[i], 32);
+        if (!branch || !cJSON_IsString(branch) || strlen(branch->valuestring) != 64) {
+            ESP_LOGE(TAG, "Invalid Merkle branch at index %zu", i);
+            return false;
         }
+        hex2bin(branch->valuestring, job->merkle_path[i], 32);
     }
 
     job->version = strtoul(version_item->valuestring, NULL, 16);
     job->nbits = strtoul(nbits_item->valuestring, NULL, 16);
     job->ntime = strtoul(ntime_item->valuestring, NULL, 16);
     job->clean_jobs = cJSON_IsTrue(cJSON_GetArrayItem(params, params_count - 1));
+
+    if (job->ntime < BITCOIN_GENESIS_NTIME) {
+        ESP_LOGW(TAG, "Rejecting notify with pre-genesis ntime: %" PRIu32, job->ntime);
+        return false;
+    }
+
+    time_t now = time(NULL);
+    if (now > 1704067200) { // Check future bound if NTP synced
+        if (job->ntime > (uint32_t)now + 7200) {
+            ESP_LOGW(TAG, "Rejecting notify with ntime too far in future: %" PRIu32 " (now: %ld)",
+                     job->ntime, (long)now);
+            return false;
+        }
+    }
 
     ESP_LOGD(TAG, "Parsed mining.notify: job_id=%s, clean_jobs=%d", job->job_id, job->clean_jobs);
     return true;
@@ -349,7 +403,12 @@ static bool parse_set_difficulty(cJSON *json, StratumApiV1Message *message)
         ESP_LOGE(TAG, "Invalid difficulty value in set_difficulty");
         return false;
     }
-    message->new_difficulty = difficulty->valuedouble;
+    double diff_val = difficulty->valuedouble;
+    if (isnan(diff_val) || isinf(diff_val) || diff_val < MIN_POOL_DIFFICULTY || diff_val > MAX_POOL_DIFFICULTY) {
+        ESP_LOGE(TAG, "Rejecting out-of-range pool difficulty: %f", diff_val);
+        return false;
+    }
+    message->new_difficulty = diff_val;
     ESP_LOGI(TAG, "Set pool difficulty: %.2f", message->new_difficulty);
     return true;
 }
@@ -384,14 +443,19 @@ static bool parse_set_extranonce(cJSON *json, StratumApiV1Message *message)
         ESP_LOGE(TAG, "Invalid extranonce data in set_extranonce");
         return false;
     }
+    size_t e1_len = strlen(extranonce1->valuestring);
+    if (e1_len % 2 != 0 || e1_len > 64) {
+        ESP_LOGE(TAG, "Invalid extranonce1 hex length: %zu", e1_len);
+        return false;
+    }
     if (message->extranonce_str) free(message->extranonce_str);
     message->extranonce_str = strdup(extranonce1->valuestring);
     
     int extranonce_2_len = extranonce2_size->valueint;
-    if (extranonce_2_len > MAX_EXTRANONCE_2_LEN) {
-        ESP_LOGW(TAG, "Extranonce_2_len %d exceeds maximum %d, clamping to maximum",
+    if (extranonce_2_len < 0 || extranonce_2_len > MAX_EXTRANONCE_2_LEN) {
+        ESP_LOGW(TAG, "Invalid extranonce_2_len %d (clamping to 0..%d)",
                  extranonce_2_len, MAX_EXTRANONCE_2_LEN);
-        extranonce_2_len = MAX_EXTRANONCE_2_LEN;
+        extranonce_2_len = (extranonce_2_len < 0) ? 0 : MAX_EXTRANONCE_2_LEN;
     }
     message->extranonce_2_len = extranonce_2_len;
     ESP_LOGI(TAG, "Set extranonce: %s, size: %d", message->extranonce_str, message->extranonce_2_len);
@@ -411,17 +475,9 @@ static bool parse_show_message(cJSON *json, StratumApiV1Message *message)
         return false;
     }
     if (message->show_message) free(message->show_message);
-    message->show_message = strdup(msg->valuestring);
+    message->show_message = strndup(msg->valuestring, MAX_POOL_MESSAGE_LEN);
     
-    size_t msg_len = strlen(message->show_message);
-    if (msg_len > MAX_POOL_MESSAGE_LEN) {
-        char capped_msg[MAX_POOL_MESSAGE_LEN + 1];
-        strncpy(capped_msg, message->show_message, MAX_POOL_MESSAGE_LEN);
-        capped_msg[MAX_POOL_MESSAGE_LEN] = '\0';
-        ESP_LOGI(TAG, "Pool message: %s...", capped_msg);
-    } else {
-        ESP_LOGI(TAG, "Pool message: %s", message->show_message);
-    }
+    ESP_LOGI(TAG, "Pool message: %s", message->show_message);
     return true;
 }
 
@@ -443,14 +499,20 @@ static bool parse_subscribe_result(cJSON *json, StratumApiV1Message *message)
         return false;
     }
 
+    size_t e1_len = strlen(extranonce->valuestring);
+    if (e1_len % 2 != 0 || e1_len > 64) {
+        ESP_LOGE(TAG, "Invalid subscribe extranonce hex length: %zu", e1_len);
+        return false;
+    }
+
     if (message->extranonce_str) free(message->extranonce_str);
     message->extranonce_str = strdup(extranonce->valuestring);
     
     int extranonce_2_len = extranonce2_len->valueint;
-    if (extranonce_2_len > MAX_EXTRANONCE_2_LEN) {
-        ESP_LOGW(TAG, "Extranonce_2_len %d exceeds maximum %d, clamping to maximum", 
+    if (extranonce_2_len < 0 || extranonce_2_len > MAX_EXTRANONCE_2_LEN) {
+        ESP_LOGW(TAG, "Invalid extranonce_2_len %d in subscribe result (clamping to 0..%d)", 
                  extranonce_2_len, MAX_EXTRANONCE_2_LEN);
-        extranonce_2_len = MAX_EXTRANONCE_2_LEN;
+        extranonce_2_len = (extranonce_2_len < 0) ? 0 : MAX_EXTRANONCE_2_LEN;
     }
     message->extranonce_2_len = extranonce_2_len;
     message->response_success = true;
@@ -488,14 +550,14 @@ static bool parse_result(cJSON *json, StratumApiV1Message *message)
         if (cJSON_IsString(error_msg)) {
             message->response_success = false;
             if (message->error_str) free(message->error_str);
-            message->error_str = strdup(error_msg->valuestring);
+            message->error_str = strndup(error_msg->valuestring, MAX_ERROR_MSG_LEN);
             ESP_LOGI(TAG, "Result failed: %s", message->error_str);
             return true;
         }
     } else if (error && cJSON_IsString(error)) {
         message->response_success = false;
         if (message->error_str) free(message->error_str);
-        message->error_str = strdup(error->valuestring);
+        message->error_str = strndup(error->valuestring, MAX_ERROR_MSG_LEN);
         ESP_LOGI(TAG, "Result failed: %s", message->error_str);
         return true;
     } else if (error && cJSON_IsObject(error)) {
@@ -503,7 +565,7 @@ static bool parse_result(cJSON *json, StratumApiV1Message *message)
         if (error_msg && cJSON_IsString(error_msg)) {
             message->response_success = false;
             if (message->error_str) free(message->error_str);
-            message->error_str = strdup(error_msg->valuestring);
+            message->error_str = strndup(error_msg->valuestring, MAX_ERROR_MSG_LEN);
             ESP_LOGI(TAG, "Result failed: %s", message->error_str);
             return true;
         }
@@ -513,8 +575,8 @@ static bool parse_result(cJSON *json, StratumApiV1Message *message)
     if ((!result || cJSON_IsNull(result)) && (error && !cJSON_IsNull(error))) {
         message->response_success = false;
         if (message->error_str) free(message->error_str);
-        message->error_str = reject_reason && cJSON_IsString(reject_reason)
-            ? strdup(reject_reason->valuestring)
+        message->error_str = (reject_reason && cJSON_IsString(reject_reason))
+            ? strndup(reject_reason->valuestring, MAX_ERROR_MSG_LEN)
             : strdup("unknown");
         ESP_LOGI(TAG, "Result failed: %s", message->error_str);
         return true;
@@ -525,8 +587,8 @@ static bool parse_result(cJSON *json, StratumApiV1Message *message)
         message->response_success = cJSON_IsTrue(result);
         if (!message->response_success) {
             if (message->error_str) free(message->error_str);
-            message->error_str = reject_reason && cJSON_IsString(reject_reason)
-                ? strdup(reject_reason->valuestring)
+            message->error_str = (reject_reason && cJSON_IsString(reject_reason))
+                ? strndup(reject_reason->valuestring, MAX_ERROR_MSG_LEN)
                 : strdup("unknown");
             ESP_LOGI(TAG, "Result failed: %s", message->error_str);
         } else {

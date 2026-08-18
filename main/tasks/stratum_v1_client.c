@@ -301,10 +301,10 @@ esp_err_t stratum_v1_run(GlobalState *GLOBAL_STATE, uint16_t pool_idx, volatile 
 
             case MINING_SET_EXTRANONCE:
             case STRATUM_RESULT_SUBSCRIBE:
-                if (stratum_api_v1_message.extranonce_2_len > MAX_EXTRANONCE_2_LEN) {
-                    ESP_LOGW(TAG, "Extranonce_2_len %d exceeds maximum %d, clamping to maximum",
+                if (stratum_api_v1_message.extranonce_2_len < 0 || stratum_api_v1_message.extranonce_2_len > MAX_EXTRANONCE_2_LEN) {
+                    ESP_LOGW(TAG, "Invalid extranonce_2_len %d, clamping to 0..%d",
                              stratum_api_v1_message.extranonce_2_len, MAX_EXTRANONCE_2_LEN);
-                    stratum_api_v1_message.extranonce_2_len = MAX_EXTRANONCE_2_LEN;
+                    stratum_api_v1_message.extranonce_2_len = (stratum_api_v1_message.extranonce_2_len < 0) ? 0 : MAX_EXTRANONCE_2_LEN;
                 }
                 s_v1_conn->extranonce2_len = (uint8_t)stratum_api_v1_message.extranonce_2_len;
                 if (stratum_api_v1_message.extranonce_str && stratum_api_v1_message.extranonce_str[0] != '\0') {

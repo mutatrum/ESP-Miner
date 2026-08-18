@@ -320,3 +320,109 @@ TEST_CASE("Parse stratum configure result", "[stratum]")
     TEST_ASSERT_TRUE(stratum_api_v1_message.response_success);
     TEST_ASSERT_EQUAL_HEX32(0x1fffe000, stratum_api_v1_message.version_mask);
 }
+
+TEST_CASE("Parse stratum set_difficulty rejects invalid values", "[mining.set_difficulty]")
+{
+    StratumApiV1Message msg = {};
+
+    // Negative difficulty
+    const char *json_neg = "{\"id\":null,\"method\":\"mining.set_difficulty\",\"params\":[-10.0]}";
+    TEST_ASSERT_FALSE(STRATUM_V1_parse(&msg, json_neg));
+
+    // Zero difficulty
+    const char *json_zero = "{\"id\":null,\"method\":\"mining.set_difficulty\",\"params\":[0.0]}";
+    TEST_ASSERT_FALSE(STRATUM_V1_parse(&msg, json_zero));
+
+    // Extremely small / subnormal difficulty
+    const char *json_tiny = "{\"id\":null,\"method\":\"mining.set_difficulty\",\"params\":[0.000001]}";
+    TEST_ASSERT_FALSE(STRATUM_V1_parse(&msg, json_tiny));
+
+    // Extremely large difficulty (overflow)
+    const char *json_huge = "{\"id\":null,\"method\":\"mining.set_difficulty\",\"params\":[1e20]}";
+    TEST_ASSERT_FALSE(STRATUM_V1_parse(&msg, json_huge));
+}
+
+TEST_CASE("Parse stratum mining.set_extranonce negative length clamped", "[stratum]")
+{
+    StratumApiV1Message msg = {};
+    const char *json_neg_e2 = "{\"id\":1,\"method\":\"mining.set_extranonce\",\"params\":[\"deadbeef\",-1]}";
+    TEST_ASSERT_TRUE(STRATUM_V1_parse(&msg, json_neg_e2));
+    TEST_ASSERT_EQUAL(MINING_SET_EXTRANONCE, msg.method);
+    TEST_ASSERT_EQUAL_INT(0, msg.extranonce_2_len);
+
+    const char *json_oversized_e2 = "{\"id\":1,\"method\":\"mining.set_extranonce\",\"params\":[\"deadbeef\",64]}";
+    TEST_ASSERT_TRUE(STRATUM_V1_parse(&msg, json_oversized_e2));
+    TEST_ASSERT_EQUAL_INT(32, msg.extranonce_2_len);
+
+    // Odd hex string length should be rejected
+    const char *json_odd_hex = "{\"id\":1,\"method\":\"mining.set_extranonce\",\"params\":[\"deadbee\",8]}";
+    TEST_ASSERT_FALSE(STRATUM_V1_parse(&msg, json_odd_hex));
+}
+
+TEST_CASE("Parse stratum mining.notify hardening", "[mining.notify]")
+{
+    StratumApiV1Message msg = {};
+
+    // Short prev_hash (not 64 hex chars)
+    const char *json_short_hash = "{\"id\":null,\"method\":\"mining.notify\",\"params\":"
+                                  "[\"1\",\"deadbeef\",\"0100\",\"0200\",[],\"20000000\",\"1705ae3a\",\"647025b5\",true]}";
+    TEST_ASSERT_FALSE(STRATUM_V1_parse(&msg, json_short_hash));
+
+    // Pre-genesis ntime (< 1231006505)
+    const char *json_bad_ntime = "{\"id\":null,\"method\":\"mining.notify\",\"params\":"
+                                 "[\"1\",\"0000000000000000000000000000000000000000000000000000000000000000\",\"0100\",\"0200\",[],\"20000000\",\"1705ae3a\",\"00000001\",true]}";
+    TEST_ASSERT_FALSE(STRATUM_V1_parse(&msg, json_bad_ntime));
+
+    // Empty job_id
+    const char *json_empty_job = "{\"id\":null,\"method\":\"mining.notify\",\"params\":"
+                                 "[\"\",\"0000000000000000000000000000000000000000000000000000000000000000\",\"0100\",\"0200\",[],\"20000000\",\"1705ae3a\",\"647025b5\",true]}";
+    TEST_ASSERT_FALSE(STRATUM_V1_parse(&msg, json_empty_job));
+}
+
+TEST_CASE("Parse stratum notify type confusion", "[mining.notify]")
+{
+    StratumApiV1Message msg = {};
+
+    // Integer job_id
+    const char *json_int_job = "{\"id\":null,\"method\":\"mining.notify\",\"params\":"
+                               "[12345,\"0000000000000000000000000000000000000000000000000000000000000000\",\"0100\",\"0200\",[],\"20000000\",\"1705ae3a\",\"647025b5\",true]}";
+    TEST_ASSERT_FALSE(STRATUM_V1_parse(&msg, json_int_job));
+
+    // Integer prev_hash
+    const char *json_int_prevhash = "{\"id\":null,\"method\":\"mining.notify\",\"params\":"
+                                    "[\"1\",123456789,\"0100\",\"0200\",[],\"20000000\",\"1705ae3a\",\"647025b5\",true]}";
+    TEST_ASSERT_FALSE(STRATUM_V1_parse(&msg, json_int_prevhash));
+
+    // Integer coinbase_1
+    const char *json_int_c1 = "{\"id\":null,\"method\":\"mining.notify\",\"params\":"
+                              "[\"1\",\"0000000000000000000000000000000000000000000000000000000000000000\",100,\"0200\",[],\"20000000\",\"1705ae3a\",\"647025b5\",true]}";
+    TEST_ASSERT_FALSE(STRATUM_V1_parse(&msg, json_int_c1));
+
+    // Non-array merkle_branch (string)
+    const char *json_str_merkle = "{\"id\":null,\"method\":\"mining.notify\",\"params\":"
+                                  "[\"1\",\"0000000000000000000000000000000000000000000000000000000000000000\",\"0100\",\"0200\",\"invalid_merkle\",\"20000000\",\"1705ae3a\",\"647025b5\",true]}";
+    TEST_ASSERT_FALSE(STRATUM_V1_parse(&msg, json_str_merkle));
+
+    // Merkle branch containing integers
+    const char *json_int_in_merkle = "{\"id\":null,\"method\":\"mining.notify\",\"params\":"
+                                     "[\"1\",\"0000000000000000000000000000000000000000000000000000000000000000\",\"0100\",\"0200\",[12345],\"20000000\",\"1705ae3a\",\"647025b5\",true]}";
+    TEST_ASSERT_FALSE(STRATUM_V1_parse(&msg, json_int_in_merkle));
+
+    // Integer version
+    const char *json_int_ver = "{\"id\":null,\"method\":\"mining.notify\",\"params\":"
+                               "[\"1\",\"0000000000000000000000000000000000000000000000000000000000000000\",\"0100\",\"0200\",[],536870912,\"1705ae3a\",\"647025b5\",true]}";
+    TEST_ASSERT_FALSE(STRATUM_V1_parse(&msg, json_int_ver));
+}
+
+TEST_CASE("Parse stratum subscribe result extranonce negative size", "[mining.subscribe]")
+{
+    StratumApiV1Message msg = {};
+    const char *json_sub_neg = "{\"result\":[[[\"mining.notify\",\"695482c0\"]],\"4de05269\",-1],\"id\":2,\"error\":null}";
+    TEST_ASSERT_TRUE(STRATUM_V1_parse(&msg, json_sub_neg));
+    TEST_ASSERT_EQUAL_STRING("4de05269", msg.extranonce_str);
+    TEST_ASSERT_EQUAL_INT(0, msg.extranonce_2_len);
+
+    const char *json_sub_oversized = "{\"result\":[[[\"mining.notify\",\"695482c0\"]],\"4de05269\",100],\"id\":2,\"error\":null}";
+    TEST_ASSERT_TRUE(STRATUM_V1_parse(&msg, json_sub_oversized));
+    TEST_ASSERT_EQUAL_INT(32, msg.extranonce_2_len);
+}

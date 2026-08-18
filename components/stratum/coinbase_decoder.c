@@ -297,7 +297,7 @@ esp_err_t coinbase_process_miner_job(const miner_job_t *job,
             if (value_satoshis > 0) {            
                 char output_address[MAX_ADDRESS_STRING_LEN];
                 coinbase_decode_address_from_scriptpubkey(coinbase_2_bin + offset, script_len, output_address, MAX_ADDRESS_STRING_LEN, bech32_hrp, is_testnet);
-                bool is_user_address = strncmp(user_address, output_address, strlen(output_address)) == 0;
+                bool is_user_address = user_address ? (strncmp(user_address, output_address, strlen(output_address)) == 0) : false;
 
                 if (is_user_address) result->user_value_satoshis += value_satoshis;
 

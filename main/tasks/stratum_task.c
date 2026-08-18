@@ -272,6 +272,16 @@ int stratum_submit_share(GlobalState *GLOBAL_STATE, const bm_job *active_job,
         return -1;
     }
 
+    uint16_t active_pool_idx = GLOBAL_STATE->SYSTEM_MODULE.is_using_fallback
+        ? GLOBAL_STATE->SYSTEM_MODULE.secondary_pool_index
+        : GLOBAL_STATE->SYSTEM_MODULE.primary_pool_index;
+
+    if (active_job->pool_id != (uint8_t)active_pool_idx) {
+        ESP_LOGW(TAG, "Dropping share for stale pool index %u (active pool is %u)",
+                 active_job->pool_id, active_pool_idx);
+        return -1;
+    }
+
     int ret;
     if (active_job->job_type == JOB_TYPE_SV2_STANDARD || active_job->job_type == JOB_TYPE_SV2_EXTENDED) {
         ret = stratum_v2_submit_share(GLOBAL_STATE, active_job, nonce, rolled_version, sent_time_us);
