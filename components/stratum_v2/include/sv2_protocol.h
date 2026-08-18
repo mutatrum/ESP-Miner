@@ -59,6 +59,7 @@ typedef struct {
 } sv2_frame_header_t;
 
 #define SV2_PENDING_JOBS_SIZE 8
+_Static_assert(SV2_PENDING_JOBS_SIZE <= 16, "SV2_PENDING_JOBS_SIZE must fit in uint16_t bitmask");
 
 #define SV2_MAX_ACTIVE_JOB_IDS 16
 

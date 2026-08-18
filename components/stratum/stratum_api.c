@@ -329,6 +329,24 @@ static bool parse_mining_notify(cJSON *json, StratumApiV1Message *message)
         return false;
     }
 
+    if (strlen(version_item->valuestring) != 8) {
+        ESP_LOGE(TAG, "Invalid version hex length in mining.notify (expected 8, got %zu)",
+                 strlen(version_item->valuestring));
+        return false;
+    }
+
+    if (strlen(nbits_item->valuestring) != 8) {
+        ESP_LOGE(TAG, "Invalid nbits hex length in mining.notify (expected 8, got %zu)",
+                 strlen(nbits_item->valuestring));
+        return false;
+    }
+
+    if (strlen(ntime_item->valuestring) != 8) {
+        ESP_LOGE(TAG, "Invalid ntime hex length in mining.notify (expected 8, got %zu)",
+                 strlen(ntime_item->valuestring));
+        return false;
+    }
+
     if (!merkle_branch || !cJSON_IsArray(merkle_branch)) {
         ESP_LOGE(TAG, "Invalid merkle_branch in mining.notify");
         return false;

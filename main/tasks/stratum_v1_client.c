@@ -324,7 +324,8 @@ esp_err_t stratum_v1_run(GlobalState *GLOBAL_STATE, uint16_t pool_idx, volatile 
                 break;
 
             case CLIENT_RECONNECT:
-                ESP_LOGE(TAG, "Pool requested client reconnect...");
+                ESP_LOGW(TAG, "Pool requested client reconnect, pausing 1s before reconnecting...");
+                vTaskDelay(pdMS_TO_TICKS(1000));
                 reconnect_requested = true;
                 break;
 

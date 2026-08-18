@@ -23,22 +23,37 @@ static void ensure_base58_init(void) {
     }
 }
 
-uint64_t coinbase_decode_varint(const uint8_t *data, int *offset) {
+uint64_t coinbase_decode_varint(const uint8_t *data, size_t data_len, int *offset) {
+    if (!data || !offset || (size_t)*offset >= data_len) {
+        return 0;
+    }
     uint8_t first_byte = data[*offset];
     (*offset)++;
     
     if (first_byte < 0xFD) {
         return first_byte;
     } else if (first_byte == 0xFD) {
-        uint64_t value = data[*offset] | (data[*offset + 1] << 8);
+        if ((size_t)*offset + 2 > data_len) {
+            *offset = data_len;
+            return 0;
+        }
+        uint64_t value = (uint64_t)data[*offset] | ((uint64_t)data[*offset + 1] << 8);
         *offset += 2;
         return value;
     } else if (first_byte == 0xFE) {
-        uint64_t value = data[*offset] | (data[*offset + 1] << 8) | 
-                        (data[*offset + 2] << 16) | (data[*offset + 3] << 24);
+        if ((size_t)*offset + 4 > data_len) {
+            *offset = data_len;
+            return 0;
+        }
+        uint64_t value = (uint64_t)data[*offset] | ((uint64_t)data[*offset + 1] << 8) | 
+                         ((uint64_t)data[*offset + 2] << 16) | ((uint64_t)data[*offset + 3] << 24);
         *offset += 4;
         return value;
     } else { // 0xFF
+        if ((size_t)*offset + 8 > data_len) {
+            *offset = data_len;
+            return 0;
+        }
         uint64_t value = 0;
         for (int i = 0; i < 8; i++) {
             value |= ((uint64_t)data[*offset + i]) << (i * 8);
@@ -270,7 +285,7 @@ esp_err_t coinbase_process_miner_job(const miner_job_t *job,
         return ESP_ERR_INVALID_ARG;
     }
     
-    uint64_t num_outputs = coinbase_decode_varint(coinbase_2_bin, &offset);
+    uint64_t num_outputs = coinbase_decode_varint(coinbase_2_bin, coinbase_2_len, &offset);
     result->output_count = 0;
     
     // Parse each output
@@ -289,7 +304,7 @@ esp_err_t coinbase_process_miner_job(const miner_job_t *job,
 
         // Read scriptPubKey length
         if (offset >= coinbase_2_len) break;
-        uint64_t script_len = coinbase_decode_varint(coinbase_2_bin, &offset);
+        uint64_t script_len = coinbase_decode_varint(coinbase_2_bin, coinbase_2_len, &offset);
 
         if (offset + script_len > coinbase_2_len) break;
 

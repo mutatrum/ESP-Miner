@@ -235,7 +235,7 @@ static void stratum_v2_handle_new_extended_mining_job(GlobalState *GLOBAL_STATE,
     uint32_t job_id = (uint32_t)strtoul(temp_job.job_id, NULL, 10);
     int slot = job_id % SV2_PENDING_JOBS_SIZE;
     conn->pending_jobs[slot] = temp_job;
-    conn->pending_jobs_valid |= (1 << slot);
+    conn->pending_jobs_valid |= (1U << slot);
 
     if (has_min_ntime && conn->has_prev_hash) {
         miner_job_t *job = miner_job_pool_next();
@@ -273,7 +273,7 @@ static void stratum_v2_handle_new_mining_job(GlobalState *GLOBAL_STATE, sv2_conn
     snprintf(pending->job_id, sizeof(pending->job_id), "%lu", (unsigned long)job_id);
     pending->version = version;
     memcpy(pending->merkle_root, merkle_root, 32);
-    conn->pending_jobs_valid |= (1 << slot);
+    conn->pending_jobs_valid |= (1U << slot);
 
     if (has_min_ntime && conn->has_prev_hash) {
         miner_job_t *job = miner_job_pool_next();
@@ -311,7 +311,7 @@ static void stratum_v2_handle_set_new_prev_hash(GlobalState *GLOBAL_STATE, sv2_c
 
     int slot = job_id % SV2_PENDING_JOBS_SIZE;
 
-    if ((conn->pending_jobs_valid & (1 << slot)) &&
+    if ((conn->pending_jobs_valid & (1U << slot)) &&
         (uint32_t)strtoul(conn->pending_jobs[slot].job_id, NULL, 10) == job_id) {
         miner_job_t *job = miner_job_pool_next();
         *job = conn->pending_jobs[slot];
@@ -740,6 +740,14 @@ esp_err_t stratum_v2_run(GlobalState *GLOBAL_STATE, uint16_t pool_idx, volatile 
                         ESP_LOGW(TAG, "Dropping SubmitSharesSuccess for unexpected channel %lu (expected %lu)",
                                  (unsigned long)channel_id, (unsigned long)conn->channel_id);
                         break;
+                    }
+                    uint32_t pending = (conn->sequence_number > conn->resolved_shares)
+                                           ? (conn->sequence_number - conn->resolved_shares)
+                                           : 0;
+                    if (accepted_count > pending) {
+                        ESP_LOGW(TAG, "Clamping accepted_count (%lu) to pending shares (%lu)",
+                                 (unsigned long)accepted_count, (unsigned long)pending);
+                        accepted_count = pending;
                     }
                     int slot = last_sequence_number % SV2_SUBMIT_TIMING_SLOTS;
                     int64_t submit_time_us = stratum_v2_submit_time_us[slot];

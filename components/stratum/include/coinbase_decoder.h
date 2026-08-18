@@ -26,10 +26,11 @@
  * @brief Decode Bitcoin varint from binary data
  * 
  * @param data Binary data containing the varint
+ * @param data_len Total length of data buffer
  * @param offset Pointer to current offset, will be updated after reading
  * @return Decoded varint value
  */
-uint64_t coinbase_decode_varint(const uint8_t *data, int *offset);
+uint64_t coinbase_decode_varint(const uint8_t *data, size_t data_len, int *offset);
 
 /**
  * @brief Decode Bitcoin address from scriptPubKey

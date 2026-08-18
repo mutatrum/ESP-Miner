@@ -1,9 +1,12 @@
 #include <string.h>
 #include <stdio.h>
 #include <limits.h>
+#include "esp_log.h"
 #include "mining.h"
 #include "stratum_api.h"
 #include "utils.h"
+
+static const char *TAG = "mining";
 
 void free_bm_job(bm_job *job)
 {
@@ -22,7 +25,11 @@ void calculate_coinbase_tx_hash_bin(const uint8_t *prefix, size_t prefix_len,
     size_t total_len = prefix_len + ep_len + e2_len + suffix_len;
     uint8_t stack_buf[1024];
     uint8_t *buf = (total_len <= sizeof(stack_buf)) ? stack_buf : malloc(total_len);
-    if (!buf) return;
+    if (!buf) {
+        ESP_LOGE(TAG, "Failed to allocate memory for coinbase tx (%zu bytes)", total_len);
+        if (dest) memset(dest, 0, 32);
+        return;
+    }
 
     size_t offset = 0;
     if (prefix && prefix_len > 0) {

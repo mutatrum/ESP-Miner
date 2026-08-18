@@ -451,3 +451,32 @@ TEST_CASE("Parse stratum version mask BIP320 clamping", "[stratum]")
     TEST_ASSERT_EQUAL(STRATUM_RESULT_CONFIGURE, msg.method);
     TEST_ASSERT_EQUAL_HEX32(0x1fffe000, msg.version_mask);
 }
+
+TEST_CASE("Parse stratum mining.notify version, nbits, ntime length validation", "[mining.notify]")
+{
+    StratumApiV1Message msg = {};
+
+    // Short version (e.g. "2000000" - 7 chars instead of 8)
+    const char *json_short_ver = "{\"id\":null,\"method\":\"mining.notify\",\"params\":"
+                                 "[\"1\",\"0000000000000000000000000000000000000000000000000000000000000000\",\"0100\",\"0200\",[],\"2000000\",\"1705ae3a\",\"647025b5\",true]}";
+    TEST_ASSERT_FALSE(STRATUM_V1_parse(&msg, json_short_ver));
+
+    // Short nbits (e.g. "1705ae" - 6 chars instead of 8)
+    const char *json_short_nbits = "{\"id\":null,\"method\":\"mining.notify\",\"params\":"
+                                   "[\"1\",\"0000000000000000000000000000000000000000000000000000000000000000\",\"0100\",\"0200\",[],\"20000000\",\"1705ae\",\"647025b5\",true]}";
+    TEST_ASSERT_FALSE(STRATUM_V1_parse(&msg, json_short_nbits));
+
+    // Short ntime (e.g. "647025" - 6 chars instead of 8)
+    const char *json_short_ntime = "{\"id\":null,\"method\":\"mining.notify\",\"params\":"
+                                   "[\"1\",\"0000000000000000000000000000000000000000000000000000000000000000\",\"0100\",\"0200\",[],\"20000000\",\"1705ae3a\",\"647025\",true]}";
+    TEST_ASSERT_FALSE(STRATUM_V1_parse(&msg, json_short_ntime));
+
+    // Valid 8-char version, nbits, ntime
+    const char *json_valid = "{\"id\":null,\"method\":\"mining.notify\",\"params\":"
+                             "[\"1\",\"0000000000000000000000000000000000000000000000000000000000000000\",\"0100\",\"0200\",[],\"20000000\",\"1705ae3a\",\"647025b5\",true]}";
+    TEST_ASSERT_TRUE(STRATUM_V1_parse(&msg, json_valid));
+    TEST_ASSERT_EQUAL(MINING_NOTIFY, msg.method);
+    TEST_ASSERT_EQUAL_HEX32(0x20000000, msg.mining_notification.version);
+    TEST_ASSERT_EQUAL_HEX32(0x1705ae3a, msg.mining_notification.nbits);
+    TEST_ASSERT_EQUAL_HEX32(0x647025b5, msg.mining_notification.ntime);
+}

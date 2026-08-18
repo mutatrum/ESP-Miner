@@ -36,6 +36,10 @@ struct sv2_noise_ctx {
     uint8_t e_pub_encoded[64];  // ElligatorSwift-encoded ephemeral pubkey
     uint8_t send_key[32];       // c1: initiator -> responder
     uint8_t recv_key[32];       // c2: responder -> initiator
+    // Note on nonce limits: The Noise Protocol specification bounds the 64-bit
+    // nonce counter at 2^64 - 1 to prevent cipher state exhaustion. At embedded
+    // miner share submit rates (~tens of submits per second), 2^64 messages is
+    // practically unreachable, so explicit in-session rekeying is omitted here.
     uint64_t send_nonce;
     uint64_t recv_nonce;
     bool handshake_complete;
