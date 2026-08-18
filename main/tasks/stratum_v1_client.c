@@ -275,7 +275,6 @@ esp_err_t stratum_v1_run(GlobalState *GLOBAL_STATE, uint16_t pool_idx, volatile 
                     stratum_api_v1_message.mining_notification = NULL;
 
                     queue_enqueue(&GLOBAL_STATE->stratum_queue, job);
-                    SYSTEM_decode_and_apply_coinbase(GLOBAL_STATE, job);
                 }
                 break;
             }

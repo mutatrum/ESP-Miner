@@ -133,6 +133,9 @@ void create_jobs_task(void *pvParameters)
         }
 
         generate_work_from_miner_job(GLOBAL_STATE, current_work, extranonce_2);
+        if (!current_work_sent) {
+            SYSTEM_decode_and_apply_coinbase(GLOBAL_STATE, current_work);
+        }
         current_work_sent = true;
         if (miner_job_is_rollable(current_work)) {
             extranonce_2++;

@@ -238,10 +238,6 @@ static void stratum_v2_enqueue_job(GlobalState *GLOBAL_STATE, sv2_conn_t *conn,
     }
 
     queue_enqueue(&GLOBAL_STATE->stratum_queue, job);
-
-    if (job->type == JOB_TYPE_SV2_EXTENDED) {
-        SYSTEM_decode_and_apply_coinbase(GLOBAL_STATE, job);
-    }
 }
 
 static void stratum_v2_handle_new_extended_mining_job(GlobalState *GLOBAL_STATE, sv2_conn_t *conn,
