@@ -425,4 +425,29 @@ TEST_CASE("Parse stratum subscribe result extranonce negative size", "[mining.su
     const char *json_sub_oversized = "{\"result\":[[[\"mining.notify\",\"695482c0\"]],\"4de05269\",100],\"id\":2,\"error\":null}";
     TEST_ASSERT_TRUE(STRATUM_V1_parse(&msg, json_sub_oversized));
     TEST_ASSERT_EQUAL_INT(32, msg.extranonce_2_len);
+
+    // Odd length extranonce1 in subscribe result should be rejected
+    const char *json_sub_odd_e1 = "{\"result\":[[[\"mining.notify\",\"695482c0\"]],\"4de0526\",4],\"id\":2,\"error\":null}";
+    TEST_ASSERT_FALSE(STRATUM_V1_parse(&msg, json_sub_odd_e1));
+
+    // Oversized extranonce1 (> 64 hex chars) should be rejected
+    const char *json_sub_huge_e1 = "{\"result\":[[[\"mining.notify\",\"695482c0\"]],\"00112233445566778899aabbccddeeff00112233445566778899aabbccddeeff0011\",4],\"id\":2,\"error\":null}";
+    TEST_ASSERT_FALSE(STRATUM_V1_parse(&msg, json_sub_huge_e1));
+}
+
+TEST_CASE("Parse stratum version mask BIP320 clamping", "[stratum]")
+{
+    StratumApiV1Message msg = {};
+
+    // Mask with bits outside BIP320 (e.g. 0xffffffff) should be clamped to 0x1fffe000
+    const char *json_set_mask = "{\"id\":null,\"method\":\"mining.set_version_mask\",\"params\":[\"ffffffff\"]}";
+    TEST_ASSERT_TRUE(STRATUM_V1_parse(&msg, json_set_mask));
+    TEST_ASSERT_EQUAL(MINING_SET_VERSION_MASK, msg.method);
+    TEST_ASSERT_EQUAL_HEX32(0x1fffe000, msg.version_mask);
+
+    // Configure result with full mask should also clamp
+    const char *json_cfg_mask = "{\"id\":1,\"result\":{\"version-rolling\":true,\"version-rolling.mask\":\"ffffffff\"},\"error\":null}";
+    TEST_ASSERT_TRUE(STRATUM_V1_parse(&msg, json_cfg_mask));
+    TEST_ASSERT_EQUAL(STRATUM_RESULT_CONFIGURE, msg.method);
+    TEST_ASSERT_EQUAL_HEX32(0x1fffe000, msg.version_mask);
 }

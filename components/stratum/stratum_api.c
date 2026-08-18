@@ -425,8 +425,12 @@ static bool parse_set_version_mask(cJSON *json, StratumApiV1Message *message)
         ESP_LOGE(TAG, "Invalid version mask in set_version_mask");
         return false;
     }
-    message->version_mask = strtoul(mask->valuestring, NULL, 16);
-    ESP_LOGI(TAG, "Set version mask: %08lx", message->version_mask);
+    uint32_t raw_mask = (uint32_t)strtoul(mask->valuestring, NULL, 16);
+    if ((raw_mask & ~BIP320_VERSION_ROLLING_MASK) != 0) {
+        ESP_LOGW(TAG, "Mask 0x%08" PRIx32 " contains non-BIP320 bits; masking to allowed range", raw_mask);
+    }
+    message->version_mask = raw_mask & BIP320_VERSION_ROLLING_MASK;
+    ESP_LOGI(TAG, "Set version mask: %08" PRIx32, message->version_mask);
     return true;
 }
 
@@ -530,9 +534,13 @@ static bool parse_configure_result(cJSON *json, StratumApiV1Message *message)
         ESP_LOGE(TAG, "Invalid configure result fields");
         return false;
     }
-    message->version_mask = strtoul(mask->valuestring, NULL, 16);
+    uint32_t raw_mask = (uint32_t)strtoul(mask->valuestring, NULL, 16);
+    if ((raw_mask & ~BIP320_VERSION_ROLLING_MASK) != 0) {
+        ESP_LOGW(TAG, "Configure mask 0x%08" PRIx32 " contains non-BIP320 bits; masking to allowed range", raw_mask);
+    }
+    message->version_mask = raw_mask & BIP320_VERSION_ROLLING_MASK;
     message->response_success = true;
-    ESP_LOGI(TAG, "Configure result: version_mask=%08lx", message->version_mask);
+    ESP_LOGI(TAG, "Configure result: version_mask=%08" PRIx32, message->version_mask);
     return true;
 }
 

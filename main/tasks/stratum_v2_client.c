@@ -21,6 +21,7 @@
 
 #include <string.h>
 #include <stdlib.h>
+#include <math.h>
 
 #define TRANSPORT_TIMEOUT_MS 5000
 #define SV2_MAX_FRAME_SIZE 8192
@@ -225,6 +226,12 @@ static void stratum_v2_handle_new_extended_mining_job(GlobalState *GLOBAL_STATE,
         return;
     }
 
+    if (channel_id != conn->channel_id) {
+        ESP_LOGW(TAG, "Dropping NewExtendedMiningJob for unexpected channel %lu (expected %lu)",
+                 (unsigned long)channel_id, (unsigned long)conn->channel_id);
+        return;
+    }
+
     uint32_t job_id = (uint32_t)strtoul(temp_job.job_id, NULL, 10);
     int slot = job_id % SV2_PENDING_JOBS_SIZE;
     conn->pending_jobs[slot] = temp_job;
@@ -250,6 +257,12 @@ static void stratum_v2_handle_new_mining_job(GlobalState *GLOBAL_STATE, sv2_conn
                                  &has_min_ntime, &min_ntime,
                                  &version, merkle_root) != 0) {
         ESP_LOGE(TAG, "Failed to parse NewMiningJob");
+        return;
+    }
+
+    if (channel_id != conn->channel_id) {
+        ESP_LOGW(TAG, "Dropping NewMiningJob for unexpected channel %lu (expected %lu)",
+                 (unsigned long)channel_id, (unsigned long)conn->channel_id);
         return;
     }
 
@@ -285,6 +298,12 @@ static void stratum_v2_handle_set_new_prev_hash(GlobalState *GLOBAL_STATE, sv2_c
         return;
     }
 
+    if (channel_id != conn->channel_id) {
+        ESP_LOGW(TAG, "Dropping SetNewPrevHash for unexpected channel %lu (expected %lu)",
+                 (unsigned long)channel_id, (unsigned long)conn->channel_id);
+        return;
+    }
+
     memcpy(conn->prev_hash, prev_hash, 32);
     conn->prev_hash_ntime = min_ntime;
     conn->prev_hash_nbits = nbits;
@@ -317,8 +336,19 @@ static void stratum_v2_handle_set_target(GlobalState *GLOBAL_STATE, sv2_conn_t *
         return;
     }
 
-    memcpy(conn->target, max_target, 32);
+    if (channel_id != conn->channel_id) {
+        ESP_LOGW(TAG, "Dropping SetTarget for unexpected channel %lu (expected %lu)",
+                 (unsigned long)channel_id, (unsigned long)conn->channel_id);
+        return;
+    }
+
     double pdiff = hash_to_pdiff(max_target);
+    if (isnan(pdiff) || isinf(pdiff) || pdiff < 0.0001 || pdiff > 4294967295.0) {
+        ESP_LOGW(TAG, "Ignoring out-of-range SV2 target pdiff: %g", pdiff);
+        return;
+    }
+
+    memcpy(conn->target, max_target, 32);
     GLOBAL_STATE->SYSTEM_MODULE.pool_difficulty = pdiff;
 
     ESP_LOGI(TAG, "Set pool difficulty: %g", pdiff);
@@ -706,6 +736,11 @@ esp_err_t stratum_v2_run(GlobalState *GLOBAL_STATE, uint16_t pool_idx, volatile 
             case SV2_MSG_SUBMIT_SHARES_SUCCESS: {
                 uint32_t channel_id, last_sequence_number, accepted_count;
                 if (sv2_parse_submit_shares_success(recv_buf, hdr.msg_length, &channel_id, &last_sequence_number, &accepted_count) == 0) {
+                    if (channel_id != conn->channel_id) {
+                        ESP_LOGW(TAG, "Dropping SubmitSharesSuccess for unexpected channel %lu (expected %lu)",
+                                 (unsigned long)channel_id, (unsigned long)conn->channel_id);
+                        break;
+                    }
                     int slot = last_sequence_number % SV2_SUBMIT_TIMING_SLOTS;
                     int64_t submit_time_us = stratum_v2_submit_time_us[slot];
                     if (submit_time_us > 0) {
@@ -735,6 +770,11 @@ esp_err_t stratum_v2_run(GlobalState *GLOBAL_STATE, uint16_t pool_idx, volatile 
                 if (sv2_parse_submit_shares_error(recv_buf, hdr.msg_length,
                                                   &channel_id, &seq_num,
                                                   error_code, sizeof(error_code)) == 0) {
+                    if (channel_id != conn->channel_id) {
+                        ESP_LOGW(TAG, "Dropping SubmitSharesError for unexpected channel %lu (expected %lu)",
+                                 (unsigned long)channel_id, (unsigned long)conn->channel_id);
+                        break;
+                    }
                     ESP_LOGW(TAG, "Share rejected: %s", error_code);
                     SYSTEM_notify_rejected_share(GLOBAL_STATE, error_code);
                     uint32_t resolved = seq_num + 1;
