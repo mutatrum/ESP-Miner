@@ -1,5 +1,5 @@
 #include "esp_log.h"
-#include "esp_timer.h"
+#include "esp_heap_caps.h"
 #include "esp_transport.h"
 #include "esp_transport_tcp.h"
 #include "freertos/FreeRTOS.h"
@@ -26,6 +26,7 @@
 
 static GlobalState *s_global_state = NULL;
 static volatile bool s_should_reconnect = false;
+static TaskHandle_t s_heartbeat_task_handle = NULL;
 
 void stratum_request_reconnect(void)
 {
@@ -109,31 +110,35 @@ static void reset_share_stats(GlobalState *gs)
     gs->SYSTEM_MODULE.work_received = 0;
 }
 
-static esp_timer_handle_t s_heartbeat_timer = NULL;
-
-static void heartbeat_timer_callback(void *arg)
+static void stratum_heartbeat_task(void *pvParameters)
 {
-    GlobalState *gs = (GlobalState *)arg;
-    if (!gs) return;
+    GlobalState *gs = (GlobalState *)pvParameters;
 
-    if (gs->SYSTEM_MODULE.is_using_fallback &&
-        !gs->SYSTEM_MODULE.use_fallback_stratum &&
-        wifi_is_connected()) {
+    while (1) {
+        // Wait for periodic heartbeat or immediate wake-up via stratum_trigger_heartbeat_check()
+        ulTaskNotifyTake(pdTRUE, pdMS_TO_TICKS(HEARTBEAT_INTERVAL_MS));
 
-        uint16_t prim_idx = gs->SYSTEM_MODULE.primary_pool_index;
-        ESP_LOGD(TAG, "Heartbeat: probing primary pool %u...", prim_idx);
-        if (stratum_probe_pool(gs, prim_idx)) {
-            ESP_LOGI(TAG, "Primary pool %u is back online! Switching from fallback.", prim_idx);
-            gs->SYSTEM_MODULE.is_using_fallback = false;
-            stratum_request_reconnect();
+        if (!gs) continue;
+
+        if (gs->SYSTEM_MODULE.is_using_fallback &&
+            !gs->SYSTEM_MODULE.use_fallback_stratum &&
+            wifi_is_connected()) {
+
+            uint16_t prim_idx = gs->SYSTEM_MODULE.primary_pool_index;
+            ESP_LOGD(TAG, "Heartbeat: probing primary pool %u...", prim_idx);
+            if (stratum_probe_pool(gs, prim_idx)) {
+                ESP_LOGI(TAG, "Primary pool %u is back online! Switching from fallback.", prim_idx);
+                gs->SYSTEM_MODULE.is_using_fallback = false;
+                stratum_request_reconnect();
+            }
         }
     }
 }
 
 void stratum_trigger_heartbeat_check(void)
 {
-    if (s_global_state) {
-        heartbeat_timer_callback(s_global_state);
+    if (s_heartbeat_task_handle) {
+        xTaskNotifyGive(s_heartbeat_task_handle);
     }
 }
 
@@ -147,15 +152,9 @@ void stratum_task(void *pvParameters)
 
     ESP_LOGI(TAG, "Unified Stratum Task started");
 
-    // Periodic heartbeat timer to probe primary pool while running fallback
-    const esp_timer_create_args_t timer_args = {
-        .callback = &heartbeat_timer_callback,
-        .arg = GLOBAL_STATE,
-        .name = "stratum_heartbeat"
-    };
-    esp_timer_create(&timer_args, &s_heartbeat_timer);
-    if (s_heartbeat_timer) {
-        esp_timer_start_periodic(s_heartbeat_timer, HEARTBEAT_INTERVAL_MS * 1000ULL);
+    // Periodic heartbeat task to probe primary pool while running fallback
+    if (xTaskCreateWithCaps(stratum_heartbeat_task, "stratum_hb", 8192, (void *)GLOBAL_STATE, 2, &s_heartbeat_task_handle, MALLOC_CAP_SPIRAM) != pdPASS) {
+        ESP_LOGE(TAG, "Failed to create stratum heartbeat task");
     }
 
     while (1) {
