@@ -62,20 +62,6 @@ static bool stratum_v2_load_authority_pubkey(GlobalState *GLOBAL_STATE, uint8_t 
     return true;
 }
 
-static sv2_channel_type_t sv2_select_channel_type(GlobalState *GLOBAL_STATE, uint16_t pool_idx)
-{
-    sv2_channel_type_t type = SV2_CHANNEL_EXTENDED;
-    sv2_channel_type_t parsed = GLOBAL_STATE->SYSTEM_MODULE.pools[pool_idx].sv2_channel_type;
-    if (parsed == SV2_CHANNEL_STANDARD) {
-        if (GLOBAL_STATE->DEVICE_CONFIG.family.asic.id != BM1397) {
-            type = SV2_CHANNEL_STANDARD;
-        }
-    } else if (parsed == SV2_CHANNEL_EXTENDED) {
-        type = SV2_CHANNEL_EXTENDED;
-    }
-    return type;
-}
-
 static bool add_active_job_id(uint32_t *active_job_ids, int *count, uint32_t job_id)
 {
     for (int i = 0; i < *count; i++) {
@@ -356,7 +342,7 @@ static void stratum_v2_handle_set_target(GlobalState *GLOBAL_STATE, sv2_conn_t *
 
 esp_err_t stratum_v2_run(GlobalState *GLOBAL_STATE, uint16_t pool_idx, volatile bool *should_reconnect)
 {
-    sv2_channel_type_t channel_type = sv2_select_channel_type(GLOBAL_STATE, pool_idx);
+    sv2_channel_type_t channel_type = GLOBAL_STATE->SYSTEM_MODULE.pools[pool_idx].sv2_channel_type;
 
     sv2_conn_t *conn = calloc(1, sizeof(sv2_conn_t));
     if (!conn) {

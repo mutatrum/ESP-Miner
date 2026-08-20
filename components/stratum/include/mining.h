@@ -5,6 +5,8 @@
 #include <stddef.h>
 #include "miner_job.h"
 
+#define BM_JOB_MAX_MIDSTATES 4
+
 typedef struct bm_job
 {
     uint32_t version;
@@ -16,10 +18,7 @@ typedef struct bm_job
     uint32_t starting_nonce;
 
     uint8_t num_midstates;
-    uint8_t midstate[32];
-    uint8_t midstate1[32];
-    uint8_t midstate2[32];
-    uint8_t midstate3[32];
+    uint8_t midstates[BM_JOB_MAX_MIDSTATES][32];
     double pool_diff;
     uint8_t pool_id;
     miner_job_type_t job_type;
@@ -37,7 +36,7 @@ void calculate_coinbase_tx_hash_bin(const uint8_t *prefix, size_t prefix_len,
 
 void calculate_merkle_root_hash(const uint8_t coinbase_tx_hash[32], const uint8_t merkle_branches[][32], const int num_merkle_branches, uint8_t dest[32]);
 
-void construct_bm_job_from_miner_job(const miner_job_t *job, const uint8_t merkle_root[32], const uint32_t version_mask, const double difficulty, bm_job* new_job);
+void construct_bm_job_from_miner_job(const miner_job_t *job, const uint8_t merkle_root[32], const uint32_t version_mask, const double difficulty, const uint8_t software_midstates, bm_job *new_job);
 
 // Convert a 256-bit value (block hash or pool target, little-endian) to
 // difficulty (pdiff = truediffone / value). Shared by SV1 (test_nonce_value)

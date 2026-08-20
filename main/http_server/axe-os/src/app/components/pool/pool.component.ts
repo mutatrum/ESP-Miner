@@ -490,10 +490,6 @@ export class PoolComponent implements OnInit {
     return poolGroup?.get('stratumV2ChannelType')?.value === 'extended';
   }
 
-  isStandardChannelDisabled(): boolean {
-    return this.asicModel === 'BM1397';
-  }
-
   getProtocolLabel(value: string): string {
     const option = this.protocolOptions.find(opt => opt.value === value);
     return option ? option.label : value;

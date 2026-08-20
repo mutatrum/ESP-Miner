@@ -62,7 +62,6 @@ typedef struct {
  * @brief Result structure for full mining notification processing
  */
 typedef struct {
-    double network_difficulty;
     uint32_t block_height;
     char *scriptsig; // Allocated, must be freed by caller
     coinbase_output_t outputs[MAX_COINBASE_TX_OUTPUTS];

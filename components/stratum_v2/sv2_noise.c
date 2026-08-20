@@ -525,20 +525,6 @@ int sv2_noise_handshake(sv2_noise_ctx_t *ctx, esp_transport_handle_t transport,
             return -1;
         }
 
-        // Verify validity window if time is synchronized (past 2024-01-01)
-        time_t now = time(NULL);
-        if (now > 1704067200) {
-            if ((uint32_t)now < valid_from) {
-                ESP_LOGE(TAG, "Server certificate not yet valid (now=%ld, valid_from=%" PRIu32 ")",
-                         (long)now, valid_from);
-                return -1;
-            }
-            if ((uint32_t)now > not_valid_after) {
-                ESP_LOGE(TAG, "Server certificate expired (now=%ld, not_valid_after=%" PRIu32 ")",
-                         (long)now, not_valid_after);
-                return -1;
-            }
-        }
         ESP_LOGI(TAG, "Server certificate verified OK");
     } else {
         ESP_LOGW(TAG, "Skipping certificate verification (no authority pubkey)");

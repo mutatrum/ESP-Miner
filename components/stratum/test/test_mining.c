@@ -119,7 +119,7 @@ TEST_CASE("Validate bm job construction", "[mining]")
     uint8_t merkle_root[32];
     hex2bin("cd1be82132ef0d12053dcece1fa0247fcfdb61d4dbd3eb32ea9ef9b4c604a846", merkle_root, 32);
     bm_job job = { 0 };
-    construct_bm_job_from_miner_job(&mjob, merkle_root, 0, 1000, &job);
+    construct_bm_job_from_miner_job(&mjob, merkle_root, 0, 1000, 1, &job);
 
     uint8_t expected_midstate_bin[32];
     hex2bin("91DFEA528A9F73683D0D495DD6DD7415E1CA21CB411759E3E05D7D5FF285314D", expected_midstate_bin, 32);
@@ -127,7 +127,7 @@ TEST_CASE("Validate bm job construction", "[mining]")
     uint8_t expected_midstate_bin_reversed[32];
     reverse_32bit_words(expected_midstate_bin, expected_midstate_bin_reversed);
     reverse_endianness_per_word(expected_midstate_bin_reversed);
-    TEST_ASSERT_EQUAL_UINT8_ARRAY(expected_midstate_bin_reversed, job.midstate, 32);
+    TEST_ASSERT_EQUAL_UINT8_ARRAY(expected_midstate_bin_reversed, job.midstates[0], 32);
 }
 
 TEST_CASE("Validate version mask incrementing", "[mining]")
@@ -157,7 +157,7 @@ TEST_CASE("Test nonce diff checking", "[mining test_nonce][not-on-qemu]")
     uint8_t merkle_root[32];
     hex2bin("6d0359c451434605c52a5a9ce074340be47c2c63840731f9edf1db3f26b1cdd9", merkle_root, 32);
     bm_job job = { 0 };
-    construct_bm_job_from_miner_job(&mjob, merkle_root, 0, 1000, &job);
+    construct_bm_job_from_miner_job(&mjob, merkle_root, 0, 1000, 1, &job);
 
     uint32_t nonce = 0x276E8947;
     uint32_t version_bits = 0;
@@ -212,7 +212,7 @@ TEST_CASE("Test nonce diff checking 2", "[mining test_nonce][not-on-qemu]")
     TEST_ASSERT_EQUAL_STRING("5bdc1968499c3393873edf8e07a1c3a50a97fc3a9d1a376bbf77087dd63778eb", merkle_root);
 
     bm_job job = { 0 };
-    construct_bm_job_from_miner_job(&mjob, merkle_root_hash, 0, 1000, &job);
+    construct_bm_job_from_miner_job(&mjob, merkle_root_hash, 0, 1000, 1, &job);
 
     uint32_t nonce = 0x0a029ed1;
     uint32_t version_bits = 0;

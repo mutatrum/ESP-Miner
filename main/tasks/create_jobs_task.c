@@ -21,7 +21,7 @@ static const char *TAG = "create_jobs_task";
 #define MAX_EXTRANONCE2_LEN 32
 #define MAX_EXTRANONCE2_STR (MAX_EXTRANONCE2_LEN * 2 + 1)
 
-static void generate_work_from_miner_job(GlobalState *GLOBAL_STATE, const miner_job_t *job, uint64_t extranonce_2)
+static void generate_work_from_miner_job(GlobalState *GLOBAL_STATE, const miner_job_t *job, uint64_t extranonce_2, uint32_t current_version)
 {
     if (!job) return;
 
@@ -36,6 +36,11 @@ static void generate_work_from_miner_job(GlobalState *GLOBAL_STATE, const miner_
 
     uint8_t merkle_root[32];
     char extranonce_2_str[MAX_EXTRANONCE2_STR] = "";
+
+    miner_job_t job_instance = *job;
+    if (!GLOBAL_STATE->DEVICE_CONFIG.family.asic.hardware_version_rolling && !miner_job_is_rollable(job)) {
+        job_instance.version = current_version;
+    }
 
     if (miner_job_is_rollable(job)) {
         size_t e2_len = job->extranonce2_len;
@@ -64,7 +69,7 @@ static void generate_work_from_miner_job(GlobalState *GLOBAL_STATE, const miner_
         memcpy(merkle_root, job->merkle_root, 32);
     }
 
-    construct_bm_job_from_miner_job(job, merkle_root, version_mask, job_diff, next_job);
+    construct_bm_job_from_miner_job(&job_instance, merkle_root, version_mask, job_diff, GLOBAL_STATE->DEVICE_CONFIG.family.asic.software_midstates, next_job);
     next_job->jobid = strdup(job->job_id);
     next_job->extranonce2 = strdup(extranonce_2_str);
 
@@ -94,6 +99,7 @@ void create_jobs_task(void *pvParameters)
     miner_job_t *current_work = NULL;
     bool current_work_sent = false;
     uint64_t extranonce_2 = 0;
+    uint32_t current_version = 0;
     int timeout_ms = ASIC_get_asic_job_frequency_ms(GLOBAL_STATE);
 
     ESP_LOGI(TAG, "ASIC Job Interval: %d ms", timeout_ms);
@@ -108,6 +114,7 @@ void create_jobs_task(void *pvParameters)
             ESP_LOGI(TAG, "New Work Dequeued %s (type %d)", new_work->job_id, new_work->type);
             current_work = new_work;
             current_work_sent = false;
+            current_version = new_work->version;
 
             if (new_work->version_mask != current_version_mask && GLOBAL_STATE->ASIC_initalized) {
                 ESP_LOGI(TAG, "Set chip version rolls %i", (int)(new_work->version_mask >> 13));
@@ -126,19 +133,27 @@ void create_jobs_task(void *pvParameters)
                 vTaskDelay(100 / portTICK_PERIOD_MS);
                 continue;
             }
-            if (!miner_job_is_rollable(current_work) && current_work_sent) {
+            if (!miner_job_is_rollable(current_work) && current_work_sent && GLOBAL_STATE->DEVICE_CONFIG.family.asic.hardware_version_rolling) {
                 timeout_ms = ASIC_get_asic_job_frequency_ms(GLOBAL_STATE);
                 continue;
             }
         }
 
-        generate_work_from_miner_job(GLOBAL_STATE, current_work, extranonce_2);
+        generate_work_from_miner_job(GLOBAL_STATE, current_work, extranonce_2, current_version);
         if (!current_work_sent) {
             SYSTEM_decode_and_apply_coinbase(GLOBAL_STATE, current_work);
         }
         current_work_sent = true;
+
         if (miner_job_is_rollable(current_work)) {
             extranonce_2++;
+        } else if (!GLOBAL_STATE->DEVICE_CONFIG.family.asic.hardware_version_rolling) {
+            // Software version rolling for ASICs without hardware version rolling (e.g. BM1397) on SV2 Standard Channel
+            uint32_t mask = (current_work->version_mask != 0) ? current_work->version_mask : STRATUM_DEFAULT_VERSION_MASK;
+            uint8_t midstates = GLOBAL_STATE->DEVICE_CONFIG.family.asic.software_midstates;
+            for (int i = 0; i < midstates; i++) {
+                current_version = increment_bitmask(current_version, mask);
+            }
         }
         timeout_ms = ASIC_get_asic_job_frequency_ms(GLOBAL_STATE);
     }

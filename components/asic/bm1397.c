@@ -257,7 +257,7 @@ static uint8_t id = 0;
 
 void BM1397_send_work(GlobalState * GLOBAL_STATE, bm_job * next_bm_job)
 {
-    job_packet job;
+    job_packet job = { 0 };
     // max job number is 128
     // there is still some really weird logic with the job id bits for the asic to sort out
     // so we have it limited to 128 and it has to increment by 4
@@ -269,14 +269,7 @@ void BM1397_send_work(GlobalState * GLOBAL_STATE, bm_job * next_bm_job)
     memcpy(&job.nbits, &next_bm_job->target, 4);
     memcpy(&job.ntime, &next_bm_job->ntime, 4);
     memcpy(&job.merkle4, next_bm_job->merkle_root, 4);
-    memcpy(job.midstate, next_bm_job->midstate, 32);
-
-    if (job.num_midstates == 4)
-    {
-        memcpy(job.midstate1, next_bm_job->midstate1, 32);
-        memcpy(job.midstate2, next_bm_job->midstate2, 32);
-        memcpy(job.midstate3, next_bm_job->midstate3, 32);
-    }
+    memcpy(job.midstates, next_bm_job->midstates, next_bm_job->num_midstates * 32);
 
     // Hold valid_jobs_lock across the free + reassignment so the result task
     // (which snapshots active_jobs[job_id] under the same lock) can never observe

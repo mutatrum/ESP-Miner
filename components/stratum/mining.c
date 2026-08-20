@@ -55,7 +55,7 @@ void calculate_coinbase_tx_hash_bin(const uint8_t *prefix, size_t prefix_len,
     }
 }
 
-void construct_bm_job_from_miner_job(const miner_job_t *job, const uint8_t merkle_root[32], const uint32_t version_mask, const double difficulty, bm_job *new_job)
+void construct_bm_job_from_miner_job(const miner_job_t *job, const uint8_t merkle_root[32], const uint32_t version_mask, const double difficulty, const uint8_t software_midstates, bm_job *new_job)
 {
     new_job->version = job->version;
     new_job->target = job->nbits;
@@ -66,43 +66,37 @@ void construct_bm_job_from_miner_job(const miner_job_t *job, const uint8_t merkl
     new_job->job_type = job->type;
     uint32_t effective_mask = (job->version_mask != 0) ? job->version_mask : version_mask;
     new_job->version_mask = effective_mask;
+    new_job->num_midstates = 0;
     reverse_32bit_words(merkle_root, new_job->merkle_root);
-
     reverse_32bit_words(job->prev_hash, new_job->prev_block_hash);
+
+    if (software_midstates == 0)
+    {
+        return;
+    }
 
     // make the midstate hash
     uint8_t midstate_data[64];
+    memcpy(midstate_data + 4, job->prev_hash, 32);
+    memcpy(midstate_data + 36, merkle_root, 28);
 
-    // copy 64 bytes header data into midstate
-    memcpy(midstate_data, &new_job->version, 4);      // copy version
-    memcpy(midstate_data + 4, job->prev_hash, 32);    // copy prev_block_hash
-    memcpy(midstate_data + 36, merkle_root, 28);      // copy merkle_root
-
+    uint32_t current_ver = new_job->version;
     uint8_t midstate[32];
-    midstate_sha256_bin(midstate_data, 64, midstate); // make the midstate hash
-    reverse_32bit_words(midstate, new_job->midstate); // reverse the midstate words for the BM job packet
 
-    if (effective_mask != 0)
+    for (int i = 0; i < software_midstates && i < BM_JOB_MAX_MIDSTATES; i++)
     {
-        uint32_t rolled_version = increment_bitmask(new_job->version, effective_mask);
-        memcpy(midstate_data, &rolled_version, 4);
+        if (i > 0)
+        {
+            if (effective_mask == 0)
+            {
+                break;
+            }
+            current_ver = increment_bitmask(current_ver, effective_mask);
+        }
+        memcpy(midstate_data, &current_ver, 4);
         midstate_sha256_bin(midstate_data, 64, midstate);
-        reverse_32bit_words(midstate, new_job->midstate1);
-
-        rolled_version = increment_bitmask(rolled_version, effective_mask);
-        memcpy(midstate_data, &rolled_version, 4);
-        midstate_sha256_bin(midstate_data, 64, midstate);
-        reverse_32bit_words(midstate, new_job->midstate2);
-
-        rolled_version = increment_bitmask(rolled_version, effective_mask);
-        memcpy(midstate_data, &rolled_version, 4);
-        midstate_sha256_bin(midstate_data, 64, midstate);
-        reverse_32bit_words(midstate, new_job->midstate3);
-        new_job->num_midstates = 4;
-    }
-    else
-    {
-        new_job->num_midstates = 1;
+        reverse_32bit_words(midstate, new_job->midstates[i]);
+        new_job->num_midstates++;
     }
 }
 

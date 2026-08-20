@@ -187,10 +187,7 @@ esp_err_t coinbase_process_miner_job(const miner_job_t *job,
         }
     }
 
-    // 1. Calculate difficulty
-    result->network_difficulty = networkDifficulty(job->nbits);
-
-    // 2. Parse Coinbase prefix for ScriptSig info
+    // Parse Coinbase prefix for ScriptSig info
     int coinbase_1_len = job->coinbase_prefix_len;
     int coinbase_1_offset = 41; // Skip version (4), inputcount (1), prevhash (32), vout (4)
     

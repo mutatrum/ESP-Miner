@@ -486,8 +486,17 @@ void SYSTEM_decode_and_apply_coinbase(GlobalState * GLOBAL_STATE, const miner_jo
 {
     if (!GLOBAL_STATE || !job) return;
 
+    // Update network difficulty from nbits (available on all job types, including SV2 Standard)
+    if (job->nbits != 0) {
+        double net_diff = networkDifficulty(job->nbits);
+        GLOBAL_STATE->network_nonce_diff = (uint64_t) net_diff;
+        suffixString(net_diff, GLOBAL_STATE->network_diff_string, DIFF_STRING_SIZE, 0);
+    }
+
     // Direct Merkle Root jobs (e.g. SV2 Standard) don't carry coinbase parts
     if (job->type == JOB_TYPE_SV2_STANDARD) {
+        GLOBAL_STATE->block_height = 0;
+        SYSTEM_reset_coinbase_ui_state(GLOBAL_STATE, NULL);
         return;
     }
 
@@ -509,10 +518,6 @@ void SYSTEM_decode_and_apply_coinbase(GlobalState * GLOBAL_STATE, const miner_jo
         SYSTEM_reset_coinbase_ui_state(GLOBAL_STATE, "[decode error]");
         return;
     }
-
-    // Update network difficulty
-    GLOBAL_STATE->network_nonce_diff = (uint64_t) result->network_difficulty;
-    suffixString(result->network_difficulty, GLOBAL_STATE->network_diff_string, DIFF_STRING_SIZE, 0);
 
     // Update block height
     if (result->block_height != 0 && (uint32_t)GLOBAL_STATE->block_height != result->block_height) {
