@@ -188,7 +188,7 @@ uint8_t BM1370_init(GlobalState * GLOBAL_STATE)
 {
     // set version mask
     for (int i = 0; i < 3; i++) {
-        BM1370_set_version_mask(STRATUM_DEFAULT_VERSION_MASK);
+        BM1370_set_version_mask(BIP320_VERSION_ROLLING_MASK);
     }
 
     //read register 00 on all chips (should respond AA 55 13 68 00 00 00 00 00 00 0F)
@@ -203,7 +203,7 @@ uint8_t BM1370_init(GlobalState * GLOBAL_STATE)
 
 
     // set version mask
-    BM1370_set_version_mask(STRATUM_DEFAULT_VERSION_MASK);
+    BM1370_set_version_mask(BIP320_VERSION_ROLLING_MASK);
 
     //Reg_A8
     //unsigned char init5[11] = {0x55, 0xAA, 0x51, 0x09, 0x00, 0xA8, 0x00, 0x07, 0x00, 0x00, 0x03};

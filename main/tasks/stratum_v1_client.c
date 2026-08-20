@@ -87,7 +87,7 @@ int stratum_v1_submit_share(GlobalState *GLOBAL_STATE, const bm_job *active_job,
 
     uint32_t version_bits = rolled_version ^ active_job->version;
 
-    return STRATUM_V1_submit_share(
+    int ret = STRATUM_V1_submit_share(
         transport,
         uid,
         user,
@@ -97,6 +97,13 @@ int stratum_v1_submit_share(GlobalState *GLOBAL_STATE, const bm_job *active_job,
         nonce,
         version_bits,
         sent_time_us);
+
+    if (ret >= 0) {
+        if (GLOBAL_STATE->SYSTEM_MODULE.shares_pending < UINT16_MAX) {
+            GLOBAL_STATE->SYSTEM_MODULE.shares_pending++;
+        }
+    }
+    return ret;
 }
 
 void stratum_v1_close_connection(GlobalState *GLOBAL_STATE)
@@ -115,6 +122,7 @@ void stratum_v1_close_connection(GlobalState *GLOBAL_STATE)
         free(s_v1_conn);
         s_v1_conn = NULL;
     }
+    GLOBAL_STATE->SYSTEM_MODULE.shares_pending = 0;
     SYSTEM_clean_jobs_queue(GLOBAL_STATE);
     SYSTEM_reset_coinbase_ui_state(GLOBAL_STATE, "");
 }
@@ -133,6 +141,7 @@ esp_err_t stratum_v1_run(GlobalState *GLOBAL_STATE, uint16_t pool_idx, volatile 
         return ESP_ERR_INVALID_ARG;
     }
 
+    GLOBAL_STATE->SYSTEM_MODULE.shares_pending = 0;
     STRATUM_V1_initialize_buffer();
 
     if (s_v1_conn != NULL) {
@@ -146,11 +155,13 @@ esp_err_t stratum_v1_run(GlobalState *GLOBAL_STATE, uint16_t pool_idx, volatile 
     }
     s_v1_conn->send_uid = 1;
     s_v1_conn->pool_difficulty = (double)GLOBAL_STATE->DEVICE_CONFIG.family.asic.difficulty;
-    s_v1_conn->version_mask = STRATUM_DEFAULT_VERSION_MASK;
+    s_v1_conn->version_mask = BIP320_VERSION_ROLLING_MASK;
 
     stratum_connection_info_t conn_info;
     if (stratum_socket_resolve(stratum_url, port, &conn_info) != ESP_OK) {
         ESP_LOGE(TAG, "Address resolution failed for %s", stratum_url);
+        snprintf(GLOBAL_STATE->SYSTEM_MODULE.pool_connection_info,
+                 sizeof(GLOBAL_STATE->SYSTEM_MODULE.pool_connection_info), "SV1: Pool unreachable");
         return ESP_FAIL;
     }
 
@@ -159,6 +170,8 @@ esp_err_t stratum_v1_run(GlobalState *GLOBAL_STATE, uint16_t pool_idx, volatile 
     esp_transport_handle_t transport = STRATUM_V1_transport_init(tls, cert);
     if (!transport) {
         ESP_LOGE(TAG, "Transport initialization failed.");
+        snprintf(GLOBAL_STATE->SYSTEM_MODULE.pool_connection_info,
+                 sizeof(GLOBAL_STATE->SYSTEM_MODULE.pool_connection_info), "SV1: Internal error");
         return ESP_FAIL;
     }
 
@@ -169,6 +182,8 @@ esp_err_t stratum_v1_run(GlobalState *GLOBAL_STATE, uint16_t pool_idx, volatile 
     esp_err_t ret = esp_transport_connect(transport, conn_info.host_ip, port, TRANSPORT_TIMEOUT_MS);
     if (ret != ESP_OK) {
         ESP_LOGE(TAG, "Transport unable to connect to %s:%d (errno %d)", stratum_url, port, ret);
+        snprintf(GLOBAL_STATE->SYSTEM_MODULE.pool_connection_info,
+                 sizeof(GLOBAL_STATE->SYSTEM_MODULE.pool_connection_info), "SV1: Connection failed");
         esp_transport_close(transport);
         esp_transport_destroy(transport);
         return ESP_FAIL;
@@ -339,6 +354,9 @@ esp_err_t stratum_v1_run(GlobalState *GLOBAL_STATE, uint16_t pool_idx, volatile 
             case STRATUM_RESULT: {
                 float response_time_ms = STRATUM_V1_get_response_time_ms(stratum_api_v1_message.message_id, receive_time_us);
                 if (response_time_ms >= 0) {
+                    if (GLOBAL_STATE->SYSTEM_MODULE.shares_pending > 0) {
+                        GLOBAL_STATE->SYSTEM_MODULE.shares_pending--;
+                    }
                     if (stratum_api_v1_message.response_success) {
                         ESP_LOGI(TAG, "message result accepted");
                         ESP_LOGI(TAG, "Stratum response time: %.1f ms", response_time_ms);
@@ -363,6 +381,10 @@ esp_err_t stratum_v1_run(GlobalState *GLOBAL_STATE, uint16_t pool_idx, volatile 
                         }
                     } else {
                         ESP_LOGE(TAG, "setup message rejected: %s", stratum_api_v1_message.error_str);
+                        if (stratum_api_v1_message.message_id == authorize_message_id) {
+                            snprintf(GLOBAL_STATE->SYSTEM_MODULE.pool_connection_info,
+                                     sizeof(GLOBAL_STATE->SYSTEM_MODULE.pool_connection_info), "SV1: Auth rejected");
+                        }
                     }
                 }
                 break;

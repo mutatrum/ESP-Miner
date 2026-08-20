@@ -89,15 +89,26 @@ static void clear_active_job_ids(uint32_t *active_job_ids, int *count)
 
 void stratum_v2_close_connection(GlobalState *GLOBAL_STATE)
 {
-    if (s_v2_conn && s_v2_conn->noise_ctx) {
-        sv2_noise_destroy(s_v2_conn->noise_ctx);
-        s_v2_conn->noise_ctx = NULL;
+    taskENTER_CRITICAL(&GLOBAL_STATE->stratum_mux);
+    esp_transport_handle_t transport = GLOBAL_STATE->transport;
+    GLOBAL_STATE->transport = NULL;
+    sv2_conn_t *conn = s_v2_conn;
+    s_v2_conn = NULL;
+    taskEXIT_CRITICAL(&GLOBAL_STATE->stratum_mux);
+
+    if (conn && conn->noise_ctx) {
+        sv2_noise_destroy(conn->noise_ctx);
+        conn->noise_ctx = NULL;
     }
-    if (GLOBAL_STATE->transport) {
-        esp_transport_close(GLOBAL_STATE->transport);
-        esp_transport_destroy(GLOBAL_STATE->transport);
-        GLOBAL_STATE->transport = NULL;
+    if (transport != NULL) {
+        esp_transport_close(transport);
+        esp_transport_destroy(transport);
     }
+    if (conn != NULL) {
+        clear_active_job_ids(conn->active_job_ids, &conn->active_job_ids_count);
+        free(conn);
+    }
+    GLOBAL_STATE->SYSTEM_MODULE.shares_pending = 0;
     SYSTEM_clean_jobs_queue(GLOBAL_STATE);
     SYSTEM_reset_coinbase_ui_state(GLOBAL_STATE, "");
 }
@@ -127,7 +138,7 @@ static void stratum_v2_track_submit(GlobalState *GLOBAL_STATE, uint32_t sequence
 int stratum_v2_submit_share(GlobalState *GLOBAL_STATE, const bm_job *active_job,
                             uint32_t nonce, uint32_t rolled_version, uint64_t *sent_time_us)
 {
-    if (!GLOBAL_STATE || !active_job || !s_v2_conn || !GLOBAL_STATE->transport || !s_v2_conn->noise_ctx) {
+    if (!GLOBAL_STATE || !active_job || !s_v2_conn) {
         return -1;
     }
 
@@ -140,11 +151,19 @@ int stratum_v2_submit_share(GlobalState *GLOBAL_STATE, const bm_job *active_job,
         hex2bin(active_job->extranonce2, extranonce_2, en2_len);
     }
 
+    taskENTER_CRITICAL(&GLOBAL_STATE->stratum_mux);
+    esp_transport_handle_t transport = GLOBAL_STATE->transport;
     sv2_conn_t *conn = s_v2_conn;
+    uint32_t sequence_number = conn ? conn->sequence_number++ : 0;
+    taskEXIT_CRITICAL(&GLOBAL_STATE->stratum_mux);
+
+    if (!transport || !conn || !conn->noise_ctx) {
+        return -1;
+    }
+
     uint8_t buf[SV2_SUBMIT_SHARES_MAX_FRAME_SIZE];
 
     uint32_t sv2_job_id = (uint32_t)strtoul(active_job->jobid, NULL, 10);
-    uint32_t sequence_number = conn->sequence_number++;
     int len = sv2_build_submit_shares(buf, sizeof(buf),
                                       conn->channel_id,
                                       sequence_number,
@@ -153,7 +172,7 @@ int stratum_v2_submit_share(GlobalState *GLOBAL_STATE, const bm_job *active_job,
     if (len < 0) return -1;
 
     stratum_v2_track_submit(GLOBAL_STATE, sequence_number);
-    int ret = sv2_noise_send(conn->noise_ctx, GLOBAL_STATE->transport, buf, len);
+    int ret = sv2_noise_send(conn->noise_ctx, transport, buf, len);
     if (sent_time_us) {
         *sent_time_us = esp_timer_get_time();
     }
@@ -174,7 +193,7 @@ static void stratum_v2_enqueue_job(GlobalState *GLOBAL_STATE, sv2_conn_t *conn,
 
     job->pool_id = conn->pool_idx;
     job->pool_diff = hash_to_pdiff(conn->target);
-    job->version_mask = STRATUM_DEFAULT_VERSION_MASK;
+    job->version_mask = conn->version_mask;
 
     if (job->type == JOB_TYPE_SV2_EXTENDED) {
         job->extranonce1_len = conn->extranonce_prefix_len;
@@ -344,11 +363,18 @@ esp_err_t stratum_v2_run(GlobalState *GLOBAL_STATE, uint16_t pool_idx, volatile 
 {
     sv2_channel_type_t channel_type = GLOBAL_STATE->SYSTEM_MODULE.pools[pool_idx].sv2_channel_type;
 
+    if (s_v2_conn != NULL) {
+        clear_active_job_ids(s_v2_conn->active_job_ids, &s_v2_conn->active_job_ids_count);
+        free(s_v2_conn);
+        s_v2_conn = NULL;
+    }
+
     sv2_conn_t *conn = calloc(1, sizeof(sv2_conn_t));
     if (!conn) {
         ESP_LOGE(TAG, "Failed to allocate sv2_conn");
         return ESP_ERR_NO_MEM;
     }
+    conn->version_mask = BIP320_VERSION_ROLLING_MASK;
     s_v2_conn = conn;
 
     uint8_t *frame_buf = heap_caps_malloc(SV2_MAX_FRAME_SIZE, MALLOC_CAP_SPIRAM);
@@ -358,8 +384,10 @@ esp_err_t stratum_v2_run(GlobalState *GLOBAL_STATE, uint16_t pool_idx, volatile 
         ESP_LOGE(TAG, "Failed to allocate frame buffers");
         free(frame_buf);
         free(recv_buf);
-        free(conn);
-        s_v2_conn = NULL;
+        if (s_v2_conn) {
+            free(s_v2_conn);
+            s_v2_conn = NULL;
+        }
         return ESP_ERR_NO_MEM;
     }
 
@@ -375,8 +403,10 @@ esp_err_t stratum_v2_run(GlobalState *GLOBAL_STATE, uint16_t pool_idx, volatile 
                  sizeof(GLOBAL_STATE->SYSTEM_MODULE.pool_connection_info), "SV2: Internal error");
         free(frame_buf);
         free(recv_buf);
-        free(conn);
-        s_v2_conn = NULL;
+        if (s_v2_conn) {
+            free(s_v2_conn);
+            s_v2_conn = NULL;
+        }
         return ESP_FAIL;
     }
 
@@ -389,8 +419,10 @@ esp_err_t stratum_v2_run(GlobalState *GLOBAL_STATE, uint16_t pool_idx, volatile 
         esp_transport_destroy(transport);
         free(frame_buf);
         free(recv_buf);
-        free(conn);
-        s_v2_conn = NULL;
+        if (s_v2_conn) {
+            free(s_v2_conn);
+            s_v2_conn = NULL;
+        }
         return ESP_FAIL;
     }
 
@@ -405,18 +437,24 @@ esp_err_t stratum_v2_run(GlobalState *GLOBAL_STATE, uint16_t pool_idx, volatile 
         esp_transport_destroy(transport);
         free(frame_buf);
         free(recv_buf);
-        free(conn);
-        s_v2_conn = NULL;
+        if (s_v2_conn) {
+            free(s_v2_conn);
+            s_v2_conn = NULL;
+        }
         return ESP_FAIL;
     }
 
     ESP_LOGI(TAG, "TCP connected to %s:%d (%s)", stratum_url, port, conn_info.host_ip);
 
+    taskENTER_CRITICAL(&GLOBAL_STATE->stratum_mux);
     GLOBAL_STATE->transport = transport;
+    taskEXIT_CRITICAL(&GLOBAL_STATE->stratum_mux);
+
     stratum_socket_set_options(transport);
 
     memset(conn, 0, sizeof(*conn));
     conn->pool_idx = (uint8_t)pool_idx;
+    conn->version_mask = BIP320_VERSION_ROLLING_MASK;
     s_v2_conn = conn;
     stratum_v2_update_pending_shares(GLOBAL_STATE);
 
@@ -428,8 +466,6 @@ esp_err_t stratum_v2_run(GlobalState *GLOBAL_STATE, uint16_t pool_idx, volatile 
         stratum_v2_close_connection(GLOBAL_STATE);
         free(frame_buf);
         free(recv_buf);
-        free(conn);
-        s_v2_conn = NULL;
         return ESP_FAIL;
     }
     conn->noise_ctx = noise_ctx;
@@ -445,8 +481,6 @@ esp_err_t stratum_v2_run(GlobalState *GLOBAL_STATE, uint16_t pool_idx, volatile 
         stratum_v2_close_connection(GLOBAL_STATE);
         free(frame_buf);
         free(recv_buf);
-        free(conn);
-        s_v2_conn = NULL;
         return ESP_FAIL;
     }
 
@@ -463,8 +497,6 @@ esp_err_t stratum_v2_run(GlobalState *GLOBAL_STATE, uint16_t pool_idx, volatile 
         stratum_v2_close_connection(GLOBAL_STATE);
         free(frame_buf);
         free(recv_buf);
-        free(conn);
-        s_v2_conn = NULL;
         return ESP_FAIL;
     }
 
@@ -498,8 +530,6 @@ esp_err_t stratum_v2_run(GlobalState *GLOBAL_STATE, uint16_t pool_idx, volatile 
             stratum_v2_close_connection(GLOBAL_STATE);
             free(frame_buf);
             free(recv_buf);
-            free(conn);
-            s_v2_conn = NULL;
             return ESP_FAIL;
         }
     }
@@ -514,8 +544,6 @@ esp_err_t stratum_v2_run(GlobalState *GLOBAL_STATE, uint16_t pool_idx, volatile 
             stratum_v2_close_connection(GLOBAL_STATE);
             free(frame_buf);
             free(recv_buf);
-            free(conn);
-            s_v2_conn = NULL;
             return ESP_FAIL;
         }
         sv2_parse_frame_header(hdr_buf, &hdr);
@@ -527,8 +555,6 @@ esp_err_t stratum_v2_run(GlobalState *GLOBAL_STATE, uint16_t pool_idx, volatile 
             stratum_v2_close_connection(GLOBAL_STATE);
             free(frame_buf);
             free(recv_buf);
-            free(conn);
-            s_v2_conn = NULL;
             return ESP_FAIL;
         }
 
@@ -539,8 +565,6 @@ esp_err_t stratum_v2_run(GlobalState *GLOBAL_STATE, uint16_t pool_idx, volatile 
             stratum_v2_close_connection(GLOBAL_STATE);
             free(frame_buf);
             free(recv_buf);
-            free(conn);
-            s_v2_conn = NULL;
             return ESP_FAIL;
         }
         ESP_LOGI(TAG, "Pool accepted connection: SV2 version=%d, flags=0x%08lx", used_version, flags);
@@ -569,8 +593,6 @@ esp_err_t stratum_v2_run(GlobalState *GLOBAL_STATE, uint16_t pool_idx, volatile 
             stratum_v2_close_connection(GLOBAL_STATE);
             free(frame_buf);
             free(recv_buf);
-            free(conn);
-            s_v2_conn = NULL;
             return ESP_FAIL;
         }
     }
@@ -585,8 +607,6 @@ esp_err_t stratum_v2_run(GlobalState *GLOBAL_STATE, uint16_t pool_idx, volatile 
             stratum_v2_close_connection(GLOBAL_STATE);
             free(frame_buf);
             free(recv_buf);
-            free(conn);
-            s_v2_conn = NULL;
             return ESP_FAIL;
         }
         sv2_parse_frame_header(hdr_buf, &hdr);
@@ -603,8 +623,6 @@ esp_err_t stratum_v2_run(GlobalState *GLOBAL_STATE, uint16_t pool_idx, volatile 
             stratum_v2_close_connection(GLOBAL_STATE);
             free(frame_buf);
             free(recv_buf);
-            free(conn);
-            s_v2_conn = NULL;
             return ESP_FAIL;
         }
 
@@ -625,8 +643,6 @@ esp_err_t stratum_v2_run(GlobalState *GLOBAL_STATE, uint16_t pool_idx, volatile 
                 stratum_v2_close_connection(GLOBAL_STATE);
                 free(frame_buf);
                 free(recv_buf);
-                free(conn);
-                s_v2_conn = NULL;
                 return ESP_FAIL;
             }
 
@@ -648,8 +664,6 @@ esp_err_t stratum_v2_run(GlobalState *GLOBAL_STATE, uint16_t pool_idx, volatile 
                 stratum_v2_close_connection(GLOBAL_STATE);
                 free(frame_buf);
                 free(recv_buf);
-                free(conn);
-                s_v2_conn = NULL;
                 return ESP_FAIL;
             }
         }
@@ -789,7 +803,5 @@ esp_err_t stratum_v2_run(GlobalState *GLOBAL_STATE, uint16_t pool_idx, volatile 
     stratum_v2_close_connection(GLOBAL_STATE);
     free(frame_buf);
     free(recv_buf);
-    free(conn);
-    s_v2_conn = NULL;
     return run_result;
 }

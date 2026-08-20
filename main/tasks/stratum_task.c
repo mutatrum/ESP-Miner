@@ -16,6 +16,9 @@
 #include <errno.h>
 #include <string.h>
 
+#include "esp_transport_ssl.h"
+#include "stratum_socket.h"
+
 #define TAG "stratum_task"
 #define TRANSPORT_TIMEOUT_MS 5000
 #define MAX_RETRY_ATTEMPTS 3
@@ -48,10 +51,15 @@ static bool probe_pool_sv2(const char *url, uint16_t port)
 {
     if (url == NULL || url[0] == '\0' || port == 0) return false;
 
+    stratum_connection_info_t conn_info;
+    if (stratum_socket_resolve(url, port, &conn_info) != ESP_OK) {
+        return false;
+    }
+
     esp_transport_handle_t probe = esp_transport_tcp_init();
     if (!probe) return false;
 
-    esp_err_t err = esp_transport_connect(probe, url, port, TRANSPORT_TIMEOUT_MS);
+    esp_err_t err = esp_transport_connect(probe, conn_info.host_ip, port, TRANSPORT_TIMEOUT_MS);
     esp_transport_close(probe);
     esp_transport_destroy(probe);
 
@@ -63,10 +71,19 @@ static bool probe_pool_v1(GlobalState *gs, const char *url, uint16_t port,
 {
     if (url == NULL || url[0] == '\0' || port == 0) return false;
 
+    stratum_connection_info_t conn_info;
+    if (stratum_socket_resolve(url, port, &conn_info) != ESP_OK) {
+        return false;
+    }
+
     esp_transport_handle_t transport = STRATUM_V1_transport_init(tls, cert);
     if (!transport) return false;
 
-    esp_err_t err = esp_transport_connect(transport, url, port, TRANSPORT_TIMEOUT_MS);
+    if (tls != DISABLED) {
+        esp_transport_ssl_set_common_name(transport, url);
+    }
+
+    esp_err_t err = esp_transport_connect(transport, conn_info.host_ip, port, TRANSPORT_TIMEOUT_MS);
     if (err != ESP_OK) {
         esp_transport_close(transport);
         esp_transport_destroy(transport);
@@ -75,7 +92,6 @@ static bool probe_pool_v1(GlobalState *gs, const char *url, uint16_t port,
 
     int send_uid = 1;
     STRATUM_V1_subscribe(transport, send_uid++, gs->DEVICE_CONFIG.family.asic.name);
-    STRATUM_V1_authorize(transport, send_uid++, user, pass);
 
     char recv_buffer[BUFFER_SIZE];
     memset(recv_buffer, 0, BUFFER_SIZE);
@@ -84,7 +100,9 @@ static bool probe_pool_v1(GlobalState *gs, const char *url, uint16_t port,
     esp_transport_close(transport);
     esp_transport_destroy(transport);
 
-    return (bytes_received > 0 && strstr(recv_buffer, "mining.notify") != NULL);
+    return (bytes_received > 0 && (strstr(recv_buffer, "result") != NULL ||
+                                   strstr(recv_buffer, "id") != NULL ||
+                                   strstr(recv_buffer, "mining") != NULL));
 }
 
 bool stratum_probe_pool(GlobalState *gs, uint16_t pool_idx)
@@ -139,6 +157,34 @@ void stratum_trigger_heartbeat_check(void)
 {
     if (s_heartbeat_task_handle) {
         xTaskNotifyGive(s_heartbeat_task_handle);
+    }
+}
+
+static uint16_t s_running_pool_idx = 0;
+
+void stratum_notify_pool_modified(GlobalState *gs, uint16_t pool_idx)
+{
+    if (!gs) return;
+
+    uint16_t prim_idx = gs->SYSTEM_MODULE.primary_pool_index;
+
+    if (pool_idx == s_running_pool_idx) {
+        stratum_request_reconnect();
+    } else if (pool_idx == prim_idx && gs->SYSTEM_MODULE.is_using_fallback && !gs->SYSTEM_MODULE.use_fallback_stratum) {
+        stratum_trigger_heartbeat_check();
+    }
+}
+
+void stratum_notify_pool_selection_changed(GlobalState *gs)
+{
+    if (!gs) return;
+
+    uint16_t prim_idx = gs->SYSTEM_MODULE.primary_pool_index;
+    uint16_t sec_idx = gs->SYSTEM_MODULE.secondary_pool_index;
+    uint16_t target_idx = gs->SYSTEM_MODULE.is_using_fallback ? sec_idx : prim_idx;
+
+    if (target_idx != s_running_pool_idx) {
+        stratum_request_reconnect();
     }
 }
 
@@ -223,6 +269,7 @@ void stratum_task(void *pvParameters)
         uint16_t active_idx = GLOBAL_STATE->SYSTEM_MODULE.is_using_fallback ? sec_idx : prim_idx;
         stratum_protocol_t protocol = GLOBAL_STATE->SYSTEM_MODULE.pools[active_idx].protocol;
 
+        s_running_pool_idx = active_idx;
         s_should_reconnect = false;
         esp_err_t err;
 

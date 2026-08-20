@@ -69,6 +69,7 @@ struct sv2_noise_ctx;
 typedef struct sv2_conn {
     struct sv2_noise_ctx *noise_ctx;
     uint32_t channel_id;
+    uint32_t version_mask;
     uint32_t sequence_number;       // also the count of shares submitted
     uint32_t resolved_shares;       // shares the pool has accepted or rejected
     uint8_t target[32]; // U256 LE target

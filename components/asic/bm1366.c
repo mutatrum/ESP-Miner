@@ -193,7 +193,7 @@ uint8_t BM1366_init(GlobalState * GLOBAL_STATE)
 {
     // set version mask
     for (int i = 0; i < 3; i++) {
-        BM1366_set_version_mask(STRATUM_DEFAULT_VERSION_MASK);
+        BM1366_set_version_mask(BIP320_VERSION_ROLLING_MASK);
     }
 
     // read register 00 on all chips
