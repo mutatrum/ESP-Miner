@@ -504,16 +504,16 @@ int sv2_parse_new_extended_mining_job(const uint8_t *payload, uint32_t len,
 sv2_channel_type_t sv2_channel_type_from_string(const char *s)
 {
     if (!s) return SV2_CHANNEL_UNKNOWN;
-    if (strcmp(s, SV2_CHANNEL_TYPE_EXTENDED) == 0) return SV2_CHANNEL_EXTENDED;
-    if (strcmp(s, SV2_CHANNEL_TYPE_STANDARD) == 0) return SV2_CHANNEL_STANDARD;
+    if (strcmp(s, "extended") == 0) return SV2_CHANNEL_EXTENDED;
+    if (strcmp(s, "standard") == 0) return SV2_CHANNEL_STANDARD;
     return SV2_CHANNEL_UNKNOWN;
 }
 
 const char *sv2_channel_type_to_string(sv2_channel_type_t t)
 {
     switch (t) {
-        case SV2_CHANNEL_STANDARD: return SV2_CHANNEL_TYPE_STANDARD;
-        case SV2_CHANNEL_EXTENDED: return SV2_CHANNEL_TYPE_EXTENDED;
+        case SV2_CHANNEL_STANDARD: return "standard";
+        case SV2_CHANNEL_EXTENDED: return "extended";
         default: return "unknown";
     }
 }

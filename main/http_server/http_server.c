@@ -813,7 +813,7 @@ static bool update_pool_nvs(const cJSON *pool_item, int i) {
     add_number_field_default(p_obj, pool_item, "stratumTLS", 0);
     add_string_field_default(p_obj, pool_item, "stratumCert", "");
     add_bool_field_default(p_obj, pool_item, "stratumDecodeCoinbase", true);
-    add_string_field_default(p_obj, pool_item, "stratumV2ChannelType", SV2_CHANNEL_TYPE_EXTENDED);
+    add_string_field_default(p_obj, pool_item, "stratumV2ChannelType", sv2_channel_type_to_string(SV2_CHANNEL_EXTENDED));
     add_string_field_default(p_obj, pool_item, "stratumV2AuthorityPubkey", "");
     add_bool_field_default(p_obj, pool_item, "stratumV2RequireAuth", false);
 

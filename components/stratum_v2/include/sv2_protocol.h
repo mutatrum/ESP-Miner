@@ -45,9 +45,6 @@ typedef enum {
     SV2_CHANNEL_EXTENDED = 2,
 } sv2_channel_type_t;
 
-#define SV2_CHANNEL_TYPE_STANDARD "standard"
-#define SV2_CHANNEL_TYPE_EXTENDED "extended"
-
 sv2_channel_type_t sv2_channel_type_from_string(const char *s);
 const char *sv2_channel_type_to_string(sv2_channel_type_t t);
 

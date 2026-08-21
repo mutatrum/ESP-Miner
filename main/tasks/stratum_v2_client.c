@@ -518,7 +518,7 @@ esp_err_t stratum_v2_run(GlobalState *GLOBAL_STATE, uint16_t pool_idx, volatile 
         const char *device_model = GLOBAL_STATE->DEVICE_CONFIG.family.asic.name;
         ESP_LOGI(TAG, "Sending SetupConnection (vendor=bitaxe, hw=%s, channel=%s)",
                  device_model ? device_model : "",
-                 channel_type == SV2_CHANNEL_EXTENDED ? SV2_CHANNEL_TYPE_EXTENDED : SV2_CHANNEL_TYPE_STANDARD);
+                 sv2_channel_type_to_string(channel_type));
         int frame_len = sv2_build_setup_connection(frame_buf, SV2_MAX_FRAME_SIZE,
                                                    stratum_url, port,
                                                    "bitaxe", device_model ? device_model : "",
@@ -677,7 +677,7 @@ esp_err_t stratum_v2_run(GlobalState *GLOBAL_STATE, uint16_t pool_idx, volatile 
 
         ESP_LOGI(TAG, "Mining channel opened: channel_id=%lu, group=%lu, type=%s",
                  channel_id, group_channel_id,
-                 channel_type == SV2_CHANNEL_EXTENDED ? SV2_CHANNEL_TYPE_EXTENDED : SV2_CHANNEL_TYPE_STANDARD);
+                 sv2_channel_type_to_string(channel_type));
         ESP_LOGI(TAG, "Set pool difficulty: %g", pdiff);
     }
 

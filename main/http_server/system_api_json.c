@@ -188,7 +188,7 @@ static void system_api_add_config(cJSON *root, GlobalState *g) {
             cJSON_AddNumberToObject(p_obj, "stratumTLS", p->tls);
             cJSON_AddStringToObject(p_obj, "stratumCert", p->cert ? p->cert : "");
             cJSON_AddBoolToObject(p_obj, "stratumDecodeCoinbase", p->decode_coinbase_tx);
-            cJSON_AddStringToObject(p_obj, "stratumV2ChannelType", p->sv2_channel_type == SV2_CHANNEL_STANDARD ? SV2_CHANNEL_TYPE_STANDARD : SV2_CHANNEL_TYPE_EXTENDED);
+            cJSON_AddStringToObject(p_obj, "stratumV2ChannelType", sv2_channel_type_to_string(p->sv2_channel_type));
             cJSON_AddStringToObject(p_obj, "stratumV2AuthorityPubkey", p->sv2_authority_pubkey ? p->sv2_authority_pubkey : "");
             cJSON_AddBoolToObject(p_obj, "stratumV2RequireAuth", p->sv2_require_auth);
 
@@ -210,7 +210,7 @@ static void system_api_add_config(cJSON *root, GlobalState *g) {
     cJSON_AddBoolToObject(root, "stratumDecodeCoinbase", prim_pool->decode_coinbase_tx);
     cJSON_AddStringToObject(root, "stratumProtocol", prim_pool->protocol == STRATUM_PROTOCOL_V2 ? STRATUM_V2 : STRATUM_V1);
     cJSON_AddStringToObject(root, "stratumV2AuthorityPubkey", prim_pool->sv2_authority_pubkey ? prim_pool->sv2_authority_pubkey : "");
-    cJSON_AddStringToObject(root, "stratumV2ChannelType", prim_pool->sv2_channel_type == SV2_CHANNEL_STANDARD ? SV2_CHANNEL_TYPE_STANDARD : SV2_CHANNEL_TYPE_EXTENDED);
+    cJSON_AddStringToObject(root, "stratumV2ChannelType", sv2_channel_type_to_string(prim_pool->sv2_channel_type));
 
     cJSON_AddStringToObject(root, "fallbackStratumURL", sec_pool->url ? sec_pool->url : "");
     cJSON_AddNumberToObject(root, "fallbackStratumPort", sec_pool->port);
@@ -222,7 +222,7 @@ static void system_api_add_config(cJSON *root, GlobalState *g) {
     cJSON_AddBoolToObject(root, "fallbackStratumDecodeCoinbase", sec_pool->decode_coinbase_tx);
     cJSON_AddStringToObject(root, "fallbackStratumProtocol", sec_pool->protocol == STRATUM_PROTOCOL_V2 ? STRATUM_V2 : STRATUM_V1);
     cJSON_AddStringToObject(root, "fallbackStratumV2AuthorityPubkey", sec_pool->sv2_authority_pubkey ? sec_pool->sv2_authority_pubkey : "");
-    cJSON_AddStringToObject(root, "fallbackStratumV2ChannelType", sec_pool->sv2_channel_type == SV2_CHANNEL_STANDARD ? SV2_CHANNEL_TYPE_STANDARD : SV2_CHANNEL_TYPE_EXTENDED);
+    cJSON_AddStringToObject(root, "fallbackStratumV2ChannelType", sv2_channel_type_to_string(sec_pool->sv2_channel_type));
 
     // User Preferences
     cJSON_AddNumberToObject(root, "useCustomWWW", nvs_config_get_bool(NVS_CONFIG_USE_CUSTOM_WWW) ? 1 : 0);
