@@ -24,7 +24,6 @@ typedef struct {
 
 typedef struct {
     ScoreboardEntry entries[MAX_SCOREBOARD];
-    int count;
     SemaphoreHandle_t mutex;
 } Scoreboard;
 

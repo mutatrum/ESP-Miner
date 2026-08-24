@@ -17,7 +17,6 @@ static int compare_scoreboard_entries(const void *a, const void *b)
 
 esp_err_t scoreboard_init(Scoreboard *scoreboard)
 {
-    scoreboard->count = 0;
     scoreboard->mutex = xSemaphoreCreateMutex();
     if (scoreboard->mutex == NULL) {
         ESP_LOGE(TAG, "Failed to create mutex");
@@ -46,7 +45,6 @@ esp_err_t scoreboard_init(Scoreboard *scoreboard)
             entry.nvs_entry[sizeof(entry.nvs_entry) - 1] = '\0';
             entry.nvs_slot = i;
             scoreboard->entries[i] = entry;
-            scoreboard->count++;
         } else {
             ESP_LOGW(TAG, "Failed to parse scoreboard entry from NVS: %s", entry_str);
         }
@@ -94,9 +92,6 @@ esp_err_t scoreboard_add(Scoreboard *scoreboard, double difficulty, const char *
             new_entry.version_bits);
 
         scoreboard->entries[MAX_SCOREBOARD - 1] = new_entry;
-        if (scoreboard->count < MAX_SCOREBOARD) {
-            scoreboard->count++;
-        }
 
         qsort(scoreboard->entries, MAX_SCOREBOARD, sizeof(ScoreboardEntry), compare_scoreboard_entries);
 
@@ -106,7 +101,7 @@ esp_err_t scoreboard_add(Scoreboard *scoreboard, double difficulty, const char *
 
         // Determine rank for log output
         int rank = 1;
-        for (int i = 0; i < scoreboard->count; i++) {
+        for (int i = 0; i < MAX_SCOREBOARD; i++) {
             if (scoreboard->entries[i].nvs_slot == new_entry.nvs_slot) {
                 rank = i + 1;
                 break;
