@@ -19,6 +19,7 @@ typedef struct {
     uint32_t nonce;
     uint32_t version_bits;
     char nvs_entry[128];
+    int nvs_slot;
 } ScoreboardEntry;
 
 typedef struct {
