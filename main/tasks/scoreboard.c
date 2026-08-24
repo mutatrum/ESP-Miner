@@ -3,6 +3,7 @@
 #include "esp_log.h"
 #include <stdio.h>
 #include <stdbool.h>
+#include <inttypes.h>
 
 static const char * TAG = "scoreboard";
 
@@ -23,8 +24,9 @@ esp_err_t scoreboard_init(Scoreboard *scoreboard)
         return ESP_FAIL;
     }
 
+    memset(scoreboard->entries, 0, sizeof(scoreboard->entries));
+
     for (int i = 0; i < MAX_SCOREBOARD; i++) {
-        memset(&scoreboard->entries[i], 0, sizeof(ScoreboardEntry));
         scoreboard->entries[i].nvs_slot = i;
 
         char *entry_str = nvs_config_get_string_indexed(NVS_CONFIG_SCOREBOARD, i);
@@ -34,7 +36,7 @@ esp_err_t scoreboard_init(Scoreboard *scoreboard)
         }
 
         ScoreboardEntry entry;
-        if (sscanf(entry_str, "%lf;%31[^;];%31[^;];%lu;%lu;%lu", 
+        if (sscanf(entry_str, "%lf;%31[^;];%31[^;];%" SCNu32 ";%" SCNu32 ";%" SCNu32, 
                    &entry.difficulty, 
                    entry.job_id, 
                    entry.extranonce2, 
@@ -83,7 +85,7 @@ esp_err_t scoreboard_add(Scoreboard *scoreboard, double difficulty, const char *
         strncpy(new_entry.extranonce2, extranonce2, sizeof(new_entry.extranonce2) - 1);
         new_entry.extranonce2[sizeof(new_entry.extranonce2) - 1] = '\0';
         snprintf(new_entry.nvs_entry, sizeof(new_entry.nvs_entry),
-            "%.1f;%s;%s;%lu;%lu;%lu", 
+            "%.1f;%s;%s;%" PRIu32 ";%" PRIu32 ";%" PRIu32, 
             new_entry.difficulty, 
             new_entry.job_id, 
             new_entry.extranonce2,
@@ -108,8 +110,8 @@ esp_err_t scoreboard_add(Scoreboard *scoreboard, double difficulty, const char *
             }
         }
 
-        ESP_LOGI(TAG, "New #%d: Difficulty: %.1f, Job ID: %s, extranonce2: %s, ntime: %lu, nonce: %08lX, version_bits: %08lX",
-            rank, new_entry.difficulty, new_entry.job_id, new_entry.extranonce2, (unsigned long)new_entry.ntime, (unsigned long)new_entry.nonce, (unsigned long)new_entry.version_bits);
+        ESP_LOGI(TAG, "New #%d: Difficulty: %.1f, Job ID: %s, extranonce2: %s, ntime: %" PRIu32 ", nonce: %08" PRIX32 ", version_bits: %08" PRIX32,
+            rank, new_entry.difficulty, new_entry.job_id, new_entry.extranonce2, new_entry.ntime, new_entry.nonce, new_entry.version_bits);
     } else {
         ESP_LOGE(TAG, "Failed to take mutex");
         return ESP_FAIL;
