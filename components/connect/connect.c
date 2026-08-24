@@ -677,7 +677,6 @@ esp_netif_t * wifi_init_sta(const char * wifi_ssid, const char * wifi_pass)
                 .sort_method = WIFI_CONNECT_AP_BY_SIGNAL,
                 .pmf_cfg =
                     {
-                        .capable = true,
                         .required = false
                     },
         },
