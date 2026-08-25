@@ -15,20 +15,31 @@ const SWARM_REFRESH_TIME = 'SWARM_REFRESH_TIME';
 const SWARM_SORTING = 'SWARM_SORTING';
 const SWARM_GRID_VIEW = 'SWARM_GRID_VIEW';
 
-function addressValidator(control: AbstractControl): ValidationErrors | null {
+export function addressValidator(control: AbstractControl): ValidationErrors | null {
   const value = control.value;
   if (!value) return null;
-  const parts = value.split('.');
-  switch (parts.length) {
-    case 1: // Bare hostname (e.g. "bitaxe")
-      return /^[a-zA-Z0-9-]+$/.test(parts[0]) ? null : { invalidAddress: true };
-    case 2: // mDNS hostname (e.g. "bitaxe.local")
-      if (parts[1].toLowerCase() === 'local' && /^[a-zA-Z0-9-]+$/.test(parts[0])) return null;
-      break;
-    case 4: // IP Address (e.g. "192.168.1.1")
-      if (parts.every((part: string) => /^\d+$/.test(part) && Number(part) >= 0 && Number(part) <= 255)) return null;
-      break;
+
+  const trimmed = typeof value === 'string' ? value.trim() : '';
+  if (!trimmed) return null;
+
+  const parts = trimmed.split('.');
+
+  // If input is an IPv4 address (4 numeric octets 0-255)
+  if (parts.length === 4 && parts.every(part => /^\d+$/.test(part) && Number(part) >= 0 && Number(part) <= 255)) {
+    return null;
   }
+
+  // If all parts are numeric or the last part (TLD) is numeric, it is a malformed IP / invalid TLD
+  if (parts.some(part => part === '') || /^\d+$/.test(parts[parts.length - 1])) {
+    return { invalidAddress: true };
+  }
+
+  // RFC 1123 Hostname / FQDN format check (each label 1-63 chars, alphanum & hyphens, cannot start/end with hyphen)
+  const labelRegex = /^[a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?$/;
+  if (trimmed.length <= 253 && parts.every(part => labelRegex.test(part))) {
+    return null;
+  }
+
   return { invalidAddress: true };
 }
 
@@ -239,19 +250,33 @@ private isIpAddress(value: string): boolean {
     return device.displayName || device.address;
   }
 
+  public getCurrentHostname(): string {
+    return window.location.hostname;
+  }
+
   // Utility method to get the link URL for a device
-  // Follows the current device's access method (IP, hostname.local, or bare hostname)
+  // Follows the current device's access method (IP, hostname.local, bare hostname, or custom domain suffix like .lan)
   public getDeviceLink(device: SwarmDevice): string {
-    const currentHost = window.location.hostname;
+    const currentHost = this.getCurrentHostname();
     const isIP = this.isIpAddress(currentHost);
     if (isIP) {
       // Accessing via IP — link to device IP
       return device['ipv4'] || device.connectionAddress || device.address || '';
     }
-    if (currentHost.endsWith('.local')) {
-      // Accessing via mDNS — link to device's .local hostname
-      return device['fullHostname'] || device.connectionAddress || device.address || '';
+
+    const dotIndex = currentHost.indexOf('.');
+    if (dotIndex !== -1) {
+      // Accessing via domain (e.g. .local, .lan, .home.arpa) — link using the same domain suffix
+      const domainSuffix = currentHost.substring(dotIndex);
+      if (domainSuffix.toLowerCase() === '.local' && device['fullHostname']) {
+        return device['fullHostname'];
+      }
+      const baseName = (device['hostname'] || device.address || '').replace(/\.local$/i, '');
+      if (baseName) {
+        return `${baseName}${domainSuffix}`;
+      }
     }
+
     // Accessing via bare hostname — link to device's bare hostname
     return device['hostname'] || device.connectionAddress || device.address || '';
   }
