@@ -677,8 +677,12 @@ esp_netif_t * wifi_init_sta(const char * wifi_ssid, const char * wifi_pass)
                 .sort_method = WIFI_CONNECT_AP_BY_SIGNAL,
                 .pmf_cfg =
                     {
+                        .capable = true,
                         .required = false
                     },
+                .sae_pwe_h2e = ESP_WIFI_SAE_MODE,
+                .sae_h2e_identifier = EXAMPLE_H2E_IDENTIFIER,
+                .disable_wpa3_compatible_mode = 1,
         },
     };
 
