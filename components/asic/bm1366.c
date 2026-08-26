@@ -414,8 +414,3 @@ void BM1366_read_registers(GlobalState * GLOBAL_STATE)
         }
     }
 }
-
-float BM1366_get_domain_hashrate(float register_hashrate)
-{
-    return register_hashrate;
-}

@@ -234,26 +234,12 @@ esp_err_t ASIC_get_domain_measurement(GlobalState * GLOBAL_STATE, uint8_t asic_n
     measurement_t register_measurement = monitor->domain_measurements[asic_nr][domain_nr];
     pthread_mutex_unlock(&monitor->lock);
 
-    measurement->time_us = register_measurement.time_us;
-    switch (GLOBAL_STATE->DEVICE_CONFIG.family.asic.id) {
-        case BM1397:
-            measurement->hashrate = BM1397_get_domain_hashrate(register_measurement.hashrate);
-            return ESP_OK;
-        case BM1366:
-            measurement->hashrate = BM1366_get_domain_hashrate(register_measurement.hashrate);
-            return ESP_OK;
-        case BM1368:
-            measurement->hashrate = BM1368_get_domain_hashrate(register_measurement.hashrate);
-            return ESP_OK;
-        case BM1370:
-            measurement->hashrate = BM1370_get_domain_hashrate(register_measurement.hashrate);
-            return ESP_OK;
-        case BM1373:
-            measurement->hashrate = BM1373_get_domain_hashrate(register_measurement.hashrate);
-            return ESP_OK;
+    float scale = GLOBAL_STATE->DEVICE_CONFIG.family.asic.domain_hashrate_scale;
+    if (scale <= 0.0f) {
+        scale = 1.0f;
     }
 
-    ESP_LOGE(TAG, "Unknown ASIC id %d — cannot read domain hashrate",
-             GLOBAL_STATE->DEVICE_CONFIG.family.asic.id);
-    return ESP_ERR_NOT_SUPPORTED;
+    measurement->time_us = register_measurement.time_us;
+    measurement->hashrate = register_measurement.hashrate * scale;
+    return ESP_OK;
 }
