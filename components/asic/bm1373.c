@@ -543,13 +543,14 @@ task_result * BM1373_process_work(GlobalState * GLOBAL_STATE)
     return &result;
 }
 
+// TODO: Verify if this works for all ASICs
 void BM1373_read_registers(void)
 {
     int size = sizeof(REGISTER_MAP) / sizeof(REGISTER_MAP[0]);
     for (int reg = 0; reg < size; reg++) {
         if (REGISTER_MAP[reg] != REGISTER_INVALID) {
             _send_BM1373((TYPE_CMD | GROUP_ALL | CMD_READ), (uint8_t[]){0x00, reg}, 2, BM1373_SERIALTX_DEBUG);
-            vTaskDelay(1 / portTICK_PERIOD_MS);
+            vTaskDelay(pdMS_TO_TICKS(1));
         }
     }
 }
