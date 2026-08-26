@@ -12,8 +12,6 @@
 #include "driver/gpio.h"
 #include "global_state.h"
 #include "device_config.h"
-#include "freertos/FreeRTOS.h"
-#include "freertos/task.h"
 #include "vcore.h"
 
 #define GPIO_ASIC_ENABLE CONFIG_GPIO_ASIC_ENABLE
