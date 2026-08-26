@@ -332,16 +332,6 @@ uint8_t BM1370_init(GlobalState * GLOBAL_STATE)
 //     _send_BM1370((TYPE_CMD | GROUP_ALL | CMD_READ), read_address, 2, BM1370_SERIALTX_DEBUG);
 // }
 
-// Baud formula = 25M/((denominator+1)*8)
-// The denominator is 5 bits found in the misc_control (bits 9-13)
-int BM1370_set_default_baud(void)
-{
-    // default divider of 26 (11010) for 115,749
-    unsigned char baudrate[] = {0x00, MISC_CONTROL, 0x00, 0x00, 0b01111010, 0b00110001}; // baudrate - misc_control
-    _send_BM1370((TYPE_CMD | GROUP_ALL | CMD_WRITE), baudrate, 6, BM1370_SERIALTX_DEBUG);
-    return 115749;
-}
-
 int BM1370_set_max_baud(void)
 {
     // divider of 0 for 3,125,000

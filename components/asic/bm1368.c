@@ -240,13 +240,6 @@ uint8_t BM1368_init(GlobalState * GLOBAL_STATE)
     return chip_counter;
 }
 
-int BM1368_set_default_baud(void)
-{
-    unsigned char baudrate[9] = {0x00, MISC_CONTROL, 0x00, 0x00, 0b01111010, 0b00110001};
-    _send_BM1368((TYPE_CMD | GROUP_ALL | CMD_WRITE), baudrate, 6, BM1368_SERIALTX_DEBUG);
-    return 115749;
-}
-
 int BM1368_set_max_baud(void)
 {
     ESP_LOGI(TAG, "Setting max baud of 1000000");

@@ -441,12 +441,6 @@ uint8_t BM1373_init(GlobalState * GLOBAL_STATE)
     return detected_chip_count;
 }
 
-int BM1373_set_default_baud(void)
-{
-    // BM1372/BM1373 returns to 115200 only through a hardware reset.
-    return UART_FREQ;
-}
-
 int BM1373_set_max_baud(void)
 {
     // TODO: Investigate if BM1372/BM1373 baud switch timing can be unified with other ASICs
