@@ -17,8 +17,9 @@ static const char *TAG = "asic_init";
 uint8_t asic_initialize(GlobalState *GLOBAL_STATE, asic_init_mode_t mode, uint32_t stabilization_delay_ms)
 {
     const char *mode_str = (mode == ASIC_INIT_COLD_BOOT) ? "cold boot" : "recovery";
-    const bool retry_bm1373_chain = GLOBAL_STATE->DEVICE_CONFIG.family.asic.id == BM1373;
-    const uint8_t max_attempts = retry_bm1373_chain ? BM1373_CHAIN_INIT_ATTEMPTS : 1;
+    const uint8_t max_attempts = GLOBAL_STATE->DEVICE_CONFIG.family.asic.init_retry_attempts > 0
+                                     ? GLOBAL_STATE->DEVICE_CONFIG.family.asic.init_retry_attempts
+                                     : 1;
     ESP_LOGI(TAG, "Starting ASIC initialization (%s mode)", mode_str);
 
     if (asic_reset() != ESP_OK) {

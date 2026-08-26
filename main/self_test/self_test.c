@@ -353,14 +353,11 @@ void self_test_show_message(GlobalState * GLOBAL_STATE, const char * msg)
 static esp_err_t test_fan_sense(GlobalState * GLOBAL_STATE)
 {
     uint16_t fan_speed = Thermal_get_fan_speed(&GLOBAL_STATE->DEVICE_CONFIG);
-    uint16_t target_speed = nvs_config_get_u16(NVS_CONFIG_SELF_TEST_FAN_SPEED);
+    uint16_t target_speed = GLOBAL_STATE->DEVICE_CONFIG.self_test_fan_target_rpm != 0
+                                ? GLOBAL_STATE->DEVICE_CONFIG.self_test_fan_target_rpm
+                                : nvs_config_get_u16(NVS_CONFIG_SELF_TEST_FAN_SPEED);
 
     ESP_LOGI(TAG, "fanSpeed: %d RPM", fan_speed);
-    if (GLOBAL_STATE->DEVICE_CONFIG.family.id == GAMMA_TURBO ||
-        GLOBAL_STATE->DEVICE_CONFIG.family.id == GAMMA_HEX ||
-        GLOBAL_STATE->DEVICE_CONFIG.family.id == NAJA_DUO) {
-        target_speed = 500;
-    }
     if (fan_speed > target_speed) {
         return ESP_OK;
     }

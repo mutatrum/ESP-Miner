@@ -18,8 +18,6 @@
 
 #define GPIO_ASIC_ENABLE CONFIG_GPIO_ASIC_ENABLE
 #define GPIO_PLUG_SENSE CONFIG_GPIO_PLUG_SENSE
-#define TPS546_DUAL_PHASE_STACK_CONFIG 0x0001
-#define TPS546_FOUR_PHASE_STACK_CONFIG 0x0003
 
 static const char *TAG = "vcore";
 static bool vcore_initialized = false;
@@ -54,120 +52,7 @@ static void log_tps546_config(const FamilyConfig *family, const TPS546_CONFIG *c
 
 static TPS546_CONFIG get_tps546_config(const FamilyConfig * family)
 {
-    TPS546_CONFIG config = {0};
-    config.TPS546_INIT_FREQUENCY = TPS546_DEFAULT_FREQUENCY;
-
-    // Set family-specific parameters
-    switch (family->id) {
-    case GAMMA_HEX:
-        if (family->voltage_domains != GAMMA_HEX_VOLTAGE_DOMAINS) {
-            ESP_LOGE(TAG, "GammaHex must be configured for %u voltage domains",
-                     GAMMA_HEX_VOLTAGE_DOMAINS);
-            return config;
-        }
-        config.TPS546_INIT_PHASE = TPS546_INIT_PHASE_MULTI;
-        config.TPS546_INIT_VIN_ON = 11.0;
-        config.TPS546_INIT_VIN_OFF = 10.5;
-        config.TPS546_INIT_VIN_UV_WARN_LIMIT = 11.0;
-        config.TPS546_INIT_VIN_OV_FAULT_LIMIT = 14.0;
-        config.TPS546_INIT_SCALE_LOOP = 0.125;
-        config.TPS546_INIT_VOUT_MIN = 2.0;
-        config.TPS546_INIT_VOUT_MAX = 3.0;
-        config.TPS546_INIT_VOUT_COMMAND = 2.4;
-        config.TPS546_INIT_IOUT_OC_WARN_LIMIT = 150.0;
-        config.TPS546_INIT_IOUT_OC_FAULT_LIMIT = 160.0;
-        config.TPS546_INIT_STACK_CONFIG = TPS546_FOUR_PHASE_STACK_CONFIG;
-        config.TPS546_INIT_SYNC_CONFIG = 0xD0;
-        config.TPS546_INIT_COMPENSATION_CONFIG[0] = 0x02;
-        config.TPS546_INIT_COMPENSATION_CONFIG[1] = 0x64;
-        config.TPS546_INIT_COMPENSATION_CONFIG[2] = 0x82;
-        config.TPS546_INIT_COMPENSATION_CONFIG[3] = 0x11;
-        config.TPS546_INIT_COMPENSATION_CONFIG[4] = 0x06;
-        break;
-
-    case NAJA_DUO:
-        if (family->voltage_domains != NAJA_DUO_VOLTAGE_DOMAINS) {
-            ESP_LOGE(TAG, "NajaDuo must be configured for %u voltage domains",
-                     NAJA_DUO_VOLTAGE_DOMAINS);
-            return config;
-        }
-        config.TPS546_INIT_PHASE = TPS546_INIT_PHASE_MULTI;
-        config.TPS546_INIT_VIN_ON = 11.0;
-        config.TPS546_INIT_VIN_OFF = 10.5;
-        config.TPS546_INIT_VIN_UV_WARN_LIMIT = 11.0;
-        config.TPS546_INIT_VIN_OV_FAULT_LIMIT = 14.0;
-        config.TPS546_INIT_SCALE_LOOP = 0.125;
-        config.TPS546_INIT_VOUT_MIN = 1.8;
-        config.TPS546_INIT_VOUT_MAX = 3.0;
-        config.TPS546_INIT_VOUT_COMMAND = 2.2;
-        config.TPS546_INIT_IOUT_OC_WARN_LIMIT = 50.0;
-        config.TPS546_INIT_IOUT_OC_FAULT_LIMIT = 55.0;
-        config.TPS546_INIT_STACK_CONFIG = TPS546_DUAL_PHASE_STACK_CONFIG;
-        config.TPS546_INIT_SYNC_CONFIG = 0xD0;
-        config.TPS546_INIT_COMPENSATION_CONFIG[0] = 0x12;
-        config.TPS546_INIT_COMPENSATION_CONFIG[1] = 0x34;
-        config.TPS546_INIT_COMPENSATION_CONFIG[2] = 0x42;
-        config.TPS546_INIT_COMPENSATION_CONFIG[3] = 0x25;
-        config.TPS546_INIT_COMPENSATION_CONFIG[4] = 0x04;
-        break;
-
-    case GAMMA_TURBO:
-        config.TPS546_INIT_PHASE = TPS546_INIT_PHASE_MULTI;
-        config.TPS546_INIT_VIN_ON = 11.0;
-        config.TPS546_INIT_VIN_OFF = 10.5;
-        config.TPS546_INIT_VIN_UV_WARN_LIMIT = 11.0;
-        config.TPS546_INIT_VIN_OV_FAULT_LIMIT = 14.8;
-        config.TPS546_INIT_SCALE_LOOP = 0.25;
-        config.TPS546_INIT_VOUT_MIN = 1;
-        config.TPS546_INIT_VOUT_MAX = 3;
-        config.TPS546_INIT_VOUT_COMMAND = 1.2;
-        config.TPS546_INIT_IOUT_OC_WARN_LIMIT = 50.00;
-        config.TPS546_INIT_IOUT_OC_FAULT_LIMIT = 55.00;
-        // Multi-phase stacking configuration for 2 TPS modules
-        config.TPS546_INIT_STACK_CONFIG = 0x0001; // 2 modules (One-Slave, 2-phase)
-        config.TPS546_INIT_SYNC_CONFIG = 0xD0;    // Enable Auto Detect SYNC
-        config.TPS546_INIT_COMPENSATION_CONFIG[0] = 0x12;
-        config.TPS546_INIT_COMPENSATION_CONFIG[1] = 0x34;
-        config.TPS546_INIT_COMPENSATION_CONFIG[2] = 0x42;
-        config.TPS546_INIT_COMPENSATION_CONFIG[3] = 0x21;
-        config.TPS546_INIT_COMPENSATION_CONFIG[4] = 0x04;
-        break;
-
-    case HEX:
-    case SUPRA_HEX:
-        config.TPS546_INIT_PHASE = TPS546_INIT_PHASE_SINGLE;
-        config.TPS546_INIT_VIN_ON = 11.5;
-        config.TPS546_INIT_VIN_OFF = 11.0;
-        config.TPS546_INIT_VIN_UV_WARN_LIMIT = 11.0;
-        config.TPS546_INIT_VIN_OV_FAULT_LIMIT = 14.8;
-        config.TPS546_INIT_SCALE_LOOP = 0.125;
-        config.TPS546_INIT_VOUT_MIN = 2.5;
-        config.TPS546_INIT_VOUT_MAX = 4.5;
-        config.TPS546_INIT_VOUT_COMMAND = 3.6;
-        config.TPS546_INIT_IOUT_OC_WARN_LIMIT = 25.00;
-        config.TPS546_INIT_IOUT_OC_FAULT_LIMIT = 30.00;
-        // Single-phase configuration
-        config.TPS546_INIT_STACK_CONFIG = 0x0000; // 1 module
-        config.TPS546_INIT_SYNC_CONFIG = 0x10;    // Disable SYNC
-        break;
-
-    default: // MAX, ULTRA, SUPRA, GAMMA
-        config.TPS546_INIT_PHASE = TPS546_INIT_PHASE_SINGLE;
-        config.TPS546_INIT_VIN_ON = 4.8;
-        config.TPS546_INIT_VIN_OFF = 4.5;
-        config.TPS546_INIT_VIN_UV_WARN_LIMIT = 0;
-        config.TPS546_INIT_VIN_OV_FAULT_LIMIT = 6.5;
-        config.TPS546_INIT_SCALE_LOOP = 0.25;
-        config.TPS546_INIT_VOUT_MIN = 1;
-        config.TPS546_INIT_VOUT_MAX = 2;
-        config.TPS546_INIT_VOUT_COMMAND = 1.2;
-        config.TPS546_INIT_IOUT_OC_WARN_LIMIT = 25.00;
-        config.TPS546_INIT_IOUT_OC_FAULT_LIMIT = 30.00;
-        // Single-phase configuration
-        config.TPS546_INIT_STACK_CONFIG = 0x0000; // 1 module
-        config.TPS546_INIT_SYNC_CONFIG = 0x10;    // Disable SYNC
-        break;
-    }
+    TPS546_CONFIG config = family->tps546_config ? *family->tps546_config : TPS546_CONFIG_DEFAULT;
 
     if (nvs_config_has_key(NVS_CONFIG_TPS546_PHASE)) {
         config.TPS546_INIT_PHASE = (uint8_t)nvs_config_get_u16(NVS_CONFIG_TPS546_PHASE);

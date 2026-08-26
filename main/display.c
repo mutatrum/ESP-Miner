@@ -40,33 +40,11 @@
 #define LCD_BK_LIGHT_OFF_LEVEL  0
 #define LCD_PWR_ON_LEVEL        1
 #define LCD_PWR_OFF_LEVEL       0
-typedef struct {
-    gpio_num_t data[8];
-    gpio_num_t rd;
-    gpio_num_t pwr;
-    gpio_num_t wr;
-    gpio_num_t cs;
-    gpio_num_t dc;
-    gpio_num_t rst;
-    gpio_num_t bk_light;
-} St7789I80Pins;
-
-static const St7789I80Pins ST7789_NAJA_DUO_PINS = {
-    .data = { GPIO_NUM_39, GPIO_NUM_40, GPIO_NUM_41, GPIO_NUM_42, GPIO_NUM_45, GPIO_NUM_46, GPIO_NUM_47, GPIO_NUM_48 },
-    .rd = GPIO_NUM_9,
-    .pwr = GPIO_NUM_15,
-    .wr = GPIO_NUM_8,
-    .cs = GPIO_NUM_6,
-    .dc = GPIO_NUM_7,
-    .rst = GPIO_NUM_5,
-    .bk_light = GPIO_NUM_38,
-};
-
 static const char * TAG = "display";
 static const char * LVGL_TAG = "lvgl";
 
 static esp_lcd_panel_handle_t panel_handle = NULL;
-static const St7789I80Pins *current_st7789_pins = NULL;
+static const I80Pins *current_st7789_pins = NULL;
 static bool display_state_on = false;
 static bool display_has_backlight = false;
 
@@ -80,22 +58,6 @@ LV_FONT_DECLARE(lv_font_unscii_16);
 esp_err_t display_on(bool display_on);
 static void my_log_cb(lv_log_level_t level, const char * buf);
 
-static bool family_has_i80_st7789_display(Family family)
-{
-    return family == NAJA_DUO || family == GAMMA_HEX;
-}
-
-static const St7789I80Pins *get_st7789_i80_pins(Family family)
-{
-    switch (family) {
-        case NAJA_DUO:
-        case GAMMA_HEX:
-            return &ST7789_NAJA_DUO_PINS;
-        default:
-            return NULL;
-    }
-}
-
 static void theme_apply(lv_theme_t *theme, lv_obj_t *obj) {
     if (lv_obj_get_parent(obj) == NULL) {
         lv_obj_add_style(obj, &scr_style, LV_PART_MAIN);
@@ -104,7 +66,7 @@ static void theme_apply(lv_theme_t *theme, lv_obj_t *obj) {
 
 static esp_err_t read_display_config(GlobalState * GLOBAL_STATE)
 {
-    if (family_has_i80_st7789_display(GLOBAL_STATE->DEVICE_CONFIG.family.id)) {
+    if (GLOBAL_STATE->DEVICE_CONFIG.pins.i80 != NULL) {
         const DisplayConfig * display_config = get_display_config("ST7789 (320x170)");
         GLOBAL_STATE->DISPLAY_CONFIG = *display_config;
         ESP_LOGI(TAG, "%s", GLOBAL_STATE->DISPLAY_CONFIG.name);
@@ -128,11 +90,8 @@ static esp_err_t read_display_config(GlobalState * GLOBAL_STATE)
 
 static esp_err_t init_i80_st7789_display(GlobalState * GLOBAL_STATE, const lvgl_port_cfg_t *lvgl_cfg)
 {
-    const St7789I80Pins *pins = get_st7789_i80_pins(GLOBAL_STATE->DEVICE_CONFIG.family.id);
-    const char *family_name = GLOBAL_STATE->DEVICE_CONFIG.family.name
-                                  ? GLOBAL_STATE->DEVICE_CONFIG.family.name
-                                  : "unknown family";
-    ESP_RETURN_ON_FALSE(pins, ESP_ERR_INVALID_ARG, TAG, "No ST7789 pin map for %s", family_name);
+    const I80Pins *pins = GLOBAL_STATE->DEVICE_CONFIG.pins.i80;
+    ESP_RETURN_ON_FALSE(pins, ESP_ERR_INVALID_ARG, TAG, "No I80 display pin map configured");
     current_st7789_pins = pins;
     const bool rotate_180 = true;
     const bool mirror_x = !rotate_180;

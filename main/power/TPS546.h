@@ -24,6 +24,10 @@ typedef struct GlobalState GlobalState;
 #define TPS546_INIT_PHASE_SINGLE 0x00  /* Single-phase (Single TPS) */
 #define TPS546_INIT_PHASE_MULTI   0xFF  /* Multi-phase stack (Multi TPS) */
 
+#define TPS546_SINGLE_PHASE_STACK_CONFIG 0x0000
+#define TPS546_DUAL_PHASE_STACK_CONFIG   0x0001
+#define TPS546_FOUR_PHASE_STACK_CONFIG   0x0003
+
 #define TPS546_DEFAULT_FREQUENCY 650  /* KHz */
 
 
@@ -38,7 +42,7 @@ typedef struct {
   float    vout_command, vout_min, vout_max, vout_scale_loop;
 } TPS546_StatusSnapshot;
 
-typedef struct
+typedef struct TPS546_CONFIG
 {
   /* Phase readout configuration */
   uint8_t TPS546_INIT_PHASE; /* phase register configuration */
@@ -63,6 +67,12 @@ typedef struct
   uint16_t TPS546_INIT_FREQUENCY; /* Switch frequency in KHz */
   
 } TPS546_CONFIG;
+
+extern const TPS546_CONFIG TPS546_CONFIG_DEFAULT;
+extern const TPS546_CONFIG TPS546_CONFIG_HEX;
+extern const TPS546_CONFIG TPS546_CONFIG_GAMMA_TURBO;
+extern const TPS546_CONFIG TPS546_CONFIG_NAJA_DUO;
+extern const TPS546_CONFIG TPS546_CONFIG_GAMMA_HEX;
 
 /* vin voltage */
 // #define TPS546_INIT_VIN_ON  11.0  /* V */
