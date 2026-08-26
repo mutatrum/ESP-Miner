@@ -30,8 +30,6 @@ typedef struct GlobalState GlobalState;
 
 #define TPS546_DEFAULT_FREQUENCY 650  /* KHz */
 
-
-
 typedef struct {
   uint16_t status_word;
   uint8_t  st_vout, st_input, st_iout, st_temp, st_cml, st_mfr, st_other;
