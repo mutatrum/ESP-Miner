@@ -9,9 +9,13 @@
 #include "asic_reset.h"
 
 static const char *TAG = "asic_init";
-#define BM1373_CHAIN_INIT_ATTEMPTS 3
-#define BM1373_RETRY_RESET_LOW_MS 10
-#define BM1373_RETRY_RESET_RELEASE_MS 100
+
+#define INIT_RESET_LOW_MS 100
+#define INIT_RESET_RELEASE_MS 100
+
+#define RETRY_RESET_LOW_MS 10
+#define RETRY_RESET_RELEASE_MS 100
+
 #define ASIC_UART_SETTLE_MS 20
 
 uint8_t asic_initialize(GlobalState *GLOBAL_STATE, asic_init_mode_t mode, uint32_t stabilization_delay_ms)
@@ -22,7 +26,7 @@ uint8_t asic_initialize(GlobalState *GLOBAL_STATE, asic_init_mode_t mode, uint32
                                      : 1;
     ESP_LOGI(TAG, "Starting ASIC initialization (%s mode)", mode_str);
 
-    if (asic_reset() != ESP_OK) {
+    if (asic_reset(INIT_RESET_LOW_MS, INIT_RESET_RELEASE_MS) != ESP_OK) {
         GLOBAL_STATE->SYSTEM_MODULE.asic_status = "ASIC reset failed";
         ESP_LOGE(TAG, "ASIC reset failed!");
         return 0;
@@ -57,8 +61,7 @@ uint8_t asic_initialize(GlobalState *GLOBAL_STATE, asic_init_mode_t mode, uint32
             ESP_LOGW(TAG, "Resetting and re-probing BM1372/BM1373 chain (%u/%u)",
                      attempt, max_attempts);
             if (SERIAL_set_baud(UART_FREQ) != ESP_OK ||
-                asic_reset_with_timings(BM1373_RETRY_RESET_LOW_MS,
-                                        BM1373_RETRY_RESET_RELEASE_MS) != ESP_OK) {
+                asic_reset(RETRY_RESET_LOW_MS, RETRY_RESET_RELEASE_MS) != ESP_OK) {
                 GLOBAL_STATE->SYSTEM_MODULE.asic_status = "ASIC retry reset failed";
                 ESP_LOGE(TAG, "BM1372/BM1373 retry reset failed");
                 return 0;
