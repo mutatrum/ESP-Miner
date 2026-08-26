@@ -52,18 +52,18 @@ uint8_t asic_initialize(GlobalState *GLOBAL_STATE, asic_init_mode_t mode, uint32
         // This preserves the running system and avoids reboot
         ESP_LOGI(TAG, "UART already initialized, resetting baud to %d", UART_FREQ);
         SERIAL_set_baud(UART_FREQ);
-        vTaskDelay(100 / portTICK_PERIOD_MS);
+        vTaskDelay(pdMS_TO_TICKS(100));
     }
 
     uint8_t chip_count = 0;
     for (uint8_t attempt = 1; attempt <= max_attempts; attempt++) {
         if (attempt > 1) {
-            ESP_LOGW(TAG, "Resetting and re-probing BM1372/BM1373 chain (%u/%u)",
-                     attempt, max_attempts);
+            ESP_LOGW(TAG, "Resetting and re-probing %s chain (%u/%u)",
+                     GLOBAL_STATE->DEVICE_CONFIG.family.asic.name, attempt, max_attempts);
             if (SERIAL_set_baud(UART_FREQ) != ESP_OK ||
                 asic_reset(RETRY_RESET_LOW_MS, RETRY_RESET_RELEASE_MS) != ESP_OK) {
                 GLOBAL_STATE->SYSTEM_MODULE.asic_status = "ASIC retry reset failed";
-                ESP_LOGE(TAG, "BM1372/BM1373 retry reset failed");
+                ESP_LOGE(TAG, "%s retry reset failed", GLOBAL_STATE->DEVICE_CONFIG.family.asic.name);
                 return 0;
             }
         }
@@ -87,16 +87,11 @@ uint8_t asic_initialize(GlobalState *GLOBAL_STATE, asic_init_mode_t mode, uint32
         return 0;
     }
 
-    if (GLOBAL_STATE->DEVICE_CONFIG.family.asic.id != BM1373) {
-        ESP_LOGI(TAG, "Setting max baud rate and clearing buffers");
-        int max_baud = ASIC_set_max_baud(GLOBAL_STATE);
-        if (max_baud == 0 || SERIAL_set_baud(max_baud) != ESP_OK) {
-            GLOBAL_STATE->SYSTEM_MODULE.asic_status = "ASIC UART configuration failed";
-            ESP_LOGE(TAG, "Failed to configure ASIC UART");
-            return 0;
-        }
-    } else {
-        ESP_LOGI(TAG, "BM1372/BM1373 initialization completed at ASIC operating baud");
+    int max_baud = ASIC_set_max_baud(GLOBAL_STATE);
+    if (max_baud == 0 || SERIAL_set_baud(max_baud) != ESP_OK) {
+        GLOBAL_STATE->SYSTEM_MODULE.asic_status = "ASIC UART configuration failed";
+        ESP_LOGE(TAG, "Failed to configure ASIC UART");
+        return 0;
     }
     SERIAL_clear_buffer();
 
@@ -104,7 +99,7 @@ uint8_t asic_initialize(GlobalState *GLOBAL_STATE, asic_init_mode_t mode, uint32
     
     if (stabilization_delay_ms > 0) {
         ESP_LOGI(TAG, "Waiting %u ms for tasks to stabilize...", stabilization_delay_ms);
-        vTaskDelay(stabilization_delay_ms / portTICK_PERIOD_MS);
+        vTaskDelay(pdMS_TO_TICKS(stabilization_delay_ms));
     }
 
     ESP_LOGI(TAG, "ASIC initialized successfully with %d chip(s) (%s mode)", chip_count, mode_str);

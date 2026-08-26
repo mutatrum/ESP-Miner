@@ -370,8 +370,12 @@ uint8_t BM1373_init(GlobalState * GLOBAL_STATE)
     }
     vTaskDelay(pdMS_TO_TICKS(BM1372_INIT_STEP_DELAY_MS));
 
-    int asic_baud = BM1373_set_max_baud();
-    if (asic_baud == 0 || SERIAL_set_baud(asic_baud) != ESP_OK) {
+    ESP_LOGI(TAG, "Setting ASIC UART to %d baud", BM1372_ASIC_BAUD);
+    if (!_write_broadcast(BM1372_REGISTER_AUTO_WORK_CONFIGURATION,
+                          BM1372_AUTO_WORK_CONFIGURATION) ||
+        !_write_broadcast(BM1372_REGISTER_FAST_UART_CONFIGURATION,
+                          BM1372_FAST_UART_3M) ||
+        SERIAL_set_baud(BM1372_ASIC_BAUD) != ESP_OK) {
         ESP_LOGE(TAG, "Failed to switch BM1372/BM1373 UART to %d baud", BM1372_ASIC_BAUD);
         return 0;
     }
@@ -445,15 +449,8 @@ int BM1373_set_default_baud(void)
 
 int BM1373_set_max_baud(void)
 {
-    ESP_LOGI(TAG, "Setting ASIC UART to %d baud", BM1372_ASIC_BAUD);
-
-    if (!_write_broadcast(BM1372_REGISTER_AUTO_WORK_CONFIGURATION,
-                          BM1372_AUTO_WORK_CONFIGURATION) ||
-        !_write_broadcast(BM1372_REGISTER_FAST_UART_CONFIGURATION,
-                          BM1372_FAST_UART_3M)) {
-        return 0;
-    }
-
+    // TODO: Investigate if BM1372/BM1373 baud switch timing can be unified with other ASICs
+    // BM1373 UART configuration is performed during BM1373_init.
     return BM1372_ASIC_BAUD;
 }
 
