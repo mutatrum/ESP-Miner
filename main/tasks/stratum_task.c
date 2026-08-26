@@ -196,7 +196,7 @@ void stratum_task(void *pvParameters)
     int consecutive_pool_failures = 0;
     int retry_attempts = 0;
 
-    ESP_LOGI(TAG, "Unified Stratum Task started");
+    ESP_LOGI(TAG, "Starting");
 
     // Periodic heartbeat task to probe primary pool while running fallback
     if (xTaskCreateWithCaps(stratum_heartbeat_task, "stratum_hb", 8192, (void *)GLOBAL_STATE, 2, &s_heartbeat_task_handle, MALLOC_CAP_SPIRAM) != pdPASS) {
@@ -204,7 +204,7 @@ void stratum_task(void *pvParameters)
     }
 
     while (1) {
-        if (!GLOBAL_STATE->ASIC_initalized) {
+        if (GLOBAL_STATE->SYSTEM_MODULE.mining_paused || GLOBAL_STATE->SYSTEM_MODULE.hardware_fault) {
             vTaskDelay(1000 / portTICK_PERIOD_MS);
             continue;
         }

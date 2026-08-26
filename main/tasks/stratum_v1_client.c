@@ -224,7 +224,7 @@ esp_err_t stratum_v1_run(GlobalState *GLOBAL_STATE, uint16_t pool_idx, volatile 
             break;
         }
 
-        if (!GLOBAL_STATE->ASIC_initalized) {
+        if (GLOBAL_STATE->SYSTEM_MODULE.mining_paused || GLOBAL_STATE->SYSTEM_MODULE.hardware_fault) {
             ESP_LOGI(TAG, "Mining paused, disconnecting from pool");
             run_result = ESP_OK;
             break;

@@ -4,7 +4,6 @@
 #include "global_state.h"
 #include <stdbool.h>
 
-// Unified persistent Stratum Task entry point.
 // Manages network connectivity, pool failover/heartbeat, and dispatches to V1/V2 protocol drivers.
 void stratum_task(void *pvParameters);
 
