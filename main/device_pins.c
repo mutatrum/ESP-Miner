@@ -15,7 +15,7 @@ const I2cPins DEFAULT_I2C_PINS = {
     .scl = GPIO_NUM_48,
 };
 
-const I2cPins NAJA_DUO_I2C_PINS = {
+const I2cPins BITAXE_COLOR_I2C_PINS = {
     .sda = GPIO_NUM_44,
     .scl = GPIO_NUM_43,
 };

@@ -35,11 +35,15 @@ typedef struct {
 
 extern const BapPins DEFAULT_BAP_PINS;
 extern const I2cPins DEFAULT_I2C_PINS;
-extern const I2cPins NAJA_DUO_I2C_PINS;
+extern const I2cPins BITAXE_COLOR_I2C_PINS;
 extern const I80Pins ST7789_I80_PINS;
 
-#define DEFAULT_DEVICE_PINS { .bap = &DEFAULT_BAP_PINS, .i2c = &DEFAULT_I2C_PINS, .i80 = NULL }
-#define NAJA_DUO_DEVICE_PINS { .bap = NULL, .i2c = &NAJA_DUO_I2C_PINS, .i80 = &ST7789_I80_PINS }
+#define BITAXE_ORIGINAL_DEVICE_PINS { .bap = &DEFAULT_BAP_PINS, .i2c = &DEFAULT_I2C_PINS, .i80 = NULL }
+#define BITAXE_COLOR_DEVICE_PINS    { .bap = NULL,              .i2c = &BITAXE_COLOR_I2C_PINS, .i80 = &ST7789_I80_PINS }
+
+#define DEFAULT_DEVICE_PINS         BITAXE_ORIGINAL_DEVICE_PINS
+#define BITAXE_ORIGINAL_PINS        BITAXE_ORIGINAL_DEVICE_PINS
+#define BITAXE_COLOR_PINS           BITAXE_COLOR_DEVICE_PINS
 
 esp_err_t device_pins_init(DevicePins * pins);
 
