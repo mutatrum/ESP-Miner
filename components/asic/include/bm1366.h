@@ -30,7 +30,7 @@ int BM1366_set_max_baud(void);
 int BM1366_set_default_baud(void);
 float BM1366_send_hash_frequency(float frequency);
 task_result * BM1366_process_work(GlobalState * GLOBAL_STATE);
-void BM1366_read_registers(void * GLOBAL_STATE);
+void BM1366_read_registers(GlobalState * GLOBAL_STATE);
 float BM1366_get_domain_hashrate(float register_hashrate);
 void BM1366_set_nonce_space(double nonce_percent, float frequency, uint16_t asic_count, uint16_t cores);
 

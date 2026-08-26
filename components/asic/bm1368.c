@@ -340,9 +340,8 @@ task_result * BM1368_process_work(GlobalState * GLOBAL_STATE)
     return &result;
 }
 
-void BM1368_read_registers(void * pvParameters)
+void BM1368_read_registers(GlobalState * GLOBAL_STATE)
 {
-    GlobalState * GLOBAL_STATE = (GlobalState *) pvParameters;
     uint16_t asic_count = GLOBAL_STATE->DEVICE_CONFIG.family.asic_count;
     if (asic_count == 0 || address_interval <= 0) {
         return;
