@@ -91,12 +91,12 @@ static void _send_BM1397(uint8_t header, uint8_t *data, uint8_t data_len, bool d
     packet_type_t packet_type = (header & TYPE_JOB) ? JOB_PACKET : CMD_PACKET;
     uint8_t total_length = (packet_type == JOB_PACKET) ? (data_len + 6) : (data_len + 5);
 
-    if (total_length > 128) {
+    if (total_length > 160) {
         ESP_LOGE(TAG, "Packet length %d exceeds maximum buffer size", total_length);
         return;
     }
 
-    uint8_t buf[128];
+    uint8_t buf[160];
 
     // add the preamble
     buf[0] = 0x55;
