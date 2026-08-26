@@ -137,7 +137,13 @@ static bool _send_BM1373(uint8_t header, const uint8_t * data, uint8_t data_len,
 {
     packet_type_t packet_type = (header & TYPE_JOB) ? JOB_PACKET : CMD_PACKET;
     uint8_t total_length = (packet_type == JOB_PACKET) ? (data_len + 6) : (data_len + 5);
-    uint8_t buf[total_length];
+
+    if (total_length > 128) {
+        ESP_LOGE(TAG, "Packet length %d exceeds maximum buffer size", total_length);
+        return false;
+    }
+
+    uint8_t buf[128];
 
     // add the preamble
     buf[0] = 0x55;
