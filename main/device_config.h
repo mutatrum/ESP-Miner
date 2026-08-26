@@ -4,6 +4,7 @@
 #include <stdint.h>
 #include <stdbool.h>
 #include "esp_err.h"
+#include "device_pins.h"
 
 #define THERMAL_MAX_SENSORS 2
 #define NAJA_DUO_VOLTAGE_DOMAINS 2
@@ -67,12 +68,10 @@ typedef struct FamilyConfig {
 typedef struct DeviceConfig {
     const char * board_version;
     FamilyConfig family;
+    DevicePins pins;
     bool plug_sense;
     bool asic_enable;
     bool asic_enable_active_high;
-    bool disable_bap : 1;
-    uint8_t i2c_sda;
-    uint8_t i2c_scl;
     bool EMC2101 : 1;
     bool EMC2103 : 1;
     bool EMC2302 : 1;
@@ -145,31 +144,31 @@ static const FamilyConfig default_families[] = {
 };
 
 static const DeviceConfig default_configs[] = {
-    { .board_version = "2.2",  .family = FAMILY_MAX,         .EMC2101 = true,                                                                                 .DS4432U = true, .INA260 = true, .plug_sense = true, .asic_enable = true, .power_consumption_target = 12, },
-    { .board_version = "102",  .family = FAMILY_MAX,         .EMC2101 = true,                                                                                 .DS4432U = true, .INA260 = true, .plug_sense = true, .asic_enable = true, .power_consumption_target = 12, },
-    { .board_version = "0.11", .family = FAMILY_ULTRA,       .EMC2101 = true, .emc_internal_temp = true,                                  .temp_offset = 5,   .DS4432U = true, .INA260 = true, .plug_sense = true, .asic_enable = true, .power_consumption_target = 12, },
-    { .board_version = "201",  .family = FAMILY_ULTRA,       .EMC2101 = true, .emc_internal_temp = true,                                  .temp_offset = 5,   .DS4432U = true, .INA260 = true, .plug_sense = true, .asic_enable = true, .power_consumption_target = 12, },
-    { .board_version = "202",  .family = FAMILY_ULTRA,       .EMC2101 = true, .emc_internal_temp = true,                                  .temp_offset = 5,   .DS4432U = true, .INA260 = true, .plug_sense = true, .asic_enable = true, .power_consumption_target = 12, },
-    { .board_version = "203",  .family = FAMILY_ULTRA,       .EMC2101 = true, .emc_internal_temp = true,                                  .temp_offset = 5,   .DS4432U = true, .INA260 = true, .plug_sense = true, .asic_enable = true, .power_consumption_target = 12, },
-    { .board_version = "204",  .family = FAMILY_ULTRA,       .EMC2101 = true, .emc_internal_temp = true,                                  .temp_offset = 5,   .DS4432U = true, .INA260 = true, .plug_sense = true,                      .power_consumption_target = 12, },
-    { .board_version = "205",  .family = FAMILY_ULTRA,       .EMC2101 = true, .emc_internal_temp = true,                                  .temp_offset = 5,   .DS4432U = true, .INA260 = true, .plug_sense = true, .asic_enable = true, .power_consumption_target = 12, },
-    { .board_version = "207",  .family = FAMILY_ULTRA,       .EMC2101 = true,                                                                                 .TPS546 = true,                                                           .power_consumption_target = 12, },
-    { .board_version = "302",  .family = FAMILY_HEX,         .EMC2302 = true, .TMP1075 = true,                                            .temp_offset = 10,  .TPS546 = true,                                                           .power_consumption_target = 40, },
-    { .board_version = "303",  .family = FAMILY_HEX,         .EMC2302 = true, .TMP1075 = true,                                            .temp_offset = 10,  .TPS546 = true,                                                           .power_consumption_target = 40, },
-    { .board_version = "400",  .family = FAMILY_SUPRA,       .EMC2101 = true, .emc_internal_temp = true,                                  .temp_offset = 5,   .DS4432U = true, .INA260 = true, .plug_sense = true, .asic_enable = true, .power_consumption_target = 12, },
-    { .board_version = "401",  .family = FAMILY_SUPRA,       .EMC2101 = true, .emc_internal_temp = true,                                  .temp_offset = 5,   .DS4432U = true, .INA260 = true, .plug_sense = true, .asic_enable = true, .power_consumption_target = 12, },
-    { .board_version = "402",  .family = FAMILY_SUPRA,       .EMC2101 = true,                                                                                 .TPS546 = true,                                                           .power_consumption_target = 8,  },
-    { .board_version = "403",  .family = FAMILY_SUPRA,       .EMC2101 = true,                                                                                 .TPS546 = true,                                                           .power_consumption_target = 8,  },
-    { .board_version = "600",  .family = FAMILY_GAMMA,       .EMC2101 = true, .emc_ideality_factor = 0x24, .emc_beta_compensation = 0x00,                     .TPS546 = true,                                                           .power_consumption_target = 19, },
-    { .board_version = "601",  .family = FAMILY_GAMMA,       .EMC2101 = true, .emc_ideality_factor = 0x24, .emc_beta_compensation = 0x00,                     .TPS546 = true,                                                           .power_consumption_target = 19, },
-    { .board_version = "602",  .family = FAMILY_GAMMA,       .EMC2101 = true, .emc_ideality_factor = 0x24, .emc_beta_compensation = 0x00,                     .TPS546 = true,                                                           .power_consumption_target = 22, },
-    { .board_version = "603",  .family = FAMILY_GAMMA,       .EMC2101 = true, .emc_ideality_factor = 0x24, .emc_beta_compensation = 0x00,                     .TPS546 = true,                                                           .power_consumption_target = 22, },
-    { .board_version = "650",  .family = FAMILY_GAMMA_DUO,   .EMC2101 = true, .emc_ideality_factor = 0x24, .emc_beta_compensation = 0x00,                     .TPS546 = true,                                                           .power_consumption_target = 35, },
-    { .board_version = "701",  .family = FAMILY_SUPRA_HEX,   .EMC2302 = true, .TMP1075 = true,                                            .temp_offset = 10,  .TPS546 = true,                                                           .power_consumption_target = 90, },
-    { .board_version = "702",  .family = FAMILY_SUPRA_HEX,   .EMC2302 = true, .TMP1075 = true,                                            .temp_offset = 10,  .TPS546 = true,                                                           .power_consumption_target = 90, },
-    { .board_version = "801",  .family = FAMILY_GAMMA_TURBO, .EMC2103 = true,                                          .temp_flip = true, .temp_offset = 0,   .TPS546 = true,                                                           .power_consumption_target = 36, },
-    { .board_version = "1300", .family = FAMILY_GAMMA_HEX,   .asic_enable = true, .asic_enable_active_high = true, .disable_bap = true, .i2c_sda = 44, .i2c_scl = 43, .EMC2103 = true, .emc_direct_pwm = true, .temp_flip = true, .temp_offset = 0, .TPS546 = true, .power_consumption_target = 140, .power_consumption_margin = 21, },
-    { .board_version = "1201", .family = FAMILY_NAJA_DUO,    .asic_enable = true, .asic_enable_active_high = true, .disable_bap = true, .i2c_sda = 44, .i2c_scl = 43, .EMC2103 = true, .emc_ideality_factor = 0x17, .emc_beta_compensation = 0x10, .temp_offset = 0, .TPS546 = true, .power_consumption_target = 50, .power_consumption_margin = 10, },
+    { .board_version = "2.2",  .family = FAMILY_MAX,         .pins = DEFAULT_DEVICE_PINS, .EMC2101 = true,                                                                                 .DS4432U = true, .INA260 = true, .plug_sense = true, .asic_enable = true, .power_consumption_target = 12, },
+    { .board_version = "102",  .family = FAMILY_MAX,         .pins = DEFAULT_DEVICE_PINS, .EMC2101 = true,                                                                                 .DS4432U = true, .INA260 = true, .plug_sense = true, .asic_enable = true, .power_consumption_target = 12, },
+    { .board_version = "0.11", .family = FAMILY_ULTRA,       .pins = DEFAULT_DEVICE_PINS, .EMC2101 = true, .emc_internal_temp = true,                                  .temp_offset = 5,   .DS4432U = true, .INA260 = true, .plug_sense = true, .asic_enable = true, .power_consumption_target = 12, },
+    { .board_version = "201",  .family = FAMILY_ULTRA,       .pins = DEFAULT_DEVICE_PINS, .EMC2101 = true, .emc_internal_temp = true,                                  .temp_offset = 5,   .DS4432U = true, .INA260 = true, .plug_sense = true, .asic_enable = true, .power_consumption_target = 12, },
+    { .board_version = "202",  .family = FAMILY_ULTRA,       .pins = DEFAULT_DEVICE_PINS, .EMC2101 = true, .emc_internal_temp = true,                                  .temp_offset = 5,   .DS4432U = true, .INA260 = true, .plug_sense = true, .asic_enable = true, .power_consumption_target = 12, },
+    { .board_version = "203",  .family = FAMILY_ULTRA,       .pins = DEFAULT_DEVICE_PINS, .EMC2101 = true, .emc_internal_temp = true,                                  .temp_offset = 5,   .DS4432U = true, .INA260 = true, .plug_sense = true, .asic_enable = true, .power_consumption_target = 12, },
+    { .board_version = "204",  .family = FAMILY_ULTRA,       .pins = DEFAULT_DEVICE_PINS, .EMC2101 = true, .emc_internal_temp = true,                                  .temp_offset = 5,   .DS4432U = true, .INA260 = true, .plug_sense = true,                      .power_consumption_target = 12, },
+    { .board_version = "205",  .family = FAMILY_ULTRA,       .pins = DEFAULT_DEVICE_PINS, .EMC2101 = true, .emc_internal_temp = true,                                  .temp_offset = 5,   .DS4432U = true, .INA260 = true, .plug_sense = true, .asic_enable = true, .power_consumption_target = 12, },
+    { .board_version = "207",  .family = FAMILY_ULTRA,       .pins = DEFAULT_DEVICE_PINS, .EMC2101 = true,                                                                                 .TPS546 = true,                                                           .power_consumption_target = 12, },
+    { .board_version = "302",  .family = FAMILY_HEX,         .pins = DEFAULT_DEVICE_PINS, .EMC2302 = true, .TMP1075 = true,                                            .temp_offset = 10,  .TPS546 = true,                                                           .power_consumption_target = 40, },
+    { .board_version = "303",  .family = FAMILY_HEX,         .pins = DEFAULT_DEVICE_PINS, .EMC2302 = true, .TMP1075 = true,                                            .temp_offset = 10,  .TPS546 = true,                                                           .power_consumption_target = 40, },
+    { .board_version = "400",  .family = FAMILY_SUPRA,       .pins = DEFAULT_DEVICE_PINS, .EMC2101 = true, .emc_internal_temp = true,                                  .temp_offset = 5,   .DS4432U = true, .INA260 = true, .plug_sense = true, .asic_enable = true, .power_consumption_target = 12, },
+    { .board_version = "401",  .family = FAMILY_SUPRA,       .pins = DEFAULT_DEVICE_PINS, .EMC2101 = true, .emc_internal_temp = true,                                  .temp_offset = 5,   .DS4432U = true, .INA260 = true, .plug_sense = true, .asic_enable = true, .power_consumption_target = 12, },
+    { .board_version = "402",  .family = FAMILY_SUPRA,       .pins = DEFAULT_DEVICE_PINS, .EMC2101 = true,                                                                                 .TPS546 = true,                                                           .power_consumption_target = 8,  },
+    { .board_version = "403",  .family = FAMILY_SUPRA,       .pins = DEFAULT_DEVICE_PINS, .EMC2101 = true,                                                                                 .TPS546 = true,                                                           .power_consumption_target = 8,  },
+    { .board_version = "600",  .family = FAMILY_GAMMA,       .pins = DEFAULT_DEVICE_PINS, .EMC2101 = true, .emc_ideality_factor = 0x24, .emc_beta_compensation = 0x00,                     .TPS546 = true,                                                           .power_consumption_target = 19, },
+    { .board_version = "601",  .family = FAMILY_GAMMA,       .pins = DEFAULT_DEVICE_PINS, .EMC2101 = true, .emc_ideality_factor = 0x24, .emc_beta_compensation = 0x00,                     .TPS546 = true,                                                           .power_consumption_target = 19, },
+    { .board_version = "602",  .family = FAMILY_GAMMA,       .pins = DEFAULT_DEVICE_PINS, .EMC2101 = true, .emc_ideality_factor = 0x24, .emc_beta_compensation = 0x00,                     .TPS546 = true,                                                           .power_consumption_target = 22, },
+    { .board_version = "603",  .family = FAMILY_GAMMA,       .pins = DEFAULT_DEVICE_PINS, .EMC2101 = true, .emc_ideality_factor = 0x24, .emc_beta_compensation = 0x00,                     .TPS546 = true,                                                           .power_consumption_target = 22, },
+    { .board_version = "650",  .family = FAMILY_GAMMA_DUO,   .pins = DEFAULT_DEVICE_PINS, .EMC2101 = true, .emc_ideality_factor = 0x24, .emc_beta_compensation = 0x00,                     .TPS546 = true,                                                           .power_consumption_target = 35, },
+    { .board_version = "701",  .family = FAMILY_SUPRA_HEX,   .pins = DEFAULT_DEVICE_PINS, .EMC2302 = true, .TMP1075 = true,                                            .temp_offset = 10,  .TPS546 = true,                                                           .power_consumption_target = 90, },
+    { .board_version = "702",  .family = FAMILY_SUPRA_HEX,   .pins = DEFAULT_DEVICE_PINS, .EMC2302 = true, .TMP1075 = true,                                            .temp_offset = 10,  .TPS546 = true,                                                           .power_consumption_target = 90, },
+    { .board_version = "801",  .family = FAMILY_GAMMA_TURBO, .pins = DEFAULT_DEVICE_PINS, .EMC2103 = true,                                          .temp_flip = true, .temp_offset = 0,   .TPS546 = true,                                                           .power_consumption_target = 36, },
+    { .board_version = "1300", .family = FAMILY_GAMMA_HEX,   .pins = NAJA_DUO_DEVICE_PINS, .asic_enable = true, .asic_enable_active_high = true, .EMC2103 = true, .emc_direct_pwm = true, .temp_flip = true, .temp_offset = 0, .TPS546 = true, .power_consumption_target = 140, .power_consumption_margin = 21, },
+    { .board_version = "1201", .family = FAMILY_NAJA_DUO,    .pins = NAJA_DUO_DEVICE_PINS, .asic_enable = true, .asic_enable_active_high = true, .EMC2103 = true, .emc_ideality_factor = 0x17, .emc_beta_compensation = 0x10, .temp_offset = 0, .TPS546 = true, .power_consumption_target = 50, .power_consumption_margin = 10, },
 };
 
 esp_err_t device_config_init(GlobalState * GLOBAL_STATE);

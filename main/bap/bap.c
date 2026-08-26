@@ -29,9 +29,8 @@ esp_err_t BAP_init(GlobalState *state) {
         return ESP_ERR_INVALID_ARG;
     }
 
-    if (state->DEVICE_CONFIG.disable_bap) {
-        ESP_LOGI(TAG, "BAP UART disabled on %s because board peripherals use those pins",
-                 state->DEVICE_CONFIG.family.name);
+    if (state->DEVICE_CONFIG.pins.bap == NULL) {
+        ESP_LOGI(TAG, "BAP UART disabled on %s", state->DEVICE_CONFIG.family.name);
         return ESP_OK;
     }
     

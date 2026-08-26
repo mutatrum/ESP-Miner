@@ -60,7 +60,7 @@ static esp_err_t i2c_transfer_with_retries(i2c_master_dev_handle_t dev_handle,
 /**
  * @brief i2c master initialization
  */
-esp_err_t i2c_bitaxe_init(int sda_gpio, int scl_gpio)
+esp_err_t i2c_bitaxe_init(gpio_num_t sda_gpio, gpio_num_t scl_gpio)
 {
     i2c_master_bus_config_t i2c_bus_config = {
         .clk_source = I2C_CLK_SRC_DEFAULT,
@@ -70,6 +70,8 @@ esp_err_t i2c_bitaxe_init(int sda_gpio, int scl_gpio)
         .glitch_ignore_cnt = 7,
         .flags.enable_internal_pullup = true,
     };
+
+    ESP_LOGI(TAG, "Initializing I2C bus on SDA=%d SCL=%d", sda_gpio, scl_gpio);
 
     return i2c_new_master_bus(&i2c_bus_config, &i2c_bus_handle);
 }

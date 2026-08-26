@@ -92,7 +92,6 @@ void app_main(void)
 
     // Allow the ASIC reset line to settle before continuing startup.
     vTaskDelay(100 / portTICK_PERIOD_MS);
-
     // Init ADC
     ADC_init();
 
@@ -131,15 +130,16 @@ void app_main(void)
         return;
     }
 
-    int i2c_sda = GLOBAL_STATE.DEVICE_CONFIG.i2c_sda != 0
-        ? GLOBAL_STATE.DEVICE_CONFIG.i2c_sda
-        : DEFAULT_GPIO_I2C_SDA;
-    int i2c_scl = GLOBAL_STATE.DEVICE_CONFIG.i2c_scl != 0
-        ? GLOBAL_STATE.DEVICE_CONFIG.i2c_scl
-        : DEFAULT_GPIO_I2C_SCL;
+    // Init I2C
+    if (GLOBAL_STATE.DEVICE_CONFIG.pins.i2c != NULL) {
+        ESP_ERROR_CHECK(i2c_bitaxe_init(GLOBAL_STATE.DEVICE_CONFIG.pins.i2c->sda, GLOBAL_STATE.DEVICE_CONFIG.pins.i2c->scl));
+        ESP_LOGI(TAG, "I2C initialized successfully");
+    } else {
+        ESP_LOGI(TAG, "I2C pins not configured for board; skipping I2C initialization");
+    }
 
-    ESP_ERROR_CHECK(i2c_bitaxe_init(i2c_sda, i2c_scl));
-    ESP_LOGI(TAG, "I2C initialized successfully");
+    // wait for I2C to init
+    vTaskDelay(100 / portTICK_PERIOD_MS);
 
     if (self_test_init(&GLOBAL_STATE) != ESP_OK) {
         ESP_LOGE(TAG, "Failed to init self test");
