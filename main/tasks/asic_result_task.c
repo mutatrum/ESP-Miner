@@ -73,7 +73,7 @@ void ASIC_result_task(void *pvParameters)
         }
 
         uint32_t version_bits = asic_result->rolled_version ^ active_job->version;
-        if (nonce_diff >= active_job->pool_diff)
+        if (active_job->pool_diff > 0.0 && nonce_diff >= active_job->pool_diff)
         {
             uint64_t sent_time_us = 0;
             int ret = stratum_submit_share(GLOBAL_STATE, active_job, asic_result->nonce, asic_result->rolled_version, &sent_time_us);
