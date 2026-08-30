@@ -18,6 +18,7 @@
 #include "i2c_bitaxe.h"
 #include "adc.h"
 #include "nvs_config.h"
+#include "miner_job.h"
 #include "self_test.h"
 #include "asic.h"
 #include "bap/bap.h"
@@ -206,7 +207,9 @@ void app_main(void)
     // Connected to WiFi: tear down the setup BLE service to free the radio.
     setup_ble_stop();
 
+    miner_job_pool_init();
     queue_init(&GLOBAL_STATE.stratum_queue);
+    GLOBAL_STATE.stratum_queue.free_fn = (void (*)(void *))miner_job_pool_release;
 
     if (system_init_ret == ESP_OK) {
         if (asic_initialize(&GLOBAL_STATE, ASIC_INIT_COLD_BOOT, 0) == 0) {

@@ -276,9 +276,14 @@ esp_err_t stratum_v1_run(GlobalState *GLOBAL_STATE, uint16_t pool_idx, volatile 
                         SYSTEM_clean_jobs_queue(GLOBAL_STATE);
                     }
                     if (GLOBAL_STATE->stratum_queue.count == QUEUE_SIZE) {
-                        queue_dequeue(&GLOBAL_STATE->stratum_queue);
+                        miner_job_t *dropped = (miner_job_t *)queue_dequeue(&GLOBAL_STATE->stratum_queue);
+                        miner_job_pool_release(dropped);
                     }
-                    miner_job_t *job = miner_job_pool_next();
+                    miner_job_t *job = miner_job_pool_acquire();
+                    if (!job) {
+                        ESP_LOGD(TAG, "No free job slot in pool, dropping non-clean job %s", notify_job->job_id);
+                        break;
+                    }
                     *job = *notify_job;
                     job->pool_id = (uint8_t)pool_idx;
                     job->pool_diff = s_v1_conn->pool_difficulty;

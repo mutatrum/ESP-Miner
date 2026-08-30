@@ -108,6 +108,9 @@ void create_jobs_task(void *pvParameters)
 
         if (new_work != NULL) {
             ESP_LOGI(TAG, "New Work Dequeued %s (type %d)", new_work->job_id, new_work->type);
+            if (current_work != NULL && current_work != new_work) {
+                miner_job_pool_release(current_work);
+            }
             current_work = new_work;
             current_work_sent = false;
             current_version = new_work->version;

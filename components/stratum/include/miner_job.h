@@ -51,7 +51,8 @@ typedef struct {
 
 // Pre-allocated ring buffer pool helpers
 void miner_job_pool_init(void);
-miner_job_t *miner_job_pool_next(void);
+miner_job_t *miner_job_pool_acquire(void);
+void miner_job_pool_release(miner_job_t *job);
 
 static inline bool miner_job_is_rollable(const miner_job_t *job)
 {

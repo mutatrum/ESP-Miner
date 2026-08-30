@@ -180,16 +180,36 @@ int stratum_v2_submit_share(GlobalState *GLOBAL_STATE, const bm_job *active_job,
 }
 
 static void stratum_v2_enqueue_job(GlobalState *GLOBAL_STATE, sv2_conn_t *conn,
-                                   miner_job_t *job)
+                                   const miner_job_t *template_job,
+                                   const uint8_t *prev_hash,
+                                   uint32_t ntime,
+                                   uint32_t nbits,
+                                   bool clean_jobs)
 {
-    uint32_t job_id = (uint32_t)strtoul(job->job_id, NULL, 10);
-    if (job->clean_jobs) {
+    uint32_t job_id = (uint32_t)strtoul(template_job->job_id, NULL, 10);
+    if (clean_jobs) {
         clear_active_job_ids(conn->active_job_ids, &conn->active_job_ids_count);
+        if (GLOBAL_STATE->stratum_queue.count > 0) {
+            SYSTEM_clean_jobs_queue(GLOBAL_STATE);
+        }
     }
     if (!add_active_job_id(conn->active_job_ids, &conn->active_job_ids_count, job_id)) {
-        ESP_LOGW(TAG, "Ignoring duplicate V2 job %s", job->job_id);
+        ESP_LOGW(TAG, "Ignoring duplicate V2 job %s", template_job->job_id);
         return;
     }
+
+    miner_job_t *job = miner_job_pool_acquire();
+    if (!job) {
+        ESP_LOGD(TAG, "No free job slot in pool, dropping %sSV2 job %s",
+                 clean_jobs ? "clean " : "non-clean ", template_job->job_id);
+        return;
+    }
+
+    *job = *template_job;
+    memcpy(job->prev_hash, prev_hash, 32);
+    job->ntime = ntime;
+    job->nbits = nbits;
+    job->clean_jobs = clean_jobs;
 
     job->pool_id = conn->pool_idx;
     job->pool_diff = hash_to_pdiff(conn->target);
@@ -208,12 +228,9 @@ static void stratum_v2_enqueue_job(GlobalState *GLOBAL_STATE, sv2_conn_t *conn,
 
     SYSTEM_notify_new_ntime(GLOBAL_STATE, job->ntime);
 
-    if (job->clean_jobs && (GLOBAL_STATE->stratum_queue.count > 0)) {
-        SYSTEM_clean_jobs_queue(GLOBAL_STATE);
-    }
-
     if (GLOBAL_STATE->stratum_queue.count == QUEUE_SIZE) {
-        queue_dequeue(&GLOBAL_STATE->stratum_queue);
+        miner_job_t *dropped = (miner_job_t *)queue_dequeue(&GLOBAL_STATE->stratum_queue);
+        miner_job_pool_release(dropped);
     }
 
     queue_enqueue(&GLOBAL_STATE->stratum_queue, job);
@@ -243,11 +260,7 @@ static void stratum_v2_handle_new_extended_mining_job(GlobalState *GLOBAL_STATE,
     conn->pending_jobs_valid |= (1U << slot);
 
     if (has_min_ntime && conn->has_prev_hash) {
-        miner_job_t *job = miner_job_pool_next();
-        *job = temp_job;
-        memcpy(job->prev_hash, conn->prev_hash, 32);
-        job->nbits = conn->prev_hash_nbits;
-        stratum_v2_enqueue_job(GLOBAL_STATE, conn, job);
+        stratum_v2_enqueue_job(GLOBAL_STATE, conn, &temp_job, conn->prev_hash, temp_job.ntime, conn->prev_hash_nbits, false);
     }
 }
 
@@ -281,13 +294,7 @@ static void stratum_v2_handle_new_mining_job(GlobalState *GLOBAL_STATE, sv2_conn
     conn->pending_jobs_valid |= (1U << slot);
 
     if (has_min_ntime && conn->has_prev_hash) {
-        miner_job_t *job = miner_job_pool_next();
-        *job = *pending;
-        memcpy(job->prev_hash, conn->prev_hash, 32);
-        job->ntime = min_ntime;
-        job->nbits = conn->prev_hash_nbits;
-        job->clean_jobs = false;
-        stratum_v2_enqueue_job(GLOBAL_STATE, conn, job);
+        stratum_v2_enqueue_job(GLOBAL_STATE, conn, pending, conn->prev_hash, min_ntime, conn->prev_hash_nbits, false);
     }
 }
 
@@ -318,13 +325,7 @@ static void stratum_v2_handle_set_new_prev_hash(GlobalState *GLOBAL_STATE, sv2_c
 
     if ((conn->pending_jobs_valid & (1U << slot)) &&
         (uint32_t)strtoul(conn->pending_jobs[slot].job_id, NULL, 10) == job_id) {
-        miner_job_t *job = miner_job_pool_next();
-        *job = conn->pending_jobs[slot];
-        memcpy(job->prev_hash, prev_hash, 32);
-        job->ntime = min_ntime;
-        job->nbits = nbits;
-        job->clean_jobs = true;
-        stratum_v2_enqueue_job(GLOBAL_STATE, conn, job);
+        stratum_v2_enqueue_job(GLOBAL_STATE, conn, &conn->pending_jobs[slot], prev_hash, min_ntime, nbits, true);
     } else {
         ESP_LOGW(TAG, "SetNewPrevHash for unknown job_id %lu", job_id);
     }
