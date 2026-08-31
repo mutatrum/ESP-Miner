@@ -11,7 +11,9 @@ typedef enum {
     JOB_TYPE_SV2_EXTENDED,
 } miner_job_type_t;
 
-#define MAX_COINBASE_BIN_LEN 384
+#define MAX_COINBASE_PREFIX_LEN 1024
+#define MAX_COINBASE_SUFFIX_LEN 64512
+#define MAX_COINBASE_BIN_LEN    MAX_COINBASE_SUFFIX_LEN
 #define MAX_MERKLE_BRANCHES 32
 #define MAX_JOB_ID_LEN 32
 #define MINER_JOB_POOL_SIZE 8
@@ -39,10 +41,10 @@ typedef struct {
     uint8_t          merkle_path[MAX_MERKLE_BRANCHES][32];
     uint8_t          merkle_path_count;
 
-    // Coinbase binary payload (used by V1 and SV2 Extended)
-    uint8_t          coinbase_prefix[MAX_COINBASE_BIN_LEN];
+    // Coinbase binary payload (pointing to PSRAM-allocated buffers)
+    uint8_t         *coinbase_prefix;
     uint16_t         coinbase_prefix_len;
-    uint8_t          coinbase_suffix[MAX_COINBASE_BIN_LEN];
+    uint8_t         *coinbase_suffix;
     uint16_t         coinbase_suffix_len;
 
     // Pre-computed Merkle root (for SV2 Standard)
@@ -51,8 +53,7 @@ typedef struct {
 
 // Pre-allocated ring buffer pool helpers
 void miner_job_pool_init(void);
-miner_job_t *miner_job_pool_acquire(void);
-void miner_job_pool_release(miner_job_t *job);
+miner_job_t *miner_job_get_slot(size_t index);
 
 static inline bool miner_job_is_rollable(const miner_job_t *job)
 {

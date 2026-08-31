@@ -236,8 +236,14 @@ TEST_CASE("Decode regtest P2WPKH address", "[coinbase_decoder]")
 // integration-level — the detection logic is tested implicitly through
 // the address prefix matching in the full processing pipeline.
 
+static uint8_t s_test_pbuf[1024];
+static uint8_t s_test_sbuf[2048];
+
 static esp_err_t test_process_v1_job(const char *c1, const char *c2, uint32_t version, const char *extranonce1, int extranonce2_len, const char *user_address, bool decode_coinbase_tx, mining_notification_result_t *result) {
-    miner_job_t job = { 0 };
+    static miner_job_t job;
+    memset(&job, 0, sizeof(job));
+    job.coinbase_prefix = s_test_pbuf;
+    job.coinbase_suffix = s_test_sbuf;
     job.type = JOB_TYPE_V1;
     job.version = version;
     job.nbits = 0x1d00ffff;
@@ -305,7 +311,10 @@ TEST_CASE("BIP-110 signaling expired", "[coinbase_decoder]")
 
 TEST_CASE("Decode via miner_job_t directly", "[coinbase_decoder]")
 {
-    miner_job_t job = { 0 };
+    static miner_job_t job;
+    memset(&job, 0, sizeof(job));
+    job.coinbase_prefix = s_test_pbuf;
+    job.coinbase_suffix = s_test_sbuf;
     job.type = JOB_TYPE_V1;
     job.version = 0x20000000;
     job.nbits = 0x1d00ffff;

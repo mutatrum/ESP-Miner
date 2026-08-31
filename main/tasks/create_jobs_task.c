@@ -2,7 +2,6 @@
 #include <limits.h>
 #include <inttypes.h>
 
-#include "work_queue.h"
 #include "global_state.h"
 #include "esp_log.h"
 #include "esp_system.h"
@@ -37,12 +36,14 @@ static void generate_work_from_miner_job(GlobalState *GLOBAL_STATE, const miner_
     uint8_t merkle_root[32];
     char extranonce_2_str[MAX_EXTRANONCE2_STR] = "";
 
-    miner_job_t job_instance = *job;
+    uint32_t effective_version = job->version;
     if (!GLOBAL_STATE->DEVICE_CONFIG.family.asic.hardware_version_rolling && !miner_job_is_rollable(job)) {
-        job_instance.version = current_version;
+        effective_version = current_version;
     }
 
-    if (miner_job_is_rollable(job)) {
+    if (job->type == JOB_TYPE_SV2_STANDARD) {
+        memcpy(merkle_root, job->merkle_root, 32);
+    } else {
         size_t e2_len = job->extranonce2_len;
         if (e2_len > MAX_EXTRANONCE2_LEN) {
             ESP_LOGE(TAG, "extranonce_2_len %u exceeds maximum %d, skipping job", (unsigned)e2_len, MAX_EXTRANONCE2_LEN);
@@ -52,8 +53,10 @@ static void generate_work_from_miner_job(GlobalState *GLOBAL_STATE, const miner_
 
         uint8_t extranonce_2_bin[MAX_EXTRANONCE2_LEN] = {0};
         size_t copy_len = (e2_len < sizeof(uint64_t)) ? e2_len : sizeof(uint64_t);
-        memcpy(extranonce_2_bin, &extranonce_2, copy_len);
-        bin2hex(extranonce_2_bin, e2_len, extranonce_2_str, sizeof(extranonce_2_str));
+        if (e2_len > 0) {
+            memcpy(extranonce_2_bin, &extranonce_2, copy_len);
+            bin2hex(extranonce_2_bin, e2_len, extranonce_2_str, sizeof(extranonce_2_str));
+        }
 
         uint8_t coinbase_tx_hash[32];
         calculate_coinbase_tx_hash_bin(job->coinbase_prefix, job->coinbase_prefix_len,
@@ -65,11 +68,9 @@ static void generate_work_from_miner_job(GlobalState *GLOBAL_STATE, const miner_
         calculate_merkle_root_hash(coinbase_tx_hash,
                                    (const uint8_t (*)[32])job->merkle_path,
                                    job->merkle_path_count, merkle_root);
-    } else {
-        memcpy(merkle_root, job->merkle_root, 32);
     }
 
-    construct_bm_job_from_miner_job(&job_instance, merkle_root, version_mask, job_diff, GLOBAL_STATE->DEVICE_CONFIG.family.asic.software_midstates, next_job);
+    construct_bm_job_from_miner_job(job, effective_version, merkle_root, version_mask, job_diff, GLOBAL_STATE->DEVICE_CONFIG.family.asic.software_midstates, next_job);
     next_job->jobid = strdup(job->job_id);
     next_job->extranonce2 = strdup(extranonce_2_str);
 
@@ -103,15 +104,16 @@ void create_jobs_task(void *pvParameters)
 
     while (1) {
         uint64_t start_time = esp_timer_get_time();
-        miner_job_t *new_work = (miner_job_t *)queue_dequeue_timeout(&GLOBAL_STATE->stratum_queue, timeout_ms);
+        uint32_t slot_notify = 0;
+        TickType_t wait_ticks = (timeout_ms > 0) ? pdMS_TO_TICKS(timeout_ms) : 0;
+        BaseType_t notified = xTaskNotifyWait(0, ULONG_MAX, &slot_notify, wait_ticks);
         timeout_ms -= (esp_timer_get_time() - start_time) / 1000;
 
-        if (new_work != NULL) {
-            ESP_LOGI(TAG, "New Work Dequeued %s (type %d)", new_work->job_id, new_work->type);
-            if (current_work != NULL && current_work != new_work) {
-                miner_job_pool_release(current_work);
-            }
+        if (notified == pdTRUE) {
+            miner_job_t *new_work = miner_job_get_slot((size_t)slot_notify);
+            ESP_LOGI(TAG, "New Work Activated (slot %lu) %s (type %d)", (unsigned long)slot_notify, new_work->job_id, new_work->type);
             current_work = new_work;
+            GLOBAL_STATE->active_job_slot_idx = (uint8_t)(slot_notify % MINER_JOB_POOL_SIZE);
             current_work_sent = false;
             current_version = new_work->version;
 

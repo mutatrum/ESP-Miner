@@ -10,7 +10,6 @@ SRCS
     "input.c"
     "filesystem.c"
     "system.c"
-    "work_queue.c"
     "lv_font_portfolio-6x8.c"
     "logo.c"
     "images/generated/bitaxe_background.c"

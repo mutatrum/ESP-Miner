@@ -11,12 +11,9 @@
 #include "sv2_protocol.h"
 #include "sv2_noise.h"
 #include "mining.h"
-#include "stratum_api.h"
-#include "work_queue.h"
 #include "utils.h"
 #include "libbase58.h"
 #include "device_config.h"
-#include "coinbase_decoder.h"
 #include "esp_heap_caps.h"
 
 #include <string.h>
@@ -29,6 +26,40 @@
 static const char *TAG = "stratum_v2";
 
 static sv2_conn_t *s_v2_conn = NULL;
+
+static bool add_active_job_id(uint32_t *active_job_ids, int *count, uint32_t job_id)
+{
+    for (int i = 0; i < *count; i++) {
+        if (active_job_ids[i] == job_id) {
+            return false;
+        }
+    }
+    if (*count < SV2_MAX_ACTIVE_JOB_IDS) {
+        active_job_ids[*count] = job_id;
+        (*count)++;
+    } else {
+        for (int i = 1; i < SV2_MAX_ACTIVE_JOB_IDS; i++) {
+            active_job_ids[i - 1] = active_job_ids[i];
+        }
+        active_job_ids[SV2_MAX_ACTIVE_JOB_IDS - 1] = job_id;
+    }
+    return true;
+}
+
+static void clear_active_job_ids(uint32_t *active_job_ids, int *count)
+{
+    memset(active_job_ids, 0, sizeof(uint32_t) * SV2_MAX_ACTIVE_JOB_IDS);
+    *count = 0;
+}
+
+static void sv2_conn_free(sv2_conn_t **conn_ptr)
+{
+    if (!conn_ptr || !*conn_ptr) return;
+    sv2_conn_t *c = *conn_ptr;
+    clear_active_job_ids(c->active_job_ids, &c->active_job_ids_count);
+    free(c);
+    *conn_ptr = NULL;
+}
 
 static bool stratum_v2_load_authority_pubkey(GlobalState *GLOBAL_STATE, uint8_t out[32], uint16_t pool_idx)
 {
@@ -62,39 +93,13 @@ static bool stratum_v2_load_authority_pubkey(GlobalState *GLOBAL_STATE, uint8_t 
     return true;
 }
 
-static bool add_active_job_id(uint32_t *active_job_ids, int *count, uint32_t job_id)
-{
-    for (int i = 0; i < *count; i++) {
-        if (active_job_ids[i] == job_id) {
-            return false;
-        }
-    }
-    if (*count < SV2_MAX_ACTIVE_JOB_IDS) {
-        active_job_ids[*count] = job_id;
-        (*count)++;
-    } else {
-        for (int i = 1; i < SV2_MAX_ACTIVE_JOB_IDS; i++) {
-            active_job_ids[i - 1] = active_job_ids[i];
-        }
-        active_job_ids[SV2_MAX_ACTIVE_JOB_IDS - 1] = job_id;
-    }
-    return true;
-}
-
-static void clear_active_job_ids(uint32_t *active_job_ids, int *count)
-{
-    memset(active_job_ids, 0, sizeof(uint32_t) * SV2_MAX_ACTIVE_JOB_IDS);
-    *count = 0;
-}
-
 void stratum_v2_close_connection(GlobalState *GLOBAL_STATE)
 {
-    taskENTER_CRITICAL(&GLOBAL_STATE->stratum_mux);
+    pthread_mutex_lock(&GLOBAL_STATE->transport_mutex);
     esp_transport_handle_t transport = GLOBAL_STATE->transport;
     GLOBAL_STATE->transport = NULL;
     sv2_conn_t *conn = s_v2_conn;
     s_v2_conn = NULL;
-    taskEXIT_CRITICAL(&GLOBAL_STATE->stratum_mux);
 
     if (conn && conn->noise_ctx) {
         sv2_noise_destroy(conn->noise_ctx);
@@ -108,6 +113,8 @@ void stratum_v2_close_connection(GlobalState *GLOBAL_STATE)
         clear_active_job_ids(conn->active_job_ids, &conn->active_job_ids_count);
         free(conn);
     }
+    pthread_mutex_unlock(&GLOBAL_STATE->transport_mutex);
+
     GLOBAL_STATE->SYSTEM_MODULE.shares_pending = 0;
     SYSTEM_clean_jobs_queue(GLOBAL_STATE);
     SYSTEM_reset_coinbase_ui_state(GLOBAL_STATE, "");
@@ -138,7 +145,7 @@ static void stratum_v2_track_submit(GlobalState *GLOBAL_STATE, uint32_t sequence
 int stratum_v2_submit_share(GlobalState *GLOBAL_STATE, const bm_job *active_job,
                             uint32_t nonce, uint32_t rolled_version, uint64_t *sent_time_us)
 {
-    if (!GLOBAL_STATE || !active_job || !s_v2_conn) {
+    if (!GLOBAL_STATE || !active_job) {
         return -1;
     }
 
@@ -151,16 +158,16 @@ int stratum_v2_submit_share(GlobalState *GLOBAL_STATE, const bm_job *active_job,
         hex2bin(active_job->extranonce2, extranonce_2, en2_len);
     }
 
-    taskENTER_CRITICAL(&GLOBAL_STATE->stratum_mux);
+    pthread_mutex_lock(&GLOBAL_STATE->transport_mutex);
     esp_transport_handle_t transport = GLOBAL_STATE->transport;
     sv2_conn_t *conn = s_v2_conn;
-    uint32_t sequence_number = conn ? conn->sequence_number++ : 0;
-    taskEXIT_CRITICAL(&GLOBAL_STATE->stratum_mux);
 
     if (!transport || !conn || !conn->noise_ctx) {
+        pthread_mutex_unlock(&GLOBAL_STATE->transport_mutex);
         return -1;
     }
 
+    uint32_t sequence_number = conn->sequence_number++;
     uint8_t buf[SV2_SUBMIT_SHARES_MAX_FRAME_SIZE];
 
     uint32_t sv2_job_id = (uint32_t)strtoul(active_job->jobid, NULL, 10);
@@ -169,98 +176,82 @@ int stratum_v2_submit_share(GlobalState *GLOBAL_STATE, const bm_job *active_job,
                                       sequence_number,
                                       sv2_job_id, nonce, active_job->ntime, rolled_version,
                                       en2_len > 0 ? extranonce_2 : NULL, en2_len);
-    if (len < 0) return -1;
+    if (len < 0) {
+        pthread_mutex_unlock(&GLOBAL_STATE->transport_mutex);
+        return -1;
+    }
 
     stratum_v2_track_submit(GLOBAL_STATE, sequence_number);
     int ret = sv2_noise_send(conn->noise_ctx, transport, buf, len);
     if (sent_time_us) {
         *sent_time_us = esp_timer_get_time();
     }
+    pthread_mutex_unlock(&GLOBAL_STATE->transport_mutex);
     return ret;
-}
-
-static void stratum_v2_enqueue_job(GlobalState *GLOBAL_STATE, sv2_conn_t *conn,
-                                   const miner_job_t *template_job,
-                                   const uint8_t *prev_hash,
-                                   uint32_t ntime,
-                                   uint32_t nbits,
-                                   bool clean_jobs)
-{
-    uint32_t job_id = (uint32_t)strtoul(template_job->job_id, NULL, 10);
-    if (clean_jobs) {
-        clear_active_job_ids(conn->active_job_ids, &conn->active_job_ids_count);
-        if (GLOBAL_STATE->stratum_queue.count > 0) {
-            SYSTEM_clean_jobs_queue(GLOBAL_STATE);
-        }
-    }
-    if (!add_active_job_id(conn->active_job_ids, &conn->active_job_ids_count, job_id)) {
-        ESP_LOGW(TAG, "Ignoring duplicate V2 job %s", template_job->job_id);
-        return;
-    }
-
-    miner_job_t *job = miner_job_pool_acquire();
-    if (!job) {
-        ESP_LOGD(TAG, "No free job slot in pool, dropping %sSV2 job %s",
-                 clean_jobs ? "clean " : "non-clean ", template_job->job_id);
-        return;
-    }
-
-    *job = *template_job;
-    memcpy(job->prev_hash, prev_hash, 32);
-    job->ntime = ntime;
-    job->nbits = nbits;
-    job->clean_jobs = clean_jobs;
-
-    job->pool_id = conn->pool_idx;
-    job->pool_diff = hash_to_pdiff(conn->target);
-    job->version_mask = conn->version_mask;
-
-    if (job->type == JOB_TYPE_SV2_EXTENDED) {
-        job->extranonce1_len = conn->extranonce_prefix_len;
-        if (job->extranonce1_len > sizeof(job->extranonce1)) job->extranonce1_len = sizeof(job->extranonce1);
-        if (job->extranonce1_len > 0) {
-            memcpy(job->extranonce1, conn->extranonce_prefix, job->extranonce1_len);
-        }
-        job->extranonce2_len = conn->extranonce_size;
-    }
-
-    GLOBAL_STATE->SYSTEM_MODULE.work_received++;
-
-    SYSTEM_notify_new_ntime(GLOBAL_STATE, job->ntime);
-
-    if (GLOBAL_STATE->stratum_queue.count == QUEUE_SIZE) {
-        miner_job_t *dropped = (miner_job_t *)queue_dequeue(&GLOBAL_STATE->stratum_queue);
-        miner_job_pool_release(dropped);
-    }
-
-    queue_enqueue(&GLOBAL_STATE->stratum_queue, job);
 }
 
 static void stratum_v2_handle_new_extended_mining_job(GlobalState *GLOBAL_STATE, sv2_conn_t *conn,
                                                        const uint8_t *payload, uint32_t len)
 {
-    uint32_t channel_id;
-    miner_job_t temp_job;
-    bool has_min_ntime = false;
-
-    if (sv2_parse_new_extended_mining_job(payload, len, &channel_id, &temp_job, &has_min_ntime) != 0) {
-        ESP_LOGE(TAG, "Failed to parse NewExtendedMiningJob");
+    if (len < 8) {
+        ESP_LOGE(TAG, "NewExtendedMiningJob payload too short (%lu bytes)", (unsigned long)len);
         return;
     }
 
+    uint32_t channel_id = (uint32_t)payload[0] | ((uint32_t)payload[1] << 8) |
+                          ((uint32_t)payload[2] << 16) | ((uint32_t)payload[3] << 24);
     if (channel_id != conn->channel_id) {
         ESP_LOGW(TAG, "Dropping NewExtendedMiningJob for unexpected channel %lu (expected %lu)",
                  (unsigned long)channel_id, (unsigned long)conn->channel_id);
         return;
     }
 
-    uint32_t job_id = (uint32_t)strtoul(temp_job.job_id, NULL, 10);
-    int slot = job_id % SV2_PENDING_JOBS_SIZE;
-    conn->pending_jobs[slot] = temp_job;
+    uint32_t job_id = (uint32_t)payload[4] | ((uint32_t)payload[5] << 8) |
+                      ((uint32_t)payload[6] << 16) | ((uint32_t)payload[7] << 24);
+    uint8_t slot = (uint8_t)(job_id % MINER_JOB_POOL_SIZE);
+    miner_job_t *job = miner_job_get_slot(slot);
+    bool has_min_ntime = false;
+    bool version_rolling_allowed = false;
+
+    if (sv2_parse_new_extended_mining_job(payload, len, &channel_id, job, &has_min_ntime, &version_rolling_allowed) != 0) {
+        ESP_LOGE(TAG, "Failed to parse NewExtendedMiningJob");
+        conn->pending_jobs_valid &= ~(1U << slot);
+        return;
+    }
+
+    if (channel_id != conn->channel_id && (!conn->has_group_channel || channel_id != conn->group_channel_id)) {
+        ESP_LOGW(TAG, "Dropping NewExtendedMiningJob for unexpected channel %lu (expected %lu or group %lu)",
+                 (unsigned long)channel_id, (unsigned long)conn->channel_id, (unsigned long)conn->group_channel_id);
+        conn->pending_jobs_valid &= ~(1U << slot);
+        return;
+    }
+
+    job->pool_id = conn->pool_idx;
+    job->pool_diff = hash_to_pdiff(conn->target);
+    job->version_mask = version_rolling_allowed ? conn->version_mask : 0;
+    job->extranonce1_len = conn->extranonce_prefix_len;
+    if (job->extranonce1_len > sizeof(job->extranonce1)) job->extranonce1_len = sizeof(job->extranonce1);
+    if (job->extranonce1_len > 0) {
+        memcpy(job->extranonce1, conn->extranonce_prefix, job->extranonce1_len);
+    }
+    job->extranonce2_len = conn->extranonce_size;
+
     conn->pending_jobs_valid |= (1U << slot);
 
     if (has_min_ntime && conn->has_prev_hash) {
-        stratum_v2_enqueue_job(GLOBAL_STATE, conn, &temp_job, conn->prev_hash, temp_job.ntime, conn->prev_hash_nbits, false);
+        if (!add_active_job_id(conn->active_job_ids, &conn->active_job_ids_count, job_id)) {
+            ESP_LOGW(TAG, "Ignoring duplicate V2 job %s", job->job_id);
+            return;
+        }
+        memcpy(job->prev_hash, conn->prev_hash, 32);
+        job->nbits = conn->prev_hash_nbits;
+        job->clean_jobs = false;
+
+        GLOBAL_STATE->SYSTEM_MODULE.work_received++;
+        SYSTEM_notify_new_ntime(GLOBAL_STATE, job->ntime);
+        if (GLOBAL_STATE->create_jobs_task_handle) {
+            xTaskNotify(GLOBAL_STATE->create_jobs_task_handle, slot, eSetValueWithOverwrite);
+        }
     }
 }
 
@@ -278,23 +269,44 @@ static void stratum_v2_handle_new_mining_job(GlobalState *GLOBAL_STATE, sv2_conn
         return;
     }
 
-    if (channel_id != conn->channel_id) {
-        ESP_LOGW(TAG, "Dropping NewMiningJob for unexpected channel %lu (expected %lu)",
-                 (unsigned long)channel_id, (unsigned long)conn->channel_id);
+    if (channel_id != conn->channel_id && (!conn->has_group_channel || channel_id != conn->group_channel_id)) {
+        ESP_LOGW(TAG, "Dropping NewMiningJob for unexpected channel %lu (expected %lu or group %lu)",
+                 (unsigned long)channel_id, (unsigned long)conn->channel_id, (unsigned long)conn->group_channel_id);
         return;
     }
 
-    int slot = job_id % SV2_PENDING_JOBS_SIZE;
-    miner_job_t *pending = &conn->pending_jobs[slot];
-    memset(pending, 0, sizeof(miner_job_t));
-    pending->type = JOB_TYPE_SV2_STANDARD;
-    snprintf(pending->job_id, sizeof(pending->job_id), "%lu", (unsigned long)job_id);
-    pending->version = version;
-    memcpy(pending->merkle_root, merkle_root, 32);
+    uint8_t slot = (uint8_t)(job_id % MINER_JOB_POOL_SIZE);
+    miner_job_t *job = miner_job_get_slot(slot);
+    uint8_t *p_buf = job->coinbase_prefix;
+    uint8_t *s_buf = job->coinbase_suffix;
+    memset(job, 0, sizeof(miner_job_t));
+    job->coinbase_prefix = p_buf;
+    job->coinbase_suffix = s_buf;
+
+    job->type = JOB_TYPE_SV2_STANDARD;
+    snprintf(job->job_id, sizeof(job->job_id), "%lu", (unsigned long)job_id);
+    job->version = version;
+    memcpy(job->merkle_root, merkle_root, 32);
+    job->pool_id = conn->pool_idx;
+    job->pool_diff = hash_to_pdiff(conn->target);
+    job->version_mask = conn->version_mask;
     conn->pending_jobs_valid |= (1U << slot);
 
     if (has_min_ntime && conn->has_prev_hash) {
-        stratum_v2_enqueue_job(GLOBAL_STATE, conn, pending, conn->prev_hash, min_ntime, conn->prev_hash_nbits, false);
+        if (!add_active_job_id(conn->active_job_ids, &conn->active_job_ids_count, job_id)) {
+            ESP_LOGW(TAG, "Ignoring duplicate V2 job %s", job->job_id);
+            return;
+        }
+        memcpy(job->prev_hash, conn->prev_hash, 32);
+        job->ntime = min_ntime;
+        job->nbits = conn->prev_hash_nbits;
+        job->clean_jobs = false;
+
+        GLOBAL_STATE->SYSTEM_MODULE.work_received++;
+        SYSTEM_notify_new_ntime(GLOBAL_STATE, job->ntime);
+        if (GLOBAL_STATE->create_jobs_task_handle) {
+            xTaskNotify(GLOBAL_STATE->create_jobs_task_handle, slot, eSetValueWithOverwrite);
+        }
     }
 }
 
@@ -310,9 +322,9 @@ static void stratum_v2_handle_set_new_prev_hash(GlobalState *GLOBAL_STATE, sv2_c
         return;
     }
 
-    if (channel_id != conn->channel_id) {
-        ESP_LOGW(TAG, "Dropping SetNewPrevHash for unexpected channel %lu (expected %lu)",
-                 (unsigned long)channel_id, (unsigned long)conn->channel_id);
+    if (channel_id != conn->channel_id && (!conn->has_group_channel || channel_id != conn->group_channel_id)) {
+        ESP_LOGW(TAG, "Dropping SetNewPrevHash for unexpected channel %lu (expected %lu or group %lu)",
+                 (unsigned long)channel_id, (unsigned long)conn->channel_id, (unsigned long)conn->group_channel_id);
         return;
     }
 
@@ -321,13 +333,37 @@ static void stratum_v2_handle_set_new_prev_hash(GlobalState *GLOBAL_STATE, sv2_c
     conn->prev_hash_nbits = nbits;
     conn->has_prev_hash = true;
 
-    int slot = job_id % SV2_PENDING_JOBS_SIZE;
+    uint8_t slot = (uint8_t)(job_id % MINER_JOB_POOL_SIZE);
+    miner_job_t *job = miner_job_get_slot(slot);
 
     if ((conn->pending_jobs_valid & (1U << slot)) &&
-        (uint32_t)strtoul(conn->pending_jobs[slot].job_id, NULL, 10) == job_id) {
-        stratum_v2_enqueue_job(GLOBAL_STATE, conn, &conn->pending_jobs[slot], prev_hash, min_ntime, nbits, true);
+        (uint32_t)strtoul(job->job_id, NULL, 10) == job_id) {
+        clear_active_job_ids(conn->active_job_ids, &conn->active_job_ids_count);
+        add_active_job_id(conn->active_job_ids, &conn->active_job_ids_count, job_id);
+
+        memcpy(job->prev_hash, prev_hash, 32);
+        job->ntime = min_ntime;
+        job->nbits = nbits;
+        job->clean_jobs = true;
+        job->pool_id = conn->pool_idx;
+        job->pool_diff = hash_to_pdiff(conn->target);
+        job->version_mask = conn->version_mask;
+        if (job->type == JOB_TYPE_SV2_EXTENDED) {
+            job->extranonce1_len = conn->extranonce_prefix_len;
+            if (job->extranonce1_len > sizeof(job->extranonce1)) job->extranonce1_len = sizeof(job->extranonce1);
+            if (job->extranonce1_len > 0) {
+                memcpy(job->extranonce1, conn->extranonce_prefix, job->extranonce1_len);
+            }
+            job->extranonce2_len = conn->extranonce_size;
+        }
+
+        GLOBAL_STATE->SYSTEM_MODULE.work_received++;
+        SYSTEM_notify_new_ntime(GLOBAL_STATE, job->ntime);
+        if (GLOBAL_STATE->create_jobs_task_handle) {
+            xTaskNotify(GLOBAL_STATE->create_jobs_task_handle, slot, eSetValueWithOverwrite);
+        }
     } else {
-        ESP_LOGW(TAG, "SetNewPrevHash for unknown job_id %lu", job_id);
+        ESP_LOGW(TAG, "SetNewPrevHash for unknown job_id %lu", (unsigned long)job_id);
     }
 }
 
@@ -342,9 +378,9 @@ static void stratum_v2_handle_set_target(GlobalState *GLOBAL_STATE, sv2_conn_t *
         return;
     }
 
-    if (channel_id != conn->channel_id) {
-        ESP_LOGW(TAG, "Dropping SetTarget for unexpected channel %lu (expected %lu)",
-                 (unsigned long)channel_id, (unsigned long)conn->channel_id);
+    if (channel_id != conn->channel_id && (!conn->has_group_channel || channel_id != conn->group_channel_id)) {
+        ESP_LOGW(TAG, "Dropping SetTarget for unexpected channel %lu (expected %lu or group %lu)",
+                 (unsigned long)channel_id, (unsigned long)conn->channel_id, (unsigned long)conn->group_channel_id);
         return;
     }
 
@@ -360,17 +396,18 @@ static void stratum_v2_handle_set_target(GlobalState *GLOBAL_STATE, sv2_conn_t *
     ESP_LOGI(TAG, "Set pool difficulty: %g", pdiff);
 }
 
-esp_err_t stratum_v2_run(GlobalState *GLOBAL_STATE, uint16_t pool_idx, volatile bool *should_reconnect)
+esp_err_t stratum_v2_run(GlobalState *GLOBAL_STATE, uint16_t pool_idx, volatile bool *should_reconnect, int *retry_attempts)
 {
     sv2_channel_type_t channel_type = GLOBAL_STATE->SYSTEM_MODULE.pools[pool_idx].sv2_channel_type;
 
     if (s_v2_conn != NULL) {
-        clear_active_job_ids(s_v2_conn->active_job_ids, &s_v2_conn->active_job_ids_count);
-        free(s_v2_conn);
-        s_v2_conn = NULL;
+        sv2_conn_free(&s_v2_conn);
     }
 
-    sv2_conn_t *conn = calloc(1, sizeof(sv2_conn_t));
+    sv2_conn_t *conn = heap_caps_calloc(1, sizeof(sv2_conn_t), MALLOC_CAP_SPIRAM);
+    if (!conn) {
+        conn = calloc(1, sizeof(sv2_conn_t));
+    }
     if (!conn) {
         ESP_LOGE(TAG, "Failed to allocate sv2_conn");
         return ESP_ERR_NO_MEM;
@@ -385,10 +422,7 @@ esp_err_t stratum_v2_run(GlobalState *GLOBAL_STATE, uint16_t pool_idx, volatile 
         ESP_LOGE(TAG, "Failed to allocate frame buffers");
         free(frame_buf);
         free(recv_buf);
-        if (s_v2_conn) {
-            free(s_v2_conn);
-            s_v2_conn = NULL;
-        }
+        sv2_conn_free(&s_v2_conn);
         return ESP_ERR_NO_MEM;
     }
 
@@ -447,9 +481,9 @@ esp_err_t stratum_v2_run(GlobalState *GLOBAL_STATE, uint16_t pool_idx, volatile 
 
     ESP_LOGI(TAG, "TCP connected to %s:%d (%s)", stratum_url, port, conn_info.host_ip);
 
-    taskENTER_CRITICAL(&GLOBAL_STATE->stratum_mux);
+    pthread_mutex_lock(&GLOBAL_STATE->transport_mutex);
     GLOBAL_STATE->transport = transport;
-    taskEXIT_CRITICAL(&GLOBAL_STATE->stratum_mux);
+    pthread_mutex_unlock(&GLOBAL_STATE->transport_mutex);
 
     stratum_socket_set_options(transport);
 
@@ -512,7 +546,10 @@ esp_err_t stratum_v2_run(GlobalState *GLOBAL_STATE, uint16_t pool_idx, volatile 
     int payload_len;
 
     conn->channel_type = channel_type;
-    uint32_t setup_flags = (channel_type == SV2_CHANNEL_STANDARD) ? 0x01 : 0x00;
+    uint32_t setup_flags = SV2_SETUP_FLAGS_REQUIRES_VERSION_ROLLING;
+    if (channel_type == SV2_CHANNEL_STANDARD) {
+        setup_flags |= SV2_SETUP_FLAGS_REQUIRES_STANDARD_JOBS;
+    }
 
     // 1. Send SetupConnection
     {
@@ -568,6 +605,17 @@ esp_err_t stratum_v2_run(GlobalState *GLOBAL_STATE, uint16_t pool_idx, volatile 
             free(recv_buf);
             return ESP_FAIL;
         }
+
+        if (flags & SV2_SETUP_SUCCESS_FLAGS_REQUIRES_FIXED_VERSION) {
+            ESP_LOGE(TAG, "Pool requires fixed version, but miner hardware requires version rolling");
+            snprintf(GLOBAL_STATE->SYSTEM_MODULE.pool_connection_info,
+                     sizeof(GLOBAL_STATE->SYSTEM_MODULE.pool_connection_info), "SV2: Fixed version unsupported");
+            stratum_v2_close_connection(GLOBAL_STATE);
+            free(frame_buf);
+            free(recv_buf);
+            return ESP_FAIL;
+        }
+
         ESP_LOGI(TAG, "Pool accepted connection: SV2 version=%d, flags=0x%08lx", used_version, flags);
     }
 
@@ -670,7 +718,10 @@ esp_err_t stratum_v2_run(GlobalState *GLOBAL_STATE, uint16_t pool_idx, volatile 
         }
 
         conn->channel_id = channel_id;
+        conn->group_channel_id = group_channel_id;
+        conn->has_group_channel = (group_channel_id != 0);
         conn->channel_opened = true;
+        if (retry_attempts) *retry_attempts = 0;
         memcpy(conn->target, target, 32);
 
         double pdiff = hash_to_pdiff(target);
@@ -816,4 +867,102 @@ esp_err_t stratum_v2_run(GlobalState *GLOBAL_STATE, uint16_t pool_idx, volatile 
     free(frame_buf);
     free(recv_buf);
     return run_result;
+}
+
+bool stratum_v2_probe_pool(GlobalState *GLOBAL_STATE, uint16_t pool_idx, const char *url, uint16_t port)
+{
+    if (!GLOBAL_STATE || url == NULL || url[0] == '\0' || port == 0) return false;
+
+    stratum_connection_info_t conn_info;
+    if (stratum_socket_resolve(url, port, &conn_info) != ESP_OK) {
+        return false;
+    }
+
+    esp_transport_handle_t transport = esp_transport_tcp_init();
+    if (!transport) return false;
+
+    esp_err_t ret = esp_transport_connect(transport, conn_info.host_ip, port, TRANSPORT_TIMEOUT_MS);
+    if (ret != ESP_OK) {
+        esp_transport_close(transport);
+        esp_transport_destroy(transport);
+        return false;
+    }
+
+    stratum_socket_set_options(transport);
+
+    sv2_noise_ctx_t *noise_ctx = sv2_noise_create();
+    if (!noise_ctx) {
+        esp_transport_close(transport);
+        esp_transport_destroy(transport);
+        return false;
+    }
+
+    uint8_t auth_key[32];
+    bool has_auth = stratum_v2_load_authority_pubkey(GLOBAL_STATE, auth_key, pool_idx);
+    bool require_auth = GLOBAL_STATE->SYSTEM_MODULE.pools[pool_idx].sv2_require_auth;
+
+    if (require_auth && !has_auth) {
+        sv2_noise_destroy(noise_ctx);
+        esp_transport_close(transport);
+        esp_transport_destroy(transport);
+        return false;
+    }
+
+    if (sv2_noise_handshake(noise_ctx, transport, has_auth ? auth_key : NULL) != 0) {
+        sv2_noise_destroy(noise_ctx);
+        esp_transport_close(transport);
+        esp_transport_destroy(transport);
+        return false;
+    }
+
+    uint8_t *frame_buf = heap_caps_malloc(1024, MALLOC_CAP_SPIRAM);
+    if (!frame_buf) frame_buf = malloc(1024);
+    uint8_t *recv_buf = heap_caps_malloc(1024, MALLOC_CAP_SPIRAM);
+    if (!recv_buf) recv_buf = malloc(1024);
+
+    if (!frame_buf || !recv_buf) {
+        free(frame_buf);
+        free(recv_buf);
+        sv2_noise_destroy(noise_ctx);
+        esp_transport_close(transport);
+        esp_transport_destroy(transport);
+        return false;
+    }
+
+    sv2_channel_type_t channel_type = GLOBAL_STATE->SYSTEM_MODULE.pools[pool_idx].sv2_channel_type;
+    uint32_t setup_flags = SV2_SETUP_FLAGS_REQUIRES_VERSION_ROLLING;
+    if (channel_type == SV2_CHANNEL_STANDARD) {
+        setup_flags |= SV2_SETUP_FLAGS_REQUIRES_STANDARD_JOBS;
+    }
+
+    const char *device_model = GLOBAL_STATE->DEVICE_CONFIG.family.asic.name;
+    int frame_len = sv2_build_setup_connection(frame_buf, 1024,
+                                               url, port,
+                                               "bitaxe", device_model ? device_model : "",
+                                               "", "", setup_flags);
+
+    bool success = false;
+    if (frame_len > 0 && sv2_noise_send(noise_ctx, transport, frame_buf, frame_len) == 0) {
+        uint8_t hdr_buf[6];
+        int payload_len = 0;
+        if (sv2_noise_recv(noise_ctx, transport, hdr_buf, recv_buf, 1024, &payload_len) == 0) {
+            sv2_frame_header_t hdr;
+            if (sv2_parse_frame_header(hdr_buf, &hdr) == 0 && hdr.msg_type == SV2_MSG_SETUP_CONNECTION_SUCCESS) {
+                uint16_t used_version;
+                uint32_t flags;
+                if (sv2_parse_setup_connection_success(recv_buf, payload_len, &used_version, &flags) == 0) {
+                    if (!(flags & SV2_SETUP_SUCCESS_FLAGS_REQUIRES_FIXED_VERSION)) {
+                        success = true;
+                    }
+                }
+            }
+        }
+    }
+
+    free(frame_buf);
+    free(recv_buf);
+    sv2_noise_destroy(noise_ctx);
+    esp_transport_close(transport);
+    esp_transport_destroy(transport);
+    return success;
 }

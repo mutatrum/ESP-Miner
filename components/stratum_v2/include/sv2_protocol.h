@@ -48,6 +48,15 @@ typedef enum {
 sv2_channel_type_t sv2_channel_type_from_string(const char *s);
 const char *sv2_channel_type_to_string(sv2_channel_type_t t);
 
+// SetupConnection.flags (spec 5.3.1)
+#define SV2_SETUP_FLAGS_REQUIRES_STANDARD_JOBS      (1U << 0)
+#define SV2_SETUP_FLAGS_REQUIRES_WORK_SELECTION     (1U << 1)
+#define SV2_SETUP_FLAGS_REQUIRES_VERSION_ROLLING    (1U << 2)
+
+// SetupConnection.Success.flags (spec 5.3.2)
+#define SV2_SETUP_SUCCESS_FLAGS_REQUIRES_FIXED_VERSION (1U << 1)
+#define SV2_SETUP_SUCCESS_FLAGS_REQUIRES_EXT_CHANNELS  (1U << 2)
+
 // Frame header (parsed)
 typedef struct {
     uint16_t extension_type;
@@ -66,6 +75,8 @@ struct sv2_noise_ctx;
 typedef struct sv2_conn {
     struct sv2_noise_ctx *noise_ctx;
     uint32_t channel_id;
+    uint32_t group_channel_id;
+    bool has_group_channel;
     uint32_t version_mask;
     uint32_t sequence_number;       // also the count of shares submitted
     uint32_t resolved_shares;       // shares the pool has accepted or rejected
@@ -73,9 +84,8 @@ typedef struct sv2_conn {
     uint8_t pool_idx;
     bool channel_opened;
 
-    // Pending future candidate jobs ring buffer (both standard and extended channels)
-    miner_job_t pending_jobs[SV2_PENDING_JOBS_SIZE];
-    uint16_t    pending_jobs_valid; // bitmask of valid slots
+    // Bitmask of valid job template slots in s_job_pool
+    uint16_t    pending_jobs_valid;
 
     // Latest prev_hash state
     uint8_t prev_hash[32];
@@ -169,6 +179,6 @@ int sv2_parse_open_extended_channel_success(const uint8_t *payload, uint32_t len
 
 int sv2_parse_new_extended_mining_job(const uint8_t *payload, uint32_t len,
                                       uint32_t *channel_id_out, miner_job_t *job_out,
-                                      bool *has_min_ntime_out);
+                                      bool *has_min_ntime_out, bool *version_rolling_allowed_out);
 
 #endif /* SV2_PROTOCOL_H */

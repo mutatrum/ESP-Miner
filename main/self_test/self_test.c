@@ -511,7 +511,7 @@ void self_test_task(void * pvParameters)
 
     // 1. Mock set_extranonce
     const char *extranonce_json = "{\"id\":null,\"method\":\"mining.set_extranonce\",\"params\":[\"12905085617eff8e\",8]}";
-    STRATUM_V1_parse(&msg, extranonce_json);
+    STRATUM_V1_parse(&msg, extranonce_json, NULL);
     if (msg.method == MINING_SET_EXTRANONCE) {
         if (msg.extranonce_str && msg.extranonce_str[0] != '\0') {
             size_t slen = strlen(msg.extranonce_str) / 2;
@@ -528,7 +528,7 @@ void self_test_task(void * pvParameters)
     // 2. Mock set_difficulty
     memset(&msg, 0, sizeof(msg));
     const char *difficulty_json = "{\"id\":null,\"method\":\"mining.set_difficulty\",\"params\":[4294967295]}";
-    STRATUM_V1_parse(&msg, difficulty_json);
+    STRATUM_V1_parse(&msg, difficulty_json, NULL);
     if (msg.method == MINING_SET_DIFFICULTY) {
         mock_diff = msg.new_difficulty;
         GLOBAL_STATE->SYSTEM_MODULE.pool_difficulty = mock_diff;
@@ -538,7 +538,7 @@ void self_test_task(void * pvParameters)
     // 3. Mock set_version_mask
     memset(&msg, 0, sizeof(msg));
     const char *version_mask_json = "{\"id\":null,\"method\":\"mining.set_version_mask\",\"params\":[\"ffffffff\"]}";
-    STRATUM_V1_parse(&msg, version_mask_json);
+    STRATUM_V1_parse(&msg, version_mask_json, NULL);
     if (msg.method == MINING_SET_VERSION_MASK) {
         mock_version_mask = msg.version_mask;
         ESP_LOGI(TAG, "Self-test: Applied mock version mask %08lx", mock_version_mask);
@@ -546,23 +546,23 @@ void self_test_task(void * pvParameters)
 
     // 4. Mock mining.notify
     memset(&msg, 0, sizeof(msg));
+    uint8_t target_slot = (GLOBAL_STATE->active_job_slot_idx + 1) % 2;
+    miner_job_t *job = miner_job_get_slot(target_slot);
     const char *notify_json = "{\"id\":null,\"method\":\"mining.notify\",\"params\":[\"0\",\"0c859545a3498373a57452fac22eb7113df2a465000543520000000000000000\",\"01000000010000000000000000000000000000000000000000000000000000000000000000ffffffff4b0389130cfabe6d6d5cbab26a2599e92916edec5657a94a0708ddb970f5c45b5d\",\"31650707758de07b010000000000001cfd7038212f736c7573682f000000000379ad0c2a000000001976a9147c154ed1dc59609e3d26abb2df2ea3d587cd8c4188ac00000000000000002c6a4c2952534b424c4f434b3ae725d3994b811572c1f345deb98b56b465ef8e153ecbbd27fa37bf1b005161380000000000000000266a24aa21a9ed63b06a7946b190a3fda1d76165b25c9b883bcc6621b040773050ee2a1bb18f1800000000\",[\"2b77d9e413e8121cd7a17ff46029591051d0922bd90b2b2a38811af1cb57a2b2\",\"5c8874cef00f3a233939516950e160949ef327891c9090467cead995441d22c5\",\"2d91ff8e19ac5fa69a40081f26c5852d366d608b04d2efe0d5b65d111d0d8074\",\"0ae96f609ad2264112a0b2dfb65624bedbcea3b036a59c0173394bba3a74e887\",\"e62172e63973d69574a82828aeb5711fc5ff97946db10fc7ec32830b24df7bde\",\"adb49456453aab49549a9eb46bb26787fb538e0a5f656992275194c04651ec97\",\"a7bc56d04d2672a8683892d6c8d376c73d250a4871fdf6f57019bcc737d6d2c2\",\"d94eceb8182b4f418cd071e93ec2a8993a0898d4c93bc33d9302f60dbbd0ed10\",\"5ad7788b8c66f8f50d332b88a80077ce10e54281ca472b4ed9bbbbcb6cf99083\",\"9f9d784b33df1b3ed3edb4211afc0dc1909af9758c6f8267e469f5148ed04809\",\"48fd17affa76b23e6fb2257df30374da839d6cb264656a82e34b350722b05123\",\"c4f5ab01913fc186d550c1a28f3f3e9ffaca2016b961a6a751f8cca0089df924\",\"cff737e1d00176dd6bbfa73071adbb370f227cfb5fba186562e4060fcec877e1\"],\"20000004\",\"1705ae3a\",\"647025b5\",true]}";
-    STRATUM_V1_parse(&msg, notify_json);
+    STRATUM_V1_parse(&msg, notify_json, job);
 
     if (msg.method == MINING_NOTIFY) {
-        ESP_LOGI(TAG, "Enqueuing mock work into stratum_queue");
-        miner_job_t *job = miner_job_pool_acquire();
-        if (job != NULL) {
-            *job = msg.mining_notification;
-            job->pool_id = 0;
-            job->pool_diff = mock_diff;
-            job->version_mask = mock_version_mask;
-            job->extranonce1_len = (uint8_t)e1_len;
-            if (e1_len > 0) {
-                memcpy(job->extranonce1, extranonce1_bin, e1_len);
-            }
-            job->extranonce2_len = (uint8_t)e2_len;
-            queue_enqueue(&GLOBAL_STATE->stratum_queue, job);
+        ESP_LOGI(TAG, "Activating mock work for self-test");
+        job->pool_id = 0;
+        job->pool_diff = mock_diff;
+        job->version_mask = mock_version_mask;
+        job->extranonce1_len = (uint8_t)e1_len;
+        if (e1_len > 0) {
+            memcpy(job->extranonce1, extranonce1_bin, e1_len);
+        }
+        job->extranonce2_len = (uint8_t)e2_len;
+        if (GLOBAL_STATE->create_jobs_task_handle) {
+            xTaskNotify(GLOBAL_STATE->create_jobs_task_handle, target_slot, eSetValueWithOverwrite);
         }
     } else {
         ESP_LOGE(TAG, "Failed to parse mock mining notification");

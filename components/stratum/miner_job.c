@@ -3,46 +3,40 @@
 #include "utils.h"
 #include <string.h>
 #include <pthread.h>
+#include <stdlib.h>
+#include "esp_log.h"
+#include "esp_heap_caps.h"
 
 static miner_job_t s_job_pool[MINER_JOB_POOL_SIZE];
-static bool s_job_in_use[MINER_JOB_POOL_SIZE];
-static pthread_mutex_t s_pool_lock = PTHREAD_MUTEX_INITIALIZER;
 
 void miner_job_pool_init(void)
 {
-    pthread_mutex_lock(&s_pool_lock);
-    memset(s_job_pool, 0, sizeof(s_job_pool));
-    memset(s_job_in_use, 0, sizeof(s_job_in_use));
-    pthread_mutex_unlock(&s_pool_lock);
-}
-
-miner_job_t *miner_job_pool_acquire(void)
-{
-    pthread_mutex_lock(&s_pool_lock);
-    miner_job_t *slot = NULL;
     for (size_t i = 0; i < MINER_JOB_POOL_SIZE; i++) {
-        if (!s_job_in_use[i]) {
-            s_job_in_use[i] = true;
-            slot = &s_job_pool[i];
-            break;
+        if (!s_job_pool[i].coinbase_prefix) {
+            s_job_pool[i].coinbase_prefix = heap_caps_calloc(1, MAX_COINBASE_PREFIX_LEN, MALLOC_CAP_SPIRAM);
+            if (!s_job_pool[i].coinbase_prefix) {
+                s_job_pool[i].coinbase_prefix = calloc(1, MAX_COINBASE_PREFIX_LEN);
+            }
         }
+        if (!s_job_pool[i].coinbase_suffix) {
+            s_job_pool[i].coinbase_suffix = heap_caps_calloc(1, MAX_COINBASE_SUFFIX_LEN, MALLOC_CAP_SPIRAM);
+            if (!s_job_pool[i].coinbase_suffix) {
+                s_job_pool[i].coinbase_suffix = calloc(1, 2048);
+            }
+        }
+        uint8_t *p_buf = s_job_pool[i].coinbase_prefix;
+        uint8_t *s_buf = s_job_pool[i].coinbase_suffix;
+        memset(&s_job_pool[i], 0, sizeof(miner_job_t));
+        s_job_pool[i].coinbase_prefix = p_buf;
+        s_job_pool[i].coinbase_suffix = s_buf;
     }
-    pthread_mutex_unlock(&s_pool_lock);
-
-    if (slot != NULL) {
-        memset(slot, 0, sizeof(miner_job_t));
-    }
-    return slot;
 }
 
-void miner_job_pool_release(miner_job_t *job)
+miner_job_t *miner_job_get_slot(size_t index)
 {
-    if (job == NULL) return;
-
-    pthread_mutex_lock(&s_pool_lock);
-    ptrdiff_t idx = job - s_job_pool;
-    if (idx >= 0 && idx < MINER_JOB_POOL_SIZE) {
-        s_job_in_use[idx] = false;
+    size_t slot_idx = index % MINER_JOB_POOL_SIZE;
+    if (!s_job_pool[slot_idx].coinbase_prefix || !s_job_pool[slot_idx].coinbase_suffix) {
+        miner_job_pool_init();
     }
-    pthread_mutex_unlock(&s_pool_lock);
+    return &s_job_pool[slot_idx];
 }

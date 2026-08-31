@@ -1,9 +1,12 @@
 #include "sv2_protocol.h"
 #include "utils.h"
+#include "esp_log.h"
 #include <string.h>
 #include <math.h>
 #include <stdlib.h>
 #include <stdio.h>
+
+static const char *TAG = "sv2_protocol";
 
 // --- Little-endian helpers ---
 
@@ -419,7 +422,7 @@ int sv2_parse_open_extended_channel_success(const uint8_t *payload, uint32_t len
 
 int sv2_parse_new_extended_mining_job(const uint8_t *payload, uint32_t len,
                                       uint32_t *channel_id_out, miner_job_t *job_out,
-                                      bool *has_min_ntime_out)
+                                      bool *has_min_ntime_out, bool *version_rolling_allowed_out)
 {
     // Minimum: channel_id(4) + job_id(4) + min_ntime option(1) + version(4) +
     //          version_rolling_allowed(1) + merkle_path(1) + coinbase_prefix(2) + coinbase_suffix(2) = 19
@@ -447,7 +450,7 @@ int sv2_parse_new_extended_mining_job(const uint8_t *payload, uint32_t len,
     uint32_t version = read_u32_le(payload + pos); pos += 4;
 
     bool version_rolling_allowed = (payload[pos++] != 0);
-    (void)version_rolling_allowed;
+    if (version_rolling_allowed_out) *version_rolling_allowed_out = version_rolling_allowed;
 
     // merkle_path: SEQ0_255[U256] = 1 byte count + count * 32 bytes
     if ((uint32_t)pos + 1 > len) return -1;
@@ -474,7 +477,11 @@ int sv2_parse_new_extended_mining_job(const uint8_t *payload, uint32_t len,
     if ((uint32_t)pos + suffix_len > len) return -1;
     const uint8_t *suffix_data = payload + pos;
 
+    uint8_t *p_buf = job_out->coinbase_prefix;
+    uint8_t *s_buf = job_out->coinbase_suffix;
     memset(job_out, 0, sizeof(miner_job_t));
+    job_out->coinbase_prefix = p_buf;
+    job_out->coinbase_suffix = s_buf;
     job_out->type = JOB_TYPE_SV2_EXTENDED;
     snprintf(job_out->job_id, sizeof(job_out->job_id), "%lu", (unsigned long)job_id);
     job_out->version = version;
@@ -486,13 +493,19 @@ int sv2_parse_new_extended_mining_job(const uint8_t *payload, uint32_t len,
         memcpy(job_out->merkle_path[i], merkle_path[i], 32);
     }
 
-    if (prefix_len > sizeof(job_out->coinbase_prefix)) prefix_len = sizeof(job_out->coinbase_prefix);
+    if (prefix_len > MAX_COINBASE_PREFIX_LEN || (prefix_len > 0 && !job_out->coinbase_prefix)) {
+        ESP_LOGE(TAG, "SV2 coinbase prefix length %u exceeds maximum %d", prefix_len, MAX_COINBASE_PREFIX_LEN);
+        return -1;
+    }
     if (prefix_len > 0) {
         memcpy(job_out->coinbase_prefix, prefix_data, prefix_len);
     }
     job_out->coinbase_prefix_len = prefix_len;
 
-    if (suffix_len > sizeof(job_out->coinbase_suffix)) suffix_len = sizeof(job_out->coinbase_suffix);
+    if (suffix_len > MAX_COINBASE_SUFFIX_LEN || (suffix_len > 0 && !job_out->coinbase_suffix)) {
+        ESP_LOGE(TAG, "SV2 coinbase suffix length %u exceeds maximum %d", suffix_len, MAX_COINBASE_SUFFIX_LEN);
+        return -1;
+    }
     if (suffix_len > 0) {
         memcpy(job_out->coinbase_suffix, suffix_data, suffix_len);
     }

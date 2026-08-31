@@ -1,5 +1,4 @@
 #include "esp_log.h"
-#include "esp_system.h"
 #include "system.h"
 #include "global_state.h"
 #include <lwip/tcpip.h>
@@ -7,14 +6,12 @@
 #include "stratum_api.h"
 #include "stratum_socket.h"
 #include "connect.h"
-#include "work_queue.h"
 #include <esp_sntp.h>
 #include "esp_timer.h"
 #include "esp_transport.h"
 #include <stdbool.h>
 #include <string.h>
 #include "utils.h"
-#include "coinbase_decoder.h"
 #include "miner_job.h"
 #include <esp_heap_caps.h>
 #include "esp_transport_ssl.h"
@@ -23,9 +20,11 @@
 #define MAX_EXTRANONCE_2_LEN 32
 #define TRANSPORT_TIMEOUT_MS 5000
 #define BUFFER_SIZE 1024
-#define MAX_ACTIVE_JOB_IDS 16
 
 static const char *TAG = "stratum_v1";
+
+static StratumApiV1Message *s_v1_msg = NULL;
+static sv1_conn_t *s_v1_conn = NULL;
 
 static bool add_active_job_id(char active_job_ids[][MAX_JOB_ID_LEN], int *count, const char *job_id)
 {
@@ -51,42 +50,37 @@ static void clear_active_job_ids(char active_job_ids[][MAX_JOB_ID_LEN], int *cou
     *count = 0;
 }
 
-static StratumApiV1Message stratum_api_v1_message = {};
-static sv1_conn_t *s_v1_conn = NULL;
-
 static int stratum_get_next_uid(GlobalState * GLOBAL_STATE)
 {
-    taskENTER_CRITICAL(&GLOBAL_STATE->stratum_mux);
+    pthread_mutex_lock(&GLOBAL_STATE->transport_mutex);
     int uid = s_v1_conn ? s_v1_conn->send_uid++ : 1;
-    taskEXIT_CRITICAL(&GLOBAL_STATE->stratum_mux);
+    pthread_mutex_unlock(&GLOBAL_STATE->transport_mutex);
     return uid;
 }
 
 static void stratum_v1_reset_uid(GlobalState *GLOBAL_STATE)
 {
-    taskENTER_CRITICAL(&GLOBAL_STATE->stratum_mux);
+    pthread_mutex_lock(&GLOBAL_STATE->transport_mutex);
     if (s_v1_conn) s_v1_conn->send_uid = 1;
-    taskEXIT_CRITICAL(&GLOBAL_STATE->stratum_mux);
+    pthread_mutex_unlock(&GLOBAL_STATE->transport_mutex);
 }
 
 int stratum_v1_submit_share(GlobalState *GLOBAL_STATE, const bm_job *active_job,
                             uint32_t nonce, uint32_t rolled_version, uint64_t *sent_time_us)
 {
-    if (!GLOBAL_STATE || !active_job || !s_v1_conn) return -1;
+    if (!GLOBAL_STATE || !active_job) return -1;
     uint8_t pool_id = active_job->pool_id;
     char *user = GLOBAL_STATE->SYSTEM_MODULE.pools[pool_id].user;
+    uint32_t version_bits = rolled_version ^ active_job->version;
 
-    taskENTER_CRITICAL(&GLOBAL_STATE->stratum_mux);
+    pthread_mutex_lock(&GLOBAL_STATE->transport_mutex);
     esp_transport_handle_t transport = GLOBAL_STATE->transport;
-    int uid = s_v1_conn->send_uid++;
-    taskEXIT_CRITICAL(&GLOBAL_STATE->stratum_mux);
-
-    if (transport == NULL) {
+    if (transport == NULL || s_v1_conn == NULL) {
+        pthread_mutex_unlock(&GLOBAL_STATE->transport_mutex);
         return -1;
     }
 
-    uint32_t version_bits = rolled_version ^ active_job->version;
-
+    int uid = s_v1_conn->send_uid++;
     int ret = STRATUM_V1_submit_share(
         transport,
         uid,
@@ -103,31 +97,34 @@ int stratum_v1_submit_share(GlobalState *GLOBAL_STATE, const bm_job *active_job,
             GLOBAL_STATE->SYSTEM_MODULE.shares_pending++;
         }
     }
+    pthread_mutex_unlock(&GLOBAL_STATE->transport_mutex);
     return ret;
 }
 
 void stratum_v1_close_connection(GlobalState *GLOBAL_STATE)
 {
-    taskENTER_CRITICAL(&GLOBAL_STATE->stratum_mux);
+    pthread_mutex_lock(&GLOBAL_STATE->transport_mutex);
     esp_transport_handle_t transport = GLOBAL_STATE->transport;
     GLOBAL_STATE->transport = NULL;
-    taskEXIT_CRITICAL(&GLOBAL_STATE->stratum_mux);
+    sv1_conn_t *conn = s_v1_conn;
+    s_v1_conn = NULL;
 
     if (transport != NULL) {
         esp_transport_close(transport);
         esp_transport_destroy(transport);
     }
-    if (s_v1_conn != NULL) {
-        clear_active_job_ids(s_v1_conn->active_job_ids, &s_v1_conn->active_job_ids_count);
-        free(s_v1_conn);
-        s_v1_conn = NULL;
+    if (conn != NULL) {
+        clear_active_job_ids(conn->active_job_ids, &conn->active_job_ids_count);
+        free(conn);
     }
+    pthread_mutex_unlock(&GLOBAL_STATE->transport_mutex);
+
     GLOBAL_STATE->SYSTEM_MODULE.shares_pending = 0;
     SYSTEM_clean_jobs_queue(GLOBAL_STATE);
     SYSTEM_reset_coinbase_ui_state(GLOBAL_STATE, "");
 }
 
-esp_err_t stratum_v1_run(GlobalState *GLOBAL_STATE, uint16_t pool_idx, volatile bool *should_reconnect)
+esp_err_t stratum_v1_run(GlobalState *GLOBAL_STATE, uint16_t pool_idx, volatile bool *should_reconnect, int *retry_attempts)
 {
     char *stratum_url = GLOBAL_STATE->SYSTEM_MODULE.pools[pool_idx].url;
     uint16_t port = GLOBAL_STATE->SYSTEM_MODULE.pools[pool_idx].port;
@@ -155,7 +152,7 @@ esp_err_t stratum_v1_run(GlobalState *GLOBAL_STATE, uint16_t pool_idx, volatile 
     }
     s_v1_conn->send_uid = 1;
     s_v1_conn->pool_difficulty = (double)GLOBAL_STATE->DEVICE_CONFIG.family.asic.difficulty;
-    s_v1_conn->version_mask = BIP320_VERSION_ROLLING_MASK;
+    s_v1_conn->version_mask = 0;
 
     stratum_connection_info_t conn_info;
     if (stratum_socket_resolve(stratum_url, port, &conn_info) != ESP_OK) {
@@ -191,9 +188,9 @@ esp_err_t stratum_v1_run(GlobalState *GLOBAL_STATE, uint16_t pool_idx, volatile 
 
     stratum_socket_set_options(transport);
 
-    taskENTER_CRITICAL(&GLOBAL_STATE->stratum_mux);
+    pthread_mutex_lock(&GLOBAL_STATE->transport_mutex);
     GLOBAL_STATE->transport = transport;
-    taskEXIT_CRITICAL(&GLOBAL_STATE->stratum_mux);
+    pthread_mutex_unlock(&GLOBAL_STATE->transport_mutex);
 
     const char *protocol = (conn_info.addr_family == AF_INET6) ? "IPv6" : "IPv4";
     const char *tls_status = (tls == BUNDLED_CRT) ? " (TLS)" : (tls == CUSTOM_CRT) ? " (TLS Cert)" : "";
@@ -214,6 +211,19 @@ esp_err_t stratum_v1_run(GlobalState *GLOBAL_STATE, uint16_t pool_idx, volatile 
 
     // mining.authorize - ID: 3
     STRATUM_V1_authorize(transport, authorize_message_id, username, password);
+
+    if (!s_v1_msg) {
+        s_v1_msg = heap_caps_calloc(1, sizeof(StratumApiV1Message), MALLOC_CAP_SPIRAM);
+        if (!s_v1_msg) {
+            s_v1_msg = calloc(1, sizeof(StratumApiV1Message));
+        }
+        if (!s_v1_msg) {
+            ESP_LOGE(TAG, "Failed to allocate StratumApiV1Message");
+            esp_transport_close(transport);
+            esp_transport_destroy(transport);
+            return ESP_ERR_NO_MEM;
+        }
+    }
 
     esp_err_t run_result = ESP_OK;
 
@@ -245,102 +255,94 @@ esp_err_t stratum_v1_run(GlobalState *GLOBAL_STATE, uint16_t pool_idx, volatile 
         int64_t receive_time_us = esp_timer_get_time();
         bool reconnect_requested = false;
 
-        if (!STRATUM_V1_parse(&stratum_api_v1_message, line)) {
+        uint8_t target_slot = (GLOBAL_STATE->active_job_slot_idx + 1) % 2;
+        miner_job_t *target_job = miner_job_get_slot(target_slot);
+
+        if (!STRATUM_V1_parse(s_v1_msg, line, target_job)) {
             ESP_LOGE(TAG, "Failed to parse Stratum message, ignoring");
-            STRATUM_V1_reset_message(&stratum_api_v1_message);
+            STRATUM_V1_reset_message(s_v1_msg);
             free(line);
             continue;
         }
         free(line);
 
-        switch (stratum_api_v1_message.method) {
+        switch (s_v1_msg->method) {
             case METHOD_UNKNOWN:
                 break;
 
             case MINING_NOTIFY: {
-                miner_job_t *notify_job = &stratum_api_v1_message.mining_notification;
                 bool is_duplicate = false;
-                if (notify_job->job_id[0] != '\0') {
-                    if (notify_job->clean_jobs) {
+                if (target_job->job_id[0] != '\0') {
+                    if (target_job->clean_jobs) {
                         clear_active_job_ids(s_v1_conn->active_job_ids, &s_v1_conn->active_job_ids_count);
                     }
-                    is_duplicate = !add_active_job_id(s_v1_conn->active_job_ids, &s_v1_conn->active_job_ids_count, notify_job->job_id);
+                    is_duplicate = !add_active_job_id(s_v1_conn->active_job_ids, &s_v1_conn->active_job_ids_count, target_job->job_id);
                 }
 
                 if (is_duplicate) {
-                    ESP_LOGW(TAG, "Ignoring duplicate notify for job %s", notify_job->job_id);
+                    ESP_LOGW(TAG, "Ignoring duplicate notify for job %s", target_job->job_id);
                 } else {
                     GLOBAL_STATE->SYSTEM_MODULE.work_received++;
-                    SYSTEM_notify_new_ntime(GLOBAL_STATE, notify_job->ntime);
-                    if (notify_job->clean_jobs && (GLOBAL_STATE->stratum_queue.count > 0)) {
-                        SYSTEM_clean_jobs_queue(GLOBAL_STATE);
-                    }
-                    if (GLOBAL_STATE->stratum_queue.count == QUEUE_SIZE) {
-                        miner_job_t *dropped = (miner_job_t *)queue_dequeue(&GLOBAL_STATE->stratum_queue);
-                        miner_job_pool_release(dropped);
-                    }
-                    miner_job_t *job = miner_job_pool_acquire();
-                    if (!job) {
-                        ESP_LOGD(TAG, "No free job slot in pool, dropping non-clean job %s", notify_job->job_id);
-                        break;
-                    }
-                    *job = *notify_job;
-                    job->pool_id = (uint8_t)pool_idx;
-                    job->pool_diff = s_v1_conn->pool_difficulty;
-                    job->version_mask = s_v1_conn->version_mask;
-                    job->extranonce1_len = s_v1_conn->extranonce1_len;
+                    SYSTEM_notify_new_ntime(GLOBAL_STATE, target_job->ntime);
+                    
+                    target_job->pool_id = (uint8_t)pool_idx;
+                    target_job->pool_diff = s_v1_conn->pool_difficulty;
+                    target_job->version_mask = s_v1_conn->version_mask;
+                    target_job->extranonce1_len = s_v1_conn->extranonce1_len;
                     if (s_v1_conn->extranonce1_len > 0) {
-                        memcpy(job->extranonce1, s_v1_conn->extranonce1, s_v1_conn->extranonce1_len);
+                        memcpy(target_job->extranonce1, s_v1_conn->extranonce1, s_v1_conn->extranonce1_len);
                     }
-                    job->extranonce2_len = s_v1_conn->extranonce2_len;
+                    target_job->extranonce2_len = s_v1_conn->extranonce2_len;
 
-                    queue_enqueue(&GLOBAL_STATE->stratum_queue, job);
+                    if (GLOBAL_STATE->create_jobs_task_handle) {
+                        xTaskNotify(GLOBAL_STATE->create_jobs_task_handle, target_slot, eSetValueWithOverwrite);
+                    }
                 }
                 break;
             }
 
             case MINING_SET_DIFFICULTY:
-                ESP_LOGI(TAG, "Set pool difficulty: %.2f", stratum_api_v1_message.new_difficulty);
-                s_v1_conn->pool_difficulty = stratum_api_v1_message.new_difficulty;
+                ESP_LOGI(TAG, "Set pool difficulty: %.2f", s_v1_msg->new_difficulty);
+                s_v1_conn->pool_difficulty = s_v1_msg->new_difficulty;
                 GLOBAL_STATE->SYSTEM_MODULE.pool_difficulty = s_v1_conn->pool_difficulty;
                 break;
 
             case MINING_SET_VERSION_MASK:
-                ESP_LOGI(TAG, "Set version mask: %08lx", stratum_api_v1_message.version_mask);
-                s_v1_conn->version_mask = stratum_api_v1_message.version_mask;
+                ESP_LOGI(TAG, "Set version mask: %08lx", s_v1_msg->version_mask);
+                s_v1_conn->version_mask = s_v1_msg->version_mask;
                 break;
 
             case STRATUM_RESULT_CONFIGURE:
-                if (stratum_api_v1_message.response_success) {
-                    ESP_LOGI(TAG, "Configure result accepted, version mask: %08lx", stratum_api_v1_message.version_mask);
-                    s_v1_conn->version_mask = stratum_api_v1_message.version_mask;
+                if (s_v1_msg->response_success) {
+                    ESP_LOGI(TAG, "Configure result accepted, version mask: %08lx", s_v1_msg->version_mask);
+                    s_v1_conn->version_mask = s_v1_msg->version_mask;
                 } else {
-                    ESP_LOGW(TAG, "Configure result rejected: %s", stratum_api_v1_message.error_str);
+                    ESP_LOGW(TAG, "Configure result rejected: %s", s_v1_msg->error_str);
                 }
                 break;
 
             case MINING_SET_EXTRANONCE:
             case STRATUM_RESULT_SUBSCRIBE:
-                if (stratum_api_v1_message.extranonce_2_len < 0 || stratum_api_v1_message.extranonce_2_len > MAX_EXTRANONCE_2_LEN) {
+                if (s_v1_msg->extranonce_2_len < 0 || s_v1_msg->extranonce_2_len > MAX_EXTRANONCE_2_LEN) {
                     ESP_LOGW(TAG, "Invalid extranonce_2_len %d, clamping to 0..%d",
-                             stratum_api_v1_message.extranonce_2_len, MAX_EXTRANONCE_2_LEN);
-                    stratum_api_v1_message.extranonce_2_len = (stratum_api_v1_message.extranonce_2_len < 0) ? 0 : MAX_EXTRANONCE_2_LEN;
+                             s_v1_msg->extranonce_2_len, MAX_EXTRANONCE_2_LEN);
+                    s_v1_msg->extranonce_2_len = (s_v1_msg->extranonce_2_len < 0) ? 0 : MAX_EXTRANONCE_2_LEN;
                 }
-                s_v1_conn->extranonce2_len = (uint8_t)stratum_api_v1_message.extranonce_2_len;
-                if (stratum_api_v1_message.extranonce_str && stratum_api_v1_message.extranonce_str[0] != '\0') {
-                    size_t slen = strlen(stratum_api_v1_message.extranonce_str) / 2;
+                s_v1_conn->extranonce2_len = (uint8_t)s_v1_msg->extranonce_2_len;
+                if (s_v1_msg->extranonce_str && s_v1_msg->extranonce_str[0] != '\0') {
+                    size_t slen = strlen(s_v1_msg->extranonce_str) / 2;
                     if (slen > sizeof(s_v1_conn->extranonce1)) slen = sizeof(s_v1_conn->extranonce1);
-                    hex2bin(stratum_api_v1_message.extranonce_str, s_v1_conn->extranonce1, slen);
+                    hex2bin(s_v1_msg->extranonce_str, s_v1_conn->extranonce1, slen);
                     s_v1_conn->extranonce1_len = (uint8_t)slen;
                 } else {
                     s_v1_conn->extranonce1_len = 0;
                 }
                 ESP_LOGI(TAG, "Set extranonce: %s, extranonce_2_len: %d",
-                         stratum_api_v1_message.extranonce_str ? stratum_api_v1_message.extranonce_str : "", s_v1_conn->extranonce2_len);
+                         s_v1_msg->extranonce_str ? s_v1_msg->extranonce_str : "", s_v1_conn->extranonce2_len);
                 break;
 
             case MINING_PING:
-                STRATUM_V1_pong(transport, stratum_api_v1_message.message_id);
+                STRATUM_V1_pong(transport, s_v1_msg->message_id);
                 break;
 
             case CLIENT_RECONNECT:
@@ -353,28 +355,29 @@ esp_err_t stratum_v1_run(GlobalState *GLOBAL_STATE, uint16_t pool_idx, volatile 
                 break;
 
             case CLIENT_GET_VERSION:
-                STRATUM_V1_send_version(transport, stratum_api_v1_message.message_id);
+                STRATUM_V1_send_version(transport, s_v1_msg->message_id);
                 break;
 
             case STRATUM_RESULT: {
-                float response_time_ms = STRATUM_V1_get_response_time_ms(stratum_api_v1_message.message_id, receive_time_us);
+                float response_time_ms = STRATUM_V1_get_response_time_ms(s_v1_msg->message_id, receive_time_us);
                 if (response_time_ms >= 0) {
                     if (GLOBAL_STATE->SYSTEM_MODULE.shares_pending > 0) {
                         GLOBAL_STATE->SYSTEM_MODULE.shares_pending--;
                     }
-                    if (stratum_api_v1_message.response_success) {
+                    if (s_v1_msg->response_success) {
                         ESP_LOGI(TAG, "message result accepted");
                         ESP_LOGI(TAG, "Stratum response time: %.1f ms", response_time_ms);
                         GLOBAL_STATE->SYSTEM_MODULE.response_time = response_time_ms;
                         SYSTEM_notify_accepted_share(GLOBAL_STATE);
                     } else {
-                        ESP_LOGW(TAG, "message result rejected: %s", stratum_api_v1_message.error_str);
-                        SYSTEM_notify_rejected_share(GLOBAL_STATE, stratum_api_v1_message.error_str);
+                        ESP_LOGW(TAG, "message result rejected: %s", s_v1_msg->error_str);
+                        SYSTEM_notify_rejected_share(GLOBAL_STATE, s_v1_msg->error_str);
                     }
                 } else {
-                    if (stratum_api_v1_message.response_success) {
+                    if (s_v1_msg->response_success) {
                         ESP_LOGI(TAG, "setup message accepted");
-                        if (stratum_api_v1_message.message_id == authorize_message_id) {
+                        if (s_v1_msg->message_id == authorize_message_id) {
+                            if (retry_attempts) *retry_attempts = 0;
                             uint16_t difficulty = GLOBAL_STATE->SYSTEM_MODULE.pools[pool_idx].difficulty;
                             if (difficulty > 0) {
                                 STRATUM_V1_suggest_difficulty(transport, stratum_get_next_uid(GLOBAL_STATE), difficulty);
@@ -385,8 +388,8 @@ esp_err_t stratum_v1_run(GlobalState *GLOBAL_STATE, uint16_t pool_idx, volatile 
                             }
                         }
                     } else {
-                        ESP_LOGE(TAG, "setup message rejected: %s", stratum_api_v1_message.error_str);
-                        if (stratum_api_v1_message.message_id == authorize_message_id) {
+                        ESP_LOGE(TAG, "setup message rejected: %s", s_v1_msg->error_str);
+                        if (s_v1_msg->message_id == authorize_message_id) {
                             snprintf(GLOBAL_STATE->SYSTEM_MODULE.pool_connection_info,
                                      sizeof(GLOBAL_STATE->SYSTEM_MODULE.pool_connection_info), "SV1: Auth rejected");
                         }
@@ -396,7 +399,7 @@ esp_err_t stratum_v1_run(GlobalState *GLOBAL_STATE, uint16_t pool_idx, volatile 
             }
         }
 
-        STRATUM_V1_reset_message(&stratum_api_v1_message);
+        STRATUM_V1_reset_message(s_v1_msg);
         if (reconnect_requested) {
             run_result = ESP_FAIL;
             break;

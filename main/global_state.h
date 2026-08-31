@@ -10,7 +10,6 @@
 #include "power_management_task.h"
 #include "hashrate_monitor_task.h"
 #include "coinbase_decoder.h"
-#include "work_queue.h"
 #include "device_config.h"
 #include "display.h"
 #include "scoreboard.h"
@@ -155,7 +154,8 @@ typedef struct AsicTaskModule
 
 typedef struct GlobalState
 {
-    work_queue stratum_queue;
+    TaskHandle_t create_jobs_task_handle;
+    volatile uint8_t active_job_slot_idx;
 
     SystemModule SYSTEM_MODULE;
     DeviceConfig DEVICE_CONFIG;
@@ -166,7 +166,7 @@ typedef struct GlobalState
     HashrateMonitorModule HASHRATE_MONITOR_MODULE;
 
     esp_transport_handle_t transport;
-    portMUX_TYPE stratum_mux;
+    pthread_mutex_t transport_mutex;
 
     bool ASIC_initalized;
     bool psram_is_available;

@@ -106,9 +106,10 @@ TEST_CASE("Validate another merkle root calculation", "[mining]")
 }
 
 // Values calculated from esp-miner/components/stratum/test/verifiers/bm1397.py
-TEST_CASE("Validate bm job construction", "[mining]")
+TEST_CASE("Validate midstate generation", "[mining]")
 {
-    miner_job_t mjob = { 0 };
+    static miner_job_t mjob;
+    memset(&mjob, 0, sizeof(mjob));
     hex2bin("bf44fd3513dc7b837d60e5c628b572b448d204a8000007490000000000000000", mjob.prev_hash, 32);
     reverse_endianness_per_word(mjob.prev_hash);
     mjob.version = 0x20000004;
@@ -119,7 +120,7 @@ TEST_CASE("Validate bm job construction", "[mining]")
     uint8_t merkle_root[32];
     hex2bin("cd1be82132ef0d12053dcece1fa0247fcfdb61d4dbd3eb32ea9ef9b4c604a846", merkle_root, 32);
     bm_job job = { 0 };
-    construct_bm_job_from_miner_job(&mjob, merkle_root, 0, 1000, 1, &job);
+    construct_bm_job_from_miner_job(&mjob, mjob.version, merkle_root, 0, 1000, 1, &job);
 
     uint8_t expected_midstate_bin[32];
     hex2bin("91DFEA528A9F73683D0D495DD6DD7415E1CA21CB411759E3E05D7D5FF285314D", expected_midstate_bin, 32);
@@ -147,7 +148,8 @@ TEST_CASE("Validate version mask incrementing", "[mining]")
 
 TEST_CASE("Test nonce diff checking", "[mining test_nonce][not-on-qemu]")
 {
-    miner_job_t mjob = { 0 };
+    static miner_job_t mjob;
+    memset(&mjob, 0, sizeof(mjob));
     hex2bin("d02b10fc0d4711eae1a805af50a8a83312a2215e00017f2b0000000000000000", mjob.prev_hash, 32);
     mjob.version = 0x20000004;
     mjob.nbits = 0x1705ae3a;
@@ -157,7 +159,7 @@ TEST_CASE("Test nonce diff checking", "[mining test_nonce][not-on-qemu]")
     uint8_t merkle_root[32];
     hex2bin("6d0359c451434605c52a5a9ce074340be47c2c63840731f9edf1db3f26b1cdd9", merkle_root, 32);
     bm_job job = { 0 };
-    construct_bm_job_from_miner_job(&mjob, merkle_root, 0, 1000, 1, &job);
+    construct_bm_job_from_miner_job(&mjob, mjob.version, merkle_root, 0, 1000, 1, &job);
 
     uint32_t nonce = 0x276E8947;
     uint32_t version_bits = 0;
@@ -168,7 +170,8 @@ TEST_CASE("Test nonce diff checking", "[mining test_nonce][not-on-qemu]")
 
 TEST_CASE("Test nonce diff checking 2", "[mining test_nonce][not-on-qemu]")
 {
-    miner_job_t mjob = { 0 };
+    static miner_job_t mjob;
+    memset(&mjob, 0, sizeof(mjob));
     hex2bin("0c859545a3498373a57452fac22eb7113df2a465000543520000000000000000", mjob.prev_hash, 32);
     mjob.version = 0x20000004;
     mjob.nbits = 0x1705ae3a;
@@ -212,7 +215,7 @@ TEST_CASE("Test nonce diff checking 2", "[mining test_nonce][not-on-qemu]")
     TEST_ASSERT_EQUAL_STRING("5bdc1968499c3393873edf8e07a1c3a50a97fc3a9d1a376bbf77087dd63778eb", merkle_root);
 
     bm_job job = { 0 };
-    construct_bm_job_from_miner_job(&mjob, merkle_root_hash, 0, 1000, 1, &job);
+    construct_bm_job_from_miner_job(&mjob, mjob.version, merkle_root_hash, 0, 1000, 1, &job);
 
     uint32_t nonce = 0x0a029ed1;
     uint32_t version_bits = 0;

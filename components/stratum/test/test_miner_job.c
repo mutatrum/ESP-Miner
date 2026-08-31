@@ -1,34 +1,51 @@
 #include "unity.h"
 #include "miner_job.h"
 
-TEST_CASE("miner_job_pool acquire and release lifecycle", "[stratum]")
+TEST_CASE("miner_job_get_slot indexing and buffer validity", "[stratum]")
 {
     miner_job_pool_init();
 
     miner_job_t *slots[MINER_JOB_POOL_SIZE];
 
-    // 1. Acquire all slots
-    for (int i = 0; i < MINER_JOB_POOL_SIZE; i++) {
-        slots[i] = miner_job_pool_acquire();
+    // 1. Verify all slots in the pool are valid and distinct
+    for (size_t i = 0; i < MINER_JOB_POOL_SIZE; i++) {
+        slots[i] = miner_job_get_slot(i);
         TEST_ASSERT_NOT_NULL(slots[i]);
+        TEST_ASSERT_NOT_NULL(slots[i]->coinbase_prefix);
+        TEST_ASSERT_NOT_NULL(slots[i]->coinbase_suffix);
+        TEST_ASSERT_NOT_EQUAL(slots[i]->coinbase_prefix, slots[i]->coinbase_suffix);
     }
 
-    // 2. Pool is full, next acquire should return NULL
-    miner_job_t *overflow = miner_job_pool_acquire();
-    TEST_ASSERT_NULL(overflow);
-
-    // 3. Release slot 2 and verify it can be re-acquired
-    miner_job_pool_release(slots[2]);
-    miner_job_t *reacquired = miner_job_pool_acquire();
-    TEST_ASSERT_EQUAL_PTR(slots[2], reacquired);
-
-    // 4. NULL release safety
-    miner_job_pool_release(NULL);
-
-    // 5. Re-init frees all slots
-    miner_job_pool_init();
-    for (int i = 0; i < MINER_JOB_POOL_SIZE; i++) {
-        slots[i] = miner_job_pool_acquire();
-        TEST_ASSERT_NOT_NULL(slots[i]);
+    // Verify distinct slot addresses
+    for (size_t i = 0; i < MINER_JOB_POOL_SIZE; i++) {
+        for (size_t j = i + 1; j < MINER_JOB_POOL_SIZE; j++) {
+            TEST_ASSERT_NOT_EQUAL(slots[i], slots[j]);
+            TEST_ASSERT_NOT_EQUAL(slots[i]->coinbase_prefix, slots[j]->coinbase_prefix);
+            TEST_ASSERT_NOT_EQUAL(slots[i]->coinbase_suffix, slots[j]->coinbase_suffix);
+        }
     }
+
+    // 2. Verify wrap-around indexing
+    for (size_t i = 0; i < MINER_JOB_POOL_SIZE * 3; i++) {
+        TEST_ASSERT_EQUAL_PTR(slots[i % MINER_JOB_POOL_SIZE], miner_job_get_slot(i));
+    }
+}
+
+
+TEST_CASE("miner_job_is_rollable validation", "[stratum]")
+{
+    miner_job_t *job = miner_job_get_slot(2);
+    TEST_ASSERT_FALSE(miner_job_is_rollable(NULL));
+
+    job->extranonce2_len = 0;
+    job->coinbase_prefix_len = 10;
+    TEST_ASSERT_FALSE(miner_job_is_rollable(job));
+
+    job->extranonce2_len = 4;
+    job->coinbase_prefix_len = 0;
+    TEST_ASSERT_FALSE(miner_job_is_rollable(job));
+
+    job->extranonce2_len = 4;
+    job->coinbase_prefix_len = 10;
+    TEST_ASSERT_TRUE(miner_job_is_rollable(job));
 }

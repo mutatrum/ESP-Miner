@@ -59,8 +59,8 @@ typedef struct StratumApiV1Message
     // Indicates the type of request the message represents.
     stratum_method method;
 
-    // mining.notify
-    miner_job_t mining_notification;
+    // Pointer to miner_job_t destination for mining.notify (zero-copy)
+    miner_job_t *job;
     // mining.set_difficulty
     double new_difficulty;
     // mining.set_version_mask
@@ -99,7 +99,7 @@ char *STRATUM_V1_receive_jsonrpc_line(esp_transport_handle_t transport);
 
 int STRATUM_V1_subscribe(esp_transport_handle_t transport, int send_uid, const char * model);
 
-bool STRATUM_V1_parse(StratumApiV1Message *message, const char *stratum_json);
+bool STRATUM_V1_parse(StratumApiV1Message *message, const char *stratum_json, miner_job_t *job);
 
 void STRATUM_V1_reset_message(StratumApiV1Message *message);
 

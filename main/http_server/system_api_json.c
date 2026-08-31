@@ -80,19 +80,11 @@ static void system_api_add_telemetry(cJSON *root, GlobalState *g) {
     // Dynamic Block Info
     cJSON_AddNumberToObject(root, "blockFound", g->SYSTEM_MODULE.block_found);
     cJSON_AddBoolToObject(root, "showNewBlock", g->SYSTEM_MODULE.show_new_block);
-    if (g->block_height > 0) {
-        cJSON_AddNumberToObject(root, "blockHeight", g->block_height);
-    }
-    if (g->scriptsig[0] != '\0') {
-        cJSON_AddStringToObject(root, "scriptsig", g->scriptsig);
-    }
-    if (g->network_nonce_diff > 0) {
-        cJSON_AddNumberToObject(root, "networkDifficulty", g->network_nonce_diff);
-    }
-    if (g->coinbase_value_total_satoshis > 0) {
-        cJSON_AddNumberToObject(root, "coinbaseValueTotalSatoshis", g->coinbase_value_total_satoshis);
-        cJSON_AddNumberToObject(root, "coinbaseValueUserSatoshis", g->coinbase_value_user_satoshis);
-    }
+    cJSON_AddNumberToObject(root, "blockHeight", g->block_height);
+    cJSON_AddStringToObject(root, "scriptsig", g->scriptsig);
+    cJSON_AddNumberToObject(root, "networkDifficulty", g->network_nonce_diff);
+    cJSON_AddNumberToObject(root, "coinbaseValueTotalSatoshis", g->coinbase_value_total_satoshis);
+    cJSON_AddNumberToObject(root, "coinbaseValueUserSatoshis", g->coinbase_value_user_satoshis);
 
     // Dynamic System Stats
     cJSON_AddNumberToObject(root, "freeHeap", esp_get_free_heap_size());

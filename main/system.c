@@ -35,7 +35,6 @@
 #include "self_test.h"
 #include "filesystem.h"
 #include "embedded_web_ui.h"
-#include "work_queue.h"
 #include "hashrate_monitor_task.h"
 #include "coinbase_decoder.h"
 #include "sv2_protocol.h"
@@ -266,7 +265,7 @@ void SYSTEM_init_system(GlobalState * GLOBAL_STATE)
 
     // Initialize mutexes
     pthread_mutex_init(&GLOBAL_STATE->ASIC_TASK_MODULE.valid_jobs_lock, NULL);
-    GLOBAL_STATE->stratum_mux = (portMUX_TYPE)portMUX_INITIALIZER_UNLOCKED;
+    pthread_mutex_init(&GLOBAL_STATE->transport_mutex, NULL);
 
     // Allocate the job tracking tables here rather than in create_jobs_task().
     // The stratum tasks touch valid_jobs (SYSTEM_clean_jobs_queue) as soon as they
@@ -407,8 +406,7 @@ esp_err_t SYSTEM_init_peripherals(GlobalState * GLOBAL_STATE) {
 
 void SYSTEM_clean_jobs_queue(GlobalState * GLOBAL_STATE)
 {
-    ESP_LOGI(TAG, "Clean Jobs: clearing queue");
-    queue_clear(&GLOBAL_STATE->stratum_queue);
+    ESP_LOGI(TAG, "Clean Jobs: invalidating active jobs");
 
     pthread_mutex_lock(&GLOBAL_STATE->ASIC_TASK_MODULE.valid_jobs_lock);
     for (int i = 0; i < MAX_ASIC_JOBS; i = i + 4) {

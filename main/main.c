@@ -208,8 +208,6 @@ void app_main(void)
     setup_ble_stop();
 
     miner_job_pool_init();
-    queue_init(&GLOBAL_STATE.stratum_queue);
-    GLOBAL_STATE.stratum_queue.free_fn = (void (*)(void *))miner_job_pool_release;
 
     if (system_init_ret == ESP_OK) {
         if (asic_initialize(&GLOBAL_STATE, ASIC_INIT_COLD_BOOT, 0) == 0) {
@@ -220,7 +218,7 @@ void app_main(void)
             self_test_show_message(&GLOBAL_STATE, GLOBAL_STATE.SYSTEM_MODULE.asic_status);
             system_init_ret = ESP_FAIL;
         } else {
-            if (xTaskCreate(create_jobs_task, "stratum miner", 8192, (void *) &GLOBAL_STATE, 20, NULL) != pdPASS) {
+            if (xTaskCreate(create_jobs_task, "stratum miner", 8192, (void *) &GLOBAL_STATE, 20, &GLOBAL_STATE.create_jobs_task_handle) != pdPASS) {
                 ESP_LOGE(TAG, "Error creating stratum miner task");
             }
             if (xTaskCreate(ASIC_result_task, "asic result", 8192, (void *) &GLOBAL_STATE, 15, NULL) != pdPASS) {

@@ -245,7 +245,7 @@ void STRATUM_V1_reset_message(StratumApiV1Message *message)
         free(message->version_string);
         message->version_string = NULL;
     }
-    memset(&message->mining_notification, 0, sizeof(miner_job_t));
+    message->job = NULL;
     message->method = METHOD_UNKNOWN;
     message->message_id = -1;
     message->response_success = false;
@@ -268,13 +268,17 @@ static stratum_method parse_method(const cJSON *method_json)
     if (strcmp(method, "mining.ping") == 0) return MINING_PING;
     if (strcmp(method, "client.show_message") == 0) return CLIENT_SHOW_MESSAGE;
     if (strcmp(method, "client.get_version") == 0) return CLIENT_GET_VERSION;
-
     ESP_LOGI(TAG, "Unhandled method: %s", method);
     return METHOD_UNKNOWN;
 }
 
-static bool parse_mining_notify(cJSON *json, StratumApiV1Message *message)
+static bool parse_mining_notify(cJSON *json, miner_job_t *job)
 {
+    if (!job) {
+        ESP_LOGE(TAG, "NULL job destination in mining.notify");
+        return false;
+    }
+
     cJSON *params = cJSON_GetObjectItem(json, "params");
     if (!params || !cJSON_IsArray(params)) {
         ESP_LOGE(TAG, "Invalid params in mining.notify");
@@ -318,13 +322,13 @@ static bool parse_mining_notify(cJSON *json, StratumApiV1Message *message)
     }
 
     size_t c1_str_len = strlen(c1_item->valuestring);
-    if (c1_str_len == 0 || c1_str_len % 2 != 0) {
+    if (c1_str_len == 0 || (c1_str_len % 2) != 0) {
         ESP_LOGE(TAG, "Invalid coinbase_1 hex length in mining.notify: %zu", c1_str_len);
         return false;
     }
 
     size_t c2_str_len = strlen(c2_item->valuestring);
-    if (c2_str_len % 2 != 0) {
+    if (c2_str_len == 0 || (c2_str_len % 2) != 0) {
         ESP_LOGE(TAG, "Invalid coinbase_2 hex length in mining.notify: %zu", c2_str_len);
         return false;
     }
@@ -352,22 +356,44 @@ static bool parse_mining_notify(cJSON *json, StratumApiV1Message *message)
         return false;
     }
 
-    miner_job_t *job = &message->mining_notification;
+    if (!job->coinbase_prefix) {
+        job->coinbase_prefix = heap_caps_calloc(1, MAX_COINBASE_PREFIX_LEN, MALLOC_CAP_SPIRAM);
+        if (!job->coinbase_prefix) job->coinbase_prefix = calloc(1, MAX_COINBASE_PREFIX_LEN);
+    }
+    if (!job->coinbase_suffix) {
+        job->coinbase_suffix = heap_caps_calloc(1, MAX_COINBASE_SUFFIX_LEN, MALLOC_CAP_SPIRAM);
+        if (!job->coinbase_suffix) job->coinbase_suffix = calloc(1, 2048);
+    }
+    uint8_t *p_buf = job->coinbase_prefix;
+    uint8_t *s_buf = job->coinbase_suffix;
     memset(job, 0, sizeof(miner_job_t));
+    job->coinbase_prefix = p_buf;
+    job->coinbase_suffix = s_buf;
     job->type = JOB_TYPE_V1;
 
+    if (strlen(job_id_item->valuestring) >= sizeof(job->job_id)) {
+        ESP_LOGE(TAG, "Invalid job_id length in mining.notify (expected < %zu, got %zu)",
+                 sizeof(job->job_id), strlen(job_id_item->valuestring));
+        return false;
+    }
     strlcpy(job->job_id, job_id_item->valuestring, sizeof(job->job_id));
 
     hex2bin(prev_hash_item->valuestring, job->prev_hash, 32);
     reverse_endianness_per_word(job->prev_hash);
 
     size_t c1_len = c1_str_len / 2;
-    if (c1_len > sizeof(job->coinbase_prefix)) c1_len = sizeof(job->coinbase_prefix);
+    if (c1_len > MAX_COINBASE_PREFIX_LEN) {
+        ESP_LOGE(TAG, "coinbase_1 length %zu exceeds maximum %d in mining.notify", c1_len, MAX_COINBASE_PREFIX_LEN);
+        return false;
+    }
     hex2bin(c1_item->valuestring, job->coinbase_prefix, c1_len);
     job->coinbase_prefix_len = (uint16_t)c1_len;
 
     size_t c2_len = c2_str_len / 2;
-    if (c2_len > sizeof(job->coinbase_suffix)) c2_len = sizeof(job->coinbase_suffix);
+    if (c2_len > MAX_COINBASE_SUFFIX_LEN) {
+        ESP_LOGE(TAG, "coinbase_2 length %zu exceeds maximum %d in mining.notify", c2_len, MAX_COINBASE_SUFFIX_LEN);
+        return false;
+    }
     hex2bin(c2_item->valuestring, job->coinbase_suffix, c2_len);
     job->coinbase_suffix_len = (uint16_t)c2_len;
 
@@ -639,9 +665,10 @@ static bool parse_result(cJSON *json, StratumApiV1Message *message)
     return false;
 }
 
-bool STRATUM_V1_parse(StratumApiV1Message *message, const char *stratum_json)
+bool STRATUM_V1_parse(StratumApiV1Message *message, const char *stratum_json, miner_job_t *job)
 {
     STRATUM_V1_reset_message(message);
+    message->job = job;
 
     ESP_LOGI(TAG, "rx: %s", stratum_json); // debug incoming stratum messages
 
@@ -669,7 +696,7 @@ bool STRATUM_V1_parse(StratumApiV1Message *message, const char *stratum_json)
             result = parse_result(json, message);
             break;
         case MINING_NOTIFY:
-            result = parse_mining_notify(json, message);
+            result = parse_mining_notify(json, job);
             break;
         case MINING_SET_DIFFICULTY:
             result = parse_set_difficulty(json, message);

@@ -68,3 +68,62 @@ TEST_CASE("SV2 parse submit shares error", "[sv2]")
     TEST_ASSERT_EQUAL_UINT32(42, seq);
     TEST_ASSERT_EQUAL_STRING("stale-job", error_code);
 }
+
+TEST_CASE("SV2 parse new extended mining job direct decoding", "[sv2]")
+{
+    uint8_t payload[256];
+    memset(payload, 0, sizeof(payload));
+    int pos = 0;
+
+    // channel_id = 5
+    payload[pos++] = 5; pos += 3;
+    // job_id = 12
+    payload[pos++] = 12; pos += 3;
+    // min_ntime option flag = 1, min_ntime = 0x647025b5
+    payload[pos++] = 1;
+    payload[pos++] = 0xb5; payload[pos++] = 0x25; payload[pos++] = 0x70; payload[pos++] = 0x64;
+    // version = 0x20000000
+    payload[pos++] = 0x00; payload[pos++] = 0x00; payload[pos++] = 0x00; payload[pos++] = 0x20;
+    // version_rolling_allowed = 1
+    payload[pos++] = 1;
+    // merkle_count = 1
+    payload[pos++] = 1;
+    memset(payload + pos, 0xab, 32);
+    pos += 32;
+
+    // prefix: len = 4, data = 0x01020304
+    payload[pos++] = 4; payload[pos++] = 0;
+    payload[pos++] = 1; payload[pos++] = 2; payload[pos++] = 3; payload[pos++] = 4;
+
+    // suffix: len = 3, data = 0x050607
+    payload[pos++] = 3; payload[pos++] = 0;
+    payload[pos++] = 5; payload[pos++] = 6; payload[pos++] = 7;
+
+    uint8_t p_buf[1024];
+    uint8_t s_buf[2048];
+    miner_job_t job;
+    memset(&job, 0, sizeof(job));
+    job.coinbase_prefix = p_buf;
+    job.coinbase_suffix = s_buf;
+
+    uint32_t channel_id = 0;
+    bool has_min_ntime = false;
+    bool version_rolling_allowed = false;
+    int res = sv2_parse_new_extended_mining_job(payload, pos, &channel_id, &job, &has_min_ntime, &version_rolling_allowed);
+
+    TEST_ASSERT_EQUAL(0, res);
+    TEST_ASSERT_EQUAL_UINT32(5, channel_id);
+    TEST_ASSERT_TRUE(has_min_ntime);
+    TEST_ASSERT_TRUE(version_rolling_allowed);
+    TEST_ASSERT_EQUAL_STRING("12", job.job_id);
+    TEST_ASSERT_EQUAL_HEX32(0x20000000, job.version);
+    TEST_ASSERT_EQUAL_HEX32(0x647025b5, job.ntime);
+    TEST_ASSERT_EQUAL(1, job.merkle_path_count);
+    TEST_ASSERT_EQUAL_HEX8(0xab, job.merkle_path[0][0]);
+    TEST_ASSERT_EQUAL(4, job.coinbase_prefix_len);
+    TEST_ASSERT_EQUAL_HEX8(1, job.coinbase_prefix[0]);
+    TEST_ASSERT_EQUAL_HEX8(4, job.coinbase_prefix[3]);
+    TEST_ASSERT_EQUAL(3, job.coinbase_suffix_len);
+    TEST_ASSERT_EQUAL_HEX8(5, job.coinbase_suffix[0]);
+    TEST_ASSERT_EQUAL_HEX8(7, job.coinbase_suffix[2]);
+}
