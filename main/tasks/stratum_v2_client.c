@@ -344,8 +344,9 @@ static void stratum_v2_handle_set_new_prev_hash(GlobalState *GLOBAL_STATE, sv2_c
         job->clean_jobs = true;
         job->pool_id = conn->pool_idx;
         job->pool_diff = hash_to_pdiff(conn->target);
-        job->version_mask = conn->version_mask;
-        if (job->type == JOB_TYPE_SV2_EXTENDED) {
+        if (job->type == JOB_TYPE_SV2_STANDARD) {
+            job->version_mask = conn->version_mask;
+        } else if (job->type == JOB_TYPE_SV2_EXTENDED) {
             job->extranonce1_len = conn->extranonce_prefix_len;
             if (job->extranonce1_len > sizeof(job->extranonce1)) job->extranonce1_len = sizeof(job->extranonce1);
             if (job->extranonce1_len > 0) {
