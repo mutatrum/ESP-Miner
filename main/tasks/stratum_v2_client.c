@@ -56,6 +56,10 @@ static void sv2_conn_free(sv2_conn_t **conn_ptr)
 {
     if (!conn_ptr || !*conn_ptr) return;
     sv2_conn_t *c = *conn_ptr;
+    if (c->noise_ctx) {
+        sv2_noise_destroy(c->noise_ctx);
+        c->noise_ctx = NULL;
+    }
     clear_active_job_ids(c->active_job_ids, &c->active_job_ids_count);
     free(c);
     *conn_ptr = NULL;
@@ -198,18 +202,11 @@ static void stratum_v2_handle_new_extended_mining_job(GlobalState *GLOBAL_STATE,
         return;
     }
 
-    uint32_t channel_id = (uint32_t)payload[0] | ((uint32_t)payload[1] << 8) |
-                          ((uint32_t)payload[2] << 16) | ((uint32_t)payload[3] << 24);
-    if (channel_id != conn->channel_id) {
-        ESP_LOGW(TAG, "Dropping NewExtendedMiningJob for unexpected channel %lu (expected %lu)",
-                 (unsigned long)channel_id, (unsigned long)conn->channel_id);
-        return;
-    }
-
     uint32_t job_id = (uint32_t)payload[4] | ((uint32_t)payload[5] << 8) |
                       ((uint32_t)payload[6] << 16) | ((uint32_t)payload[7] << 24);
     uint8_t slot = (uint8_t)(job_id % MINER_JOB_POOL_SIZE);
     miner_job_t *job = miner_job_get_slot(slot);
+    uint32_t channel_id = 0;
     bool has_min_ntime = false;
     bool version_rolling_allowed = false;
 
@@ -412,6 +409,7 @@ esp_err_t stratum_v2_run(GlobalState *GLOBAL_STATE, uint16_t pool_idx, volatile 
         ESP_LOGE(TAG, "Failed to allocate sv2_conn");
         return ESP_ERR_NO_MEM;
     }
+    conn->pool_idx = (uint8_t)pool_idx;
     conn->version_mask = BIP320_VERSION_ROLLING_MASK;
     s_v2_conn = conn;
 
@@ -438,10 +436,7 @@ esp_err_t stratum_v2_run(GlobalState *GLOBAL_STATE, uint16_t pool_idx, volatile 
                  sizeof(GLOBAL_STATE->SYSTEM_MODULE.pool_connection_info), "SV2: Internal error");
         free(frame_buf);
         free(recv_buf);
-        if (s_v2_conn) {
-            free(s_v2_conn);
-            s_v2_conn = NULL;
-        }
+        sv2_conn_free(&s_v2_conn);
         return ESP_FAIL;
     }
 
@@ -454,10 +449,7 @@ esp_err_t stratum_v2_run(GlobalState *GLOBAL_STATE, uint16_t pool_idx, volatile 
         esp_transport_destroy(transport);
         free(frame_buf);
         free(recv_buf);
-        if (s_v2_conn) {
-            free(s_v2_conn);
-            s_v2_conn = NULL;
-        }
+        sv2_conn_free(&s_v2_conn);
         return ESP_FAIL;
     }
 
@@ -472,10 +464,7 @@ esp_err_t stratum_v2_run(GlobalState *GLOBAL_STATE, uint16_t pool_idx, volatile 
         esp_transport_destroy(transport);
         free(frame_buf);
         free(recv_buf);
-        if (s_v2_conn) {
-            free(s_v2_conn);
-            s_v2_conn = NULL;
-        }
+        sv2_conn_free(&s_v2_conn);
         return ESP_FAIL;
     }
 
@@ -487,10 +476,6 @@ esp_err_t stratum_v2_run(GlobalState *GLOBAL_STATE, uint16_t pool_idx, volatile 
 
     stratum_socket_set_options(transport);
 
-    memset(conn, 0, sizeof(*conn));
-    conn->pool_idx = (uint8_t)pool_idx;
-    conn->version_mask = BIP320_VERSION_ROLLING_MASK;
-    s_v2_conn = conn;
     stratum_v2_update_pending_shares(GLOBAL_STATE);
 
     sv2_noise_ctx_t *noise_ctx = sv2_noise_create();
