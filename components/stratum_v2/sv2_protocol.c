@@ -530,3 +530,24 @@ const char *sv2_channel_type_to_string(sv2_channel_type_t t)
         default: return "unknown";
     }
 }
+
+uint32_t sv2_setup_flags_for_channel(sv2_channel_type_t channel_type)
+{
+    uint32_t flags = SV2_SETUP_FLAGS_REQUIRES_VERSION_ROLLING;
+    if (channel_type == SV2_CHANNEL_STANDARD) {
+        flags |= SV2_SETUP_FLAGS_REQUIRES_STANDARD_JOBS;
+    }
+    return flags;
+}
+
+bool sv2_setup_success_allows_version_rolling(uint32_t flags)
+{
+    return (flags & SV2_SETUP_SUCCESS_FLAGS_REQUIRES_FIXED_VERSION) == 0;
+}
+
+bool sv2_channel_or_group_matches(uint32_t received_channel_id,
+                                  uint32_t channel_id,
+                                  uint32_t group_channel_id)
+{
+    return received_channel_id == channel_id || (group_channel_id != 0 && received_channel_id == group_channel_id);
+}

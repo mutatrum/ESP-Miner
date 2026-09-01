@@ -57,6 +57,12 @@ const char *sv2_channel_type_to_string(sv2_channel_type_t t);
 #define SV2_SETUP_SUCCESS_FLAGS_REQUIRES_FIXED_VERSION (1U << 1)
 #define SV2_SETUP_SUCCESS_FLAGS_REQUIRES_EXT_CHANNELS  (1U << 2)
 
+uint32_t sv2_setup_flags_for_channel(sv2_channel_type_t channel_type);
+bool sv2_setup_success_allows_version_rolling(uint32_t flags);
+bool sv2_channel_or_group_matches(uint32_t received_channel_id,
+                                  uint32_t channel_id,
+                                  uint32_t group_channel_id);
+
 // Frame header (parsed)
 typedef struct {
     uint16_t extension_type;

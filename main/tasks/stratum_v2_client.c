@@ -219,7 +219,7 @@ static void stratum_v2_handle_new_extended_mining_job(GlobalState *GLOBAL_STATE,
         return;
     }
 
-    if (channel_id != conn->channel_id && (!conn->has_group_channel || channel_id != conn->group_channel_id)) {
+    if (!sv2_channel_or_group_matches(channel_id, conn->channel_id, conn->group_channel_id)) {
         ESP_LOGW(TAG, "Dropping NewExtendedMiningJob for unexpected channel %lu (expected %lu or group %lu)",
                  (unsigned long)channel_id, (unsigned long)conn->channel_id, (unsigned long)conn->group_channel_id);
         conn->pending_jobs_valid &= ~(1U << slot);
@@ -269,7 +269,7 @@ static void stratum_v2_handle_new_mining_job(GlobalState *GLOBAL_STATE, sv2_conn
         return;
     }
 
-    if (channel_id != conn->channel_id && (!conn->has_group_channel || channel_id != conn->group_channel_id)) {
+    if (!sv2_channel_or_group_matches(channel_id, conn->channel_id, conn->group_channel_id)) {
         ESP_LOGW(TAG, "Dropping NewMiningJob for unexpected channel %lu (expected %lu or group %lu)",
                  (unsigned long)channel_id, (unsigned long)conn->channel_id, (unsigned long)conn->group_channel_id);
         return;
@@ -322,7 +322,7 @@ static void stratum_v2_handle_set_new_prev_hash(GlobalState *GLOBAL_STATE, sv2_c
         return;
     }
 
-    if (channel_id != conn->channel_id && (!conn->has_group_channel || channel_id != conn->group_channel_id)) {
+    if (!sv2_channel_or_group_matches(channel_id, conn->channel_id, conn->group_channel_id)) {
         ESP_LOGW(TAG, "Dropping SetNewPrevHash for unexpected channel %lu (expected %lu or group %lu)",
                  (unsigned long)channel_id, (unsigned long)conn->channel_id, (unsigned long)conn->group_channel_id);
         return;
@@ -378,7 +378,7 @@ static void stratum_v2_handle_set_target(GlobalState *GLOBAL_STATE, sv2_conn_t *
         return;
     }
 
-    if (channel_id != conn->channel_id && (!conn->has_group_channel || channel_id != conn->group_channel_id)) {
+    if (!sv2_channel_or_group_matches(channel_id, conn->channel_id, conn->group_channel_id)) {
         ESP_LOGW(TAG, "Dropping SetTarget for unexpected channel %lu (expected %lu or group %lu)",
                  (unsigned long)channel_id, (unsigned long)conn->channel_id, (unsigned long)conn->group_channel_id);
         return;
@@ -546,10 +546,7 @@ esp_err_t stratum_v2_run(GlobalState *GLOBAL_STATE, uint16_t pool_idx, volatile 
     int payload_len;
 
     conn->channel_type = channel_type;
-    uint32_t setup_flags = SV2_SETUP_FLAGS_REQUIRES_VERSION_ROLLING;
-    if (channel_type == SV2_CHANNEL_STANDARD) {
-        setup_flags |= SV2_SETUP_FLAGS_REQUIRES_STANDARD_JOBS;
-    }
+    uint32_t setup_flags = sv2_setup_flags_for_channel(channel_type);
 
     // 1. Send SetupConnection
     {
@@ -606,7 +603,7 @@ esp_err_t stratum_v2_run(GlobalState *GLOBAL_STATE, uint16_t pool_idx, volatile 
             return ESP_FAIL;
         }
 
-        if (flags & SV2_SETUP_SUCCESS_FLAGS_REQUIRES_FIXED_VERSION) {
+        if (!sv2_setup_success_allows_version_rolling(flags)) {
             ESP_LOGE(TAG, "Pool requires fixed version, but miner hardware requires version rolling");
             snprintf(GLOBAL_STATE->SYSTEM_MODULE.pool_connection_info,
                      sizeof(GLOBAL_STATE->SYSTEM_MODULE.pool_connection_info), "SV2: Fixed version unsupported");
@@ -930,10 +927,7 @@ bool stratum_v2_probe_pool(GlobalState *GLOBAL_STATE, uint16_t pool_idx, const c
     }
 
     sv2_channel_type_t channel_type = GLOBAL_STATE->SYSTEM_MODULE.pools[pool_idx].sv2_channel_type;
-    uint32_t setup_flags = SV2_SETUP_FLAGS_REQUIRES_VERSION_ROLLING;
-    if (channel_type == SV2_CHANNEL_STANDARD) {
-        setup_flags |= SV2_SETUP_FLAGS_REQUIRES_STANDARD_JOBS;
-    }
+    uint32_t setup_flags = sv2_setup_flags_for_channel(channel_type);
 
     const char *device_model = GLOBAL_STATE->DEVICE_CONFIG.family.asic.name;
     int frame_len = sv2_build_setup_connection(frame_buf, 1024,
@@ -951,7 +945,7 @@ bool stratum_v2_probe_pool(GlobalState *GLOBAL_STATE, uint16_t pool_idx, const c
                 uint16_t used_version;
                 uint32_t flags;
                 if (sv2_parse_setup_connection_success(recv_buf, payload_len, &used_version, &flags) == 0) {
-                    if (!(flags & SV2_SETUP_SUCCESS_FLAGS_REQUIRES_FIXED_VERSION)) {
+                    if (sv2_setup_success_allows_version_rolling(flags)) {
                         success = true;
                     }
                 }

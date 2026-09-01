@@ -127,3 +127,54 @@ TEST_CASE("SV2 parse new extended mining job direct decoding", "[sv2]")
     TEST_ASSERT_EQUAL_HEX8(5, job.coinbase_suffix[0]);
     TEST_ASSERT_EQUAL_HEX8(7, job.coinbase_suffix[2]);
 }
+
+TEST_CASE("SV2 setup requires version rolling", "[sv2]")
+{
+    uint32_t standard_flags = sv2_setup_flags_for_channel(SV2_CHANNEL_STANDARD);
+    uint32_t extended_flags = sv2_setup_flags_for_channel(SV2_CHANNEL_EXTENDED);
+
+    TEST_ASSERT_BITS_HIGH(SV2_SETUP_FLAGS_REQUIRES_STANDARD_JOBS, standard_flags);
+    TEST_ASSERT_BITS_HIGH(SV2_SETUP_FLAGS_REQUIRES_VERSION_ROLLING, standard_flags);
+    TEST_ASSERT_BITS_LOW(SV2_SETUP_FLAGS_REQUIRES_STANDARD_JOBS, extended_flags);
+    TEST_ASSERT_BITS_HIGH(SV2_SETUP_FLAGS_REQUIRES_VERSION_ROLLING, extended_flags);
+    TEST_ASSERT_TRUE(sv2_setup_success_allows_version_rolling(0));
+    TEST_ASSERT_FALSE(sv2_setup_success_allows_version_rolling(
+        SV2_SETUP_SUCCESS_FLAGS_REQUIRES_FIXED_VERSION));
+}
+
+TEST_CASE("SV2 extended job reports fixed-version jobs", "[sv2]")
+{
+    uint8_t payload[256] = {0};
+    int pos = 0;
+    payload[pos++] = 5; pos += 3; // channel_id
+    payload[pos++] = 12; pos += 3; // job_id
+    payload[pos++] = 0; // min_ntime option flag = false
+    payload[pos++] = 0x00; payload[pos++] = 0x00; payload[pos++] = 0x00; payload[pos++] = 0x20; // version
+    payload[pos++] = 0; // version_rolling_allowed = false
+    payload[pos++] = 0; // merkle_count = 0
+    payload[pos++] = 0; payload[pos++] = 0; // prefix len = 0
+    payload[pos++] = 0; payload[pos++] = 0; // suffix len = 0
+
+    uint8_t p_buf[128];
+    uint8_t s_buf[128];
+    miner_job_t job;
+    memset(&job, 0, sizeof(job));
+    job.coinbase_prefix = p_buf;
+    job.coinbase_suffix = s_buf;
+
+    bool version_rolling_allowed = true;
+    int res = sv2_parse_new_extended_mining_job(payload, pos, NULL, &job, NULL, &version_rolling_allowed);
+
+    TEST_ASSERT_EQUAL(0, res);
+    TEST_ASSERT_FALSE(version_rolling_allowed);
+    TEST_ASSERT_EQUAL_HEX32(0, job.version_mask);
+}
+
+TEST_CASE("SV2 accepts direct and group channel broadcasts", "[sv2]")
+{
+    TEST_ASSERT_TRUE(sv2_channel_or_group_matches(7, 7, 11));
+    TEST_ASSERT_TRUE(sv2_channel_or_group_matches(11, 7, 11));
+    TEST_ASSERT_FALSE(sv2_channel_or_group_matches(12, 7, 11));
+    TEST_ASSERT_TRUE(sv2_channel_or_group_matches(7, 7, 0));
+    TEST_ASSERT_FALSE(sv2_channel_or_group_matches(0, 7, 0));
+}
