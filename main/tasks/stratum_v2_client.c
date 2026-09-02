@@ -605,7 +605,8 @@ esp_err_t stratum_v2_run(GlobalState *GLOBAL_STATE, uint16_t pool_idx, volatile 
     // 3. Send OpenMiningChannel
     {
         char *user = GLOBAL_STATE->SYSTEM_MODULE.pools[pool_idx].user;
-        float hash_rate = 1e12;
+        float expected_gh = GLOBAL_STATE->POWER_MANAGEMENT_MODULE.expected_hashrate;
+        float hash_rate = (expected_gh > 0.0f) ? (expected_gh * 1e9f) : 1e12f;
         int frame_len;
 
         if (channel_type == SV2_CHANNEL_EXTENDED) {
