@@ -519,11 +519,11 @@ TEST_CASE("Parse stratum mining.notify large coinbase suffix (multi-payout pool)
     memset(&msg, 0, sizeof(msg));
 
     // Construct a 2000-hex-char (1000 byte) coinbase_2 suffix representing multi-output pool
-    char c2_hex[2001];
+    static char c2_hex[2001];
     memset(c2_hex, 'a', 2000);
     c2_hex[2000] = '\0';
 
-    char json_buf[2500];
+    static char json_buf[2500];
     snprintf(json_buf, sizeof(json_buf),
              "{\"id\":null,\"method\":\"mining.notify\",\"params\":[\"job1\",\"0000000000000000000000000000000000000000000000000000000000000000\",\"0100\",\"%s\",[],\"20000000\",\"1705ae3a\",\"647025b5\",true]}",
              c2_hex);
