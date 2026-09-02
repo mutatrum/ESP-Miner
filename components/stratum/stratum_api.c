@@ -58,7 +58,7 @@ float STRATUM_V1_get_response_time_ms(int request_id, int64_t receive_time_us)
     return response_time;
 }
 
-esp_transport_handle_t STRATUM_V1_transport_init(tls_mode tls, char * cert)
+esp_transport_handle_t STRATUM_V1_transport_init(tls_mode tls, const char * cert)
 {
     esp_transport_handle_t transport;
     // tls_transport

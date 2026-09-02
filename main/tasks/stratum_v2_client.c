@@ -6,6 +6,7 @@
 #include "system.h"
 #include "global_state.h"
 #include "stratum_v2_client.h"
+#include "stratum_task.h"
 #include "stratum_socket.h"
 #include "connect.h"
 #include "sv2_protocol.h"
@@ -65,9 +66,8 @@ static void sv2_conn_free(sv2_conn_t **conn_ptr)
     *conn_ptr = NULL;
 }
 
-static bool stratum_v2_load_authority_pubkey(GlobalState *GLOBAL_STATE, uint8_t out[32], uint16_t pool_idx)
+static bool stratum_v2_load_authority_pubkey(uint8_t out[32], const char *b58_key)
 {
-    const char *b58_key = GLOBAL_STATE->SYSTEM_MODULE.pools[pool_idx].sv2_authority_pubkey;
     if (!b58_key || strlen(b58_key) == 0) {
         return false;
     }
@@ -185,10 +185,12 @@ int stratum_v2_submit_share(GlobalState *GLOBAL_STATE, const bm_job *active_job,
         return -1;
     }
 
-    stratum_v2_track_submit(GLOBAL_STATE, sequence_number);
     int ret = sv2_noise_send(conn->noise_ctx, transport, buf, len);
-    if (sent_time_us) {
-        *sent_time_us = esp_timer_get_time();
+    if (ret >= 0) {
+        stratum_v2_track_submit(GLOBAL_STATE, sequence_number);
+        if (sent_time_us) {
+            *sent_time_us = esp_timer_get_time();
+        }
     }
     pthread_mutex_unlock(&GLOBAL_STATE->transport_mutex);
     return ret;
@@ -394,9 +396,29 @@ static void stratum_v2_handle_set_target(GlobalState *GLOBAL_STATE, sv2_conn_t *
     ESP_LOGI(TAG, "Set pool difficulty: %g", pdiff);
 }
 
-esp_err_t stratum_v2_run(GlobalState *GLOBAL_STATE, uint16_t pool_idx, volatile bool *should_reconnect, int *retry_attempts)
+esp_err_t stratum_v2_run(GlobalState *GLOBAL_STATE, uint16_t pool_idx)
 {
-    sv2_channel_type_t channel_type = GLOBAL_STATE->SYSTEM_MODULE.pools[pool_idx].sv2_channel_type;
+    if (!GLOBAL_STATE || pool_idx >= MAX_POOLS) {
+        return ESP_ERR_INVALID_ARG;
+    }
+
+    PoolConfig *pool = &GLOBAL_STATE->SYSTEM_MODULE.pools[pool_idx];
+    char stratum_url[256] = {0};
+    char user[256] = {0};
+    char auth_pubkey[128] = {0};
+
+    if (pool->url) strlcpy(stratum_url, pool->url, sizeof(stratum_url));
+    if (pool->user) strlcpy(user, pool->user, sizeof(user));
+    if (pool->sv2_authority_pubkey) strlcpy(auth_pubkey, pool->sv2_authority_pubkey, sizeof(auth_pubkey));
+
+    uint16_t port = pool->port;
+    sv2_channel_type_t channel_type = pool->sv2_channel_type;
+    bool require_auth = pool->sv2_require_auth;
+
+    if (stratum_url[0] == '\0' || port == 0) {
+        ESP_LOGE(TAG, "Invalid pool configuration for pool %u", pool_idx);
+        return ESP_ERR_INVALID_ARG;
+    }
 
     if (s_v2_conn != NULL) {
         sv2_conn_free(&s_v2_conn);
@@ -424,9 +446,6 @@ esp_err_t stratum_v2_run(GlobalState *GLOBAL_STATE, uint16_t pool_idx, volatile 
         sv2_conn_free(&s_v2_conn);
         return ESP_ERR_NO_MEM;
     }
-
-    char *stratum_url = GLOBAL_STATE->SYSTEM_MODULE.pools[pool_idx].url;
-    uint16_t port = GLOBAL_STATE->SYSTEM_MODULE.pools[pool_idx].port;
 
     ESP_LOGI(TAG, "Connecting to stratum+sv2://%s:%d", stratum_url, port);
 
@@ -492,8 +511,7 @@ esp_err_t stratum_v2_run(GlobalState *GLOBAL_STATE, uint16_t pool_idx, volatile 
     conn->noise_ctx = noise_ctx;
 
     uint8_t auth_key[32];
-    bool has_auth = stratum_v2_load_authority_pubkey(GLOBAL_STATE, auth_key, pool_idx);
-    bool require_auth = GLOBAL_STATE->SYSTEM_MODULE.pools[pool_idx].sv2_require_auth;
+    bool has_auth = stratum_v2_load_authority_pubkey(auth_key, auth_pubkey[0] ? auth_pubkey : NULL);
 
     if (require_auth && !has_auth) {
         ESP_LOGE(TAG, "SV2 authentication required but no authority pubkey configured, refusing to connect");
@@ -604,19 +622,18 @@ esp_err_t stratum_v2_run(GlobalState *GLOBAL_STATE, uint16_t pool_idx, volatile 
 
     // 3. Send OpenMiningChannel
     {
-        char *user = GLOBAL_STATE->SYSTEM_MODULE.pools[pool_idx].user;
         float expected_gh = GLOBAL_STATE->POWER_MANAGEMENT_MODULE.expected_hashrate;
         float hash_rate = (expected_gh > 0.0f) ? (expected_gh * 1e9f) : 1e12f;
         int frame_len;
 
         if (channel_type == SV2_CHANNEL_EXTENDED) {
-            ESP_LOGI(TAG, "Opening extended mining channel (user=%s)", user ? user : "(empty)");
+            ESP_LOGI(TAG, "Opening extended mining channel (user=%s)", user[0] ? user : "(empty)");
             frame_len = sv2_build_open_extended_mining_channel(frame_buf, SV2_MAX_FRAME_SIZE,
-                                                                1, user ? user : "", hash_rate, 2);
+                                                                1, user, hash_rate, 2);
         } else {
-            ESP_LOGI(TAG, "Opening standard mining channel (user=%s)", user ? user : "(empty)");
+            ESP_LOGI(TAG, "Opening standard mining channel (user=%s)", user[0] ? user : "(empty)");
             frame_len = sv2_build_open_standard_mining_channel(frame_buf, SV2_MAX_FRAME_SIZE,
-                                                                1, user ? user : "", hash_rate);
+                                                                1, user, hash_rate);
         }
 
         if (frame_len < 0 || sv2_noise_send(noise_ctx, transport, frame_buf, frame_len) != 0) {
@@ -705,7 +722,6 @@ esp_err_t stratum_v2_run(GlobalState *GLOBAL_STATE, uint16_t pool_idx, volatile 
         conn->group_channel_id = group_channel_id;
         conn->has_group_channel = (group_channel_id != 0);
         conn->channel_opened = true;
-        if (retry_attempts) *retry_attempts = 0;
         memcpy(conn->target, target, 32);
 
         double pdiff = hash_to_pdiff(target);
@@ -726,7 +742,7 @@ esp_err_t stratum_v2_run(GlobalState *GLOBAL_STATE, uint16_t pool_idx, volatile 
     esp_err_t run_result = ESP_OK;
 
     while (1) {
-        if (should_reconnect && *should_reconnect) {
+        if (stratum_reconnect_requested()) {
             ESP_LOGI(TAG, "Reconnect requested");
             run_result = ESP_OK;
             break;
@@ -740,7 +756,7 @@ esp_err_t stratum_v2_run(GlobalState *GLOBAL_STATE, uint16_t pool_idx, volatile 
 
         if (sv2_noise_recv(noise_ctx, transport, hdr_buf, recv_buf,
                            SV2_MAX_FRAME_SIZE, &payload_len) != 0) {
-            if (should_reconnect && *should_reconnect) {
+            if (stratum_reconnect_requested()) {
                 ESP_LOGI(TAG, "Reconnect requested during recv");
                 run_result = ESP_OK;
             } else {
@@ -853,9 +869,22 @@ esp_err_t stratum_v2_run(GlobalState *GLOBAL_STATE, uint16_t pool_idx, volatile 
     return run_result;
 }
 
-bool stratum_v2_probe_pool(GlobalState *GLOBAL_STATE, uint16_t pool_idx, const char *url, uint16_t port)
+bool stratum_v2_probe_pool(GlobalState *GLOBAL_STATE, uint16_t pool_idx)
 {
-    if (!GLOBAL_STATE || url == NULL || url[0] == '\0' || port == 0) return false;
+    if (!GLOBAL_STATE || pool_idx >= MAX_POOLS) return false;
+
+    PoolConfig *pool = &GLOBAL_STATE->SYSTEM_MODULE.pools[pool_idx];
+    char url[256] = {0};
+    char auth_pubkey[128] = {0};
+
+    if (pool->url) strlcpy(url, pool->url, sizeof(url));
+    if (pool->sv2_authority_pubkey) strlcpy(auth_pubkey, pool->sv2_authority_pubkey, sizeof(auth_pubkey));
+
+    uint16_t port = pool->port;
+    sv2_channel_type_t channel_type = pool->sv2_channel_type;
+    bool require_auth = pool->sv2_require_auth;
+
+    if (url[0] == '\0' || port == 0) return false;
 
     stratum_connection_info_t conn_info;
     if (stratum_socket_resolve(url, port, &conn_info) != ESP_OK) {
@@ -882,8 +911,7 @@ bool stratum_v2_probe_pool(GlobalState *GLOBAL_STATE, uint16_t pool_idx, const c
     }
 
     uint8_t auth_key[32];
-    bool has_auth = stratum_v2_load_authority_pubkey(GLOBAL_STATE, auth_key, pool_idx);
-    bool require_auth = GLOBAL_STATE->SYSTEM_MODULE.pools[pool_idx].sv2_require_auth;
+    bool has_auth = stratum_v2_load_authority_pubkey(auth_key, auth_pubkey[0] ? auth_pubkey : NULL);
 
     if (require_auth && !has_auth) {
         sv2_noise_destroy(noise_ctx);
@@ -913,7 +941,6 @@ bool stratum_v2_probe_pool(GlobalState *GLOBAL_STATE, uint16_t pool_idx, const c
         return false;
     }
 
-    sv2_channel_type_t channel_type = GLOBAL_STATE->SYSTEM_MODULE.pools[pool_idx].sv2_channel_type;
     uint32_t setup_flags = sv2_setup_flags_for_channel(channel_type);
 
     const char *device_model = GLOBAL_STATE->DEVICE_CONFIG.family.asic.name;

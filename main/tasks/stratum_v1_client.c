@@ -3,6 +3,7 @@
 #include "global_state.h"
 #include <lwip/tcpip.h>
 #include "stratum_v1_client.h"
+#include "stratum_task.h"
 #include "stratum_api.h"
 #include "stratum_socket.h"
 #include "connect.h"
@@ -20,6 +21,7 @@
 #define MAX_EXTRANONCE_2_LEN 32
 #define TRANSPORT_TIMEOUT_MS 5000
 #define BUFFER_SIZE 1024
+#define PROBE_RECV_BUFFER_SIZE 2048
 
 static const char *TAG = "stratum_v1";
 
@@ -69,8 +71,6 @@ int stratum_v1_submit_share(GlobalState *GLOBAL_STATE, const bm_job *active_job,
                             uint32_t nonce, uint32_t rolled_version, uint64_t *sent_time_us)
 {
     if (!GLOBAL_STATE || !active_job) return -1;
-    uint8_t pool_id = active_job->pool_id;
-    char *user = GLOBAL_STATE->SYSTEM_MODULE.pools[pool_id].user;
     uint32_t version_bits = rolled_version ^ active_job->version;
 
     pthread_mutex_lock(&GLOBAL_STATE->transport_mutex);
@@ -84,7 +84,7 @@ int stratum_v1_submit_share(GlobalState *GLOBAL_STATE, const bm_job *active_job,
     int ret = STRATUM_V1_submit_share(
         transport,
         uid,
-        user,
+        s_v1_conn->user,
         active_job->jobid,
         active_job->extranonce2,
         active_job->ntime,
@@ -124,16 +124,29 @@ void stratum_v1_close_connection(GlobalState *GLOBAL_STATE)
     SYSTEM_reset_coinbase_ui_state(GLOBAL_STATE, "");
 }
 
-esp_err_t stratum_v1_run(GlobalState *GLOBAL_STATE, uint16_t pool_idx, volatile bool *should_reconnect, int *retry_attempts)
+esp_err_t stratum_v1_run(GlobalState *GLOBAL_STATE, uint16_t pool_idx)
 {
-    char *stratum_url = GLOBAL_STATE->SYSTEM_MODULE.pools[pool_idx].url;
-    uint16_t port = GLOBAL_STATE->SYSTEM_MODULE.pools[pool_idx].port;
-    tls_mode tls = GLOBAL_STATE->SYSTEM_MODULE.pools[pool_idx].tls;
-    char *cert = GLOBAL_STATE->SYSTEM_MODULE.pools[pool_idx].cert;
-    char *username = GLOBAL_STATE->SYSTEM_MODULE.pools[pool_idx].user;
-    char *password = GLOBAL_STATE->SYSTEM_MODULE.pools[pool_idx].pass;
+    if (!GLOBAL_STATE || pool_idx >= MAX_POOLS) {
+        return ESP_ERR_INVALID_ARG;
+    }
 
-    if (!stratum_url || stratum_url[0] == '\0' || port == 0) {
+    PoolConfig *pool = &GLOBAL_STATE->SYSTEM_MODULE.pools[pool_idx];
+    char stratum_url[256] = {0};
+    char username[256] = {0};
+    char password[256] = {0};
+    char cert_buf[512] = {0};
+
+    if (pool->url) strlcpy(stratum_url, pool->url, sizeof(stratum_url));
+    if (pool->user) strlcpy(username, pool->user, sizeof(username));
+    if (pool->pass) strlcpy(password, pool->pass, sizeof(password));
+    if (pool->cert) strlcpy(cert_buf, pool->cert, sizeof(cert_buf));
+
+    uint16_t port = pool->port;
+    tls_mode tls = (tls_mode)pool->tls;
+    uint16_t difficulty = pool->difficulty;
+    bool extranonce_subscribe = pool->extranonce_subscribe;
+
+    if (stratum_url[0] == '\0' || port == 0) {
         ESP_LOGE(TAG, "Invalid pool configuration for pool %u", pool_idx);
         return ESP_ERR_INVALID_ARG;
     }
@@ -151,6 +164,7 @@ esp_err_t stratum_v1_run(GlobalState *GLOBAL_STATE, uint16_t pool_idx, volatile 
         return ESP_ERR_NO_MEM;
     }
     s_v1_conn->send_uid = 1;
+    strlcpy(s_v1_conn->user, username, sizeof(s_v1_conn->user));
     s_v1_conn->pool_difficulty = (double)GLOBAL_STATE->DEVICE_CONFIG.family.asic.difficulty;
     s_v1_conn->version_mask = 0;
 
@@ -164,7 +178,7 @@ esp_err_t stratum_v1_run(GlobalState *GLOBAL_STATE, uint16_t pool_idx, volatile 
 
     ESP_LOGI(TAG, "Connecting to: stratum+tcp://%s:%d (%s)", stratum_url, port, conn_info.host_ip);
 
-    esp_transport_handle_t transport = STRATUM_V1_transport_init(tls, cert);
+    esp_transport_handle_t transport = STRATUM_V1_transport_init(tls, cert_buf[0] ? cert_buf : NULL);
     if (!transport) {
         ESP_LOGE(TAG, "Transport initialization failed.");
         snprintf(GLOBAL_STATE->SYSTEM_MODULE.pool_connection_info,
@@ -228,7 +242,7 @@ esp_err_t stratum_v1_run(GlobalState *GLOBAL_STATE, uint16_t pool_idx, volatile 
     esp_err_t run_result = ESP_OK;
 
     while (1) {
-        if (should_reconnect && *should_reconnect) {
+        if (stratum_reconnect_requested()) {
             ESP_LOGI(TAG, "Reconnect requested");
             run_result = ESP_OK;
             break;
@@ -242,7 +256,7 @@ esp_err_t stratum_v1_run(GlobalState *GLOBAL_STATE, uint16_t pool_idx, volatile 
 
         char *line = STRATUM_V1_receive_jsonrpc_line(transport);
         if (!line) {
-            if (should_reconnect && *should_reconnect) {
+            if (stratum_reconnect_requested()) {
                 ESP_LOGI(TAG, "Reconnect requested during read");
                 run_result = ESP_OK;
             } else {
@@ -377,12 +391,9 @@ esp_err_t stratum_v1_run(GlobalState *GLOBAL_STATE, uint16_t pool_idx, volatile 
                     if (s_v1_msg->response_success) {
                         ESP_LOGI(TAG, "setup message accepted");
                         if (s_v1_msg->message_id == authorize_message_id) {
-                            if (retry_attempts) *retry_attempts = 0;
-                            uint16_t difficulty = GLOBAL_STATE->SYSTEM_MODULE.pools[pool_idx].difficulty;
                             if (difficulty > 0) {
                                 STRATUM_V1_suggest_difficulty(transport, stratum_get_next_uid(GLOBAL_STATE), difficulty);
                             }
-                            bool extranonce_subscribe = GLOBAL_STATE->SYSTEM_MODULE.pools[pool_idx].extranonce_subscribe;
                             if (extranonce_subscribe) {
                                 STRATUM_V1_extranonce_subscribe(transport, stratum_get_next_uid(GLOBAL_STATE));
                             }
@@ -408,4 +419,83 @@ esp_err_t stratum_v1_run(GlobalState *GLOBAL_STATE, uint16_t pool_idx, volatile 
 
     stratum_v1_close_connection(GLOBAL_STATE);
     return run_result;
+}
+
+bool stratum_v1_probe_pool(GlobalState *GLOBAL_STATE, uint16_t pool_idx)
+{
+    if (!GLOBAL_STATE || pool_idx >= MAX_POOLS) return false;
+
+    PoolConfig *pool = &GLOBAL_STATE->SYSTEM_MODULE.pools[pool_idx];
+    char url[256] = {0};
+    char user[256] = {0};
+    char pass[256] = {0};
+    char cert_buf[512] = {0};
+
+    if (pool->url) strlcpy(url, pool->url, sizeof(url));
+    if (pool->user) strlcpy(user, pool->user, sizeof(user));
+    if (pool->pass) strlcpy(pass, pool->pass, sizeof(pass));
+    if (pool->cert) strlcpy(cert_buf, pool->cert, sizeof(cert_buf));
+
+    uint16_t port = pool->port;
+    tls_mode tls = (tls_mode)pool->tls;
+
+    if (url[0] == '\0' || port == 0) return false;
+
+    stratum_connection_info_t conn_info;
+    if (stratum_socket_resolve(url, port, &conn_info) != ESP_OK) {
+        return false;
+    }
+
+    esp_transport_handle_t transport = STRATUM_V1_transport_init(tls, cert_buf[0] ? cert_buf : NULL);
+    if (!transport) return false;
+
+    if (tls != DISABLED) {
+        esp_transport_ssl_set_common_name(transport, url);
+    }
+
+    esp_err_t err = esp_transport_connect(transport, conn_info.host_ip, port, TRANSPORT_TIMEOUT_MS);
+    if (err != ESP_OK) {
+        esp_transport_close(transport);
+        esp_transport_destroy(transport);
+        return false;
+    }
+
+    STRATUM_V1_subscribe(transport, 1, GLOBAL_STATE->DEVICE_CONFIG.family.asic.name);
+    STRATUM_V1_authorize(transport, 2, user, pass);
+
+    char recv_buf[PROBE_RECV_BUFFER_SIZE];
+    int total_bytes = 0;
+    bool success = false;
+    int64_t start_time = esp_timer_get_time();
+
+    while (total_bytes < (int)sizeof(recv_buf) - 1) {
+        int64_t elapsed_ms = (esp_timer_get_time() - start_time) / 1000;
+        int remaining_ms = TRANSPORT_TIMEOUT_MS - (int)elapsed_ms;
+        if (remaining_ms <= 0) break;
+
+        int n = esp_transport_read(transport, recv_buf + total_bytes, sizeof(recv_buf) - 1 - total_bytes, remaining_ms);
+        if (n <= 0) break;
+        total_bytes += n;
+        recv_buf[total_bytes] = '\0';
+
+        // Reject immediately if an error payload is returned
+        if (strstr(recv_buf, "\"error\":[") != NULL ||
+            strstr(recv_buf, "\"error\": {") != NULL ||
+            strstr(recv_buf, "\"error\":{") != NULL) {
+            success = false;
+            break;
+        }
+
+        // Accept if a result is returned for subscribe (id: 1) or authorize (id: 2)
+        if (strstr(recv_buf, "\"result\"") != NULL &&
+            (strstr(recv_buf, "\"id\":1") != NULL || strstr(recv_buf, "\"id\": 1") != NULL ||
+             strstr(recv_buf, "\"id\":2") != NULL || strstr(recv_buf, "\"id\": 2") != NULL)) {
+            success = true;
+            break;
+        }
+    }
+
+    esp_transport_close(transport);
+    esp_transport_destroy(transport);
+    return success;
 }

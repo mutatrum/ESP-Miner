@@ -1,7 +1,6 @@
 #include "esp_log.h"
 #include "esp_heap_caps.h"
 #include "esp_transport.h"
-#include "esp_transport_tcp.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "global_state.h"
@@ -14,16 +13,12 @@
 #include <sys/socket.h>
 #include <string.h>
 
-#include "esp_transport_ssl.h"
-#include "stratum_socket.h"
-
 #define TAG "stratum_task"
 #define TRANSPORT_TIMEOUT_MS 5000
 #define MAX_RETRY_ATTEMPTS 3
 #define HEARTBEAT_INTERVAL_MS 60000
 #define INITIAL_HEARTBEAT_DELAY_MS 10000
 #define RECOVERY_PROBE_INTERVAL_MS 30000
-#define BUFFER_SIZE 1024
 
 static GlobalState *s_global_state = NULL;
 static volatile bool s_should_reconnect = false;
@@ -45,65 +40,21 @@ void stratum_request_reconnect(void)
     }
 }
 
-static bool probe_pool_sv2(GlobalState *gs, uint16_t pool_idx, const char *url, uint16_t port)
+bool stratum_reconnect_requested(void)
 {
-    return stratum_v2_probe_pool(gs, pool_idx, url, port);
-}
-
-static bool probe_pool_v1(GlobalState *gs, const char *url, uint16_t port,
-                          tls_mode tls, char *cert, const char *user, const char *pass)
-{
-    if (url == NULL || url[0] == '\0' || port == 0) return false;
-
-    stratum_connection_info_t conn_info;
-    if (stratum_socket_resolve(url, port, &conn_info) != ESP_OK) {
-        return false;
-    }
-
-    esp_transport_handle_t transport = STRATUM_V1_transport_init(tls, cert);
-    if (!transport) return false;
-
-    if (tls != DISABLED) {
-        esp_transport_ssl_set_common_name(transport, url);
-    }
-
-    esp_err_t err = esp_transport_connect(transport, conn_info.host_ip, port, TRANSPORT_TIMEOUT_MS);
-    if (err != ESP_OK) {
-        esp_transport_close(transport);
-        esp_transport_destroy(transport);
-        return false;
-    }
-
-    STRATUM_V1_subscribe(transport, 1, gs->DEVICE_CONFIG.family.asic.name);
-    STRATUM_V1_authorize(transport, 2, user, pass);
-
-    char recv_buffer[BUFFER_SIZE];
-    memset(recv_buffer, 0, BUFFER_SIZE);
-    int bytes_received = esp_transport_read(transport, recv_buffer, BUFFER_SIZE - 1, TRANSPORT_TIMEOUT_MS);
-
-    esp_transport_close(transport);
-    esp_transport_destroy(transport);
-
-    if (bytes_received <= 0) return false;
-
-    if (strstr(recv_buffer, "\"error\":[") != NULL ||
-        strstr(recv_buffer, "\"error\": {") != NULL ||
-        strstr(recv_buffer, "\"error\":{") != NULL) {
-        return false;
-    }
-
-    return (strstr(recv_buffer, "\"result\"") != NULL);
+    return s_should_reconnect;
 }
 
 bool stratum_probe_pool(GlobalState *gs, uint16_t pool_idx)
 {
-    PoolConfig *pool = &gs->SYSTEM_MODULE.pools[pool_idx];
+    if (!gs || pool_idx >= MAX_POOLS) return false;
+    const PoolConfig *pool = &gs->SYSTEM_MODULE.pools[pool_idx];
     if (!pool->url || pool->url[0] == '\0' || pool->port == 0) return false;
 
     if (pool->protocol == STRATUM_PROTOCOL_V2) {
-        return probe_pool_sv2(gs, pool_idx, pool->url, pool->port);
+        return stratum_v2_probe_pool(gs, pool_idx);
     }
-    return probe_pool_v1(gs, pool->url, pool->port, pool->tls, pool->cert, pool->user, pool->pass);
+    return stratum_v1_probe_pool(gs, pool_idx);
 }
 
 static void reset_share_stats(GlobalState *gs)
@@ -133,11 +84,14 @@ static void stratum_heartbeat_task(void *pvParameters)
             wifi_is_connected()) {
 
             uint16_t prim_idx = gs->SYSTEM_MODULE.primary_pool_index;
-            ESP_LOGD(TAG, "Heartbeat: probing primary pool %u...", prim_idx);
+            const char *url = gs->SYSTEM_MODULE.pools[prim_idx].url;
+            ESP_LOGI(TAG, "Heartbeat: probing primary pool %u (%s)...", prim_idx, url ? url : "unknown");
             if (stratum_probe_pool(gs, prim_idx)) {
                 ESP_LOGI(TAG, "Primary pool %u is back online! Switching from fallback.", prim_idx);
                 gs->SYSTEM_MODULE.is_using_fallback = false;
                 stratum_request_reconnect();
+            } else {
+                ESP_LOGI(TAG, "Heartbeat: primary pool %u is still offline", prim_idx);
             }
         }
     }
@@ -262,13 +216,13 @@ void stratum_task(void *pvParameters)
         esp_err_t err;
 
         if (protocol == STRATUM_PROTOCOL_V2) {
-            err = stratum_v2_run(GLOBAL_STATE, active_idx, &s_should_reconnect, &retry_attempts);
+            err = stratum_v2_run(GLOBAL_STATE, active_idx);
         } else {
-            err = stratum_v1_run(GLOBAL_STATE, active_idx, &s_should_reconnect, &retry_attempts);
+            err = stratum_v1_run(GLOBAL_STATE, active_idx);
         }
 
-        if (err == ESP_OK || s_should_reconnect) {
-            // Clean disconnect, mode switch, or reconnect requested
+        if (err == ESP_OK || s_should_reconnect || GLOBAL_STATE->SYSTEM_MODULE.work_received > 0) {
+            // Clean disconnect, mode switch, reconnect requested, or was actively mining
             consecutive_pool_failures = 0;
             retry_attempts = 0;
             GLOBAL_STATE->SYSTEM_MODULE.pools_unavailable = false;

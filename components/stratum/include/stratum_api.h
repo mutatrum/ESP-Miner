@@ -76,6 +76,7 @@ typedef struct StratumApiV1Message
 
 typedef struct sv1_conn {
     int send_uid;
+    char user[256];
     double pool_difficulty;
     uint32_t version_mask;
     uint8_t extranonce1[32];
@@ -91,7 +92,7 @@ typedef struct RequestTiming
     bool tracking;
 } RequestTiming;
 
-esp_transport_handle_t STRATUM_V1_transport_init(tls_mode tls, char * cert);
+esp_transport_handle_t STRATUM_V1_transport_init(tls_mode tls, const char * cert);
 
 void STRATUM_V1_initialize_buffer(void);
 
