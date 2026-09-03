@@ -54,8 +54,8 @@ const char *sv2_channel_type_to_string(sv2_channel_type_t t);
 #define SV2_SETUP_FLAGS_REQUIRES_VERSION_ROLLING    (1U << 2)
 
 // SetupConnection.Success.flags (spec 5.3.2)
-#define SV2_SETUP_SUCCESS_FLAGS_REQUIRES_FIXED_VERSION (1U << 1)
-#define SV2_SETUP_SUCCESS_FLAGS_REQUIRES_EXT_CHANNELS  (1U << 2)
+#define SV2_SETUP_SUCCESS_FLAGS_REQUIRES_FIXED_VERSION (1U << 0)
+#define SV2_SETUP_SUCCESS_FLAGS_REQUIRES_EXT_CHANNELS  (1U << 1)
 
 uint32_t sv2_setup_flags_for_channel(sv2_channel_type_t channel_type);
 bool sv2_setup_success_allows_version_rolling(uint32_t flags);
