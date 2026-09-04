@@ -293,7 +293,9 @@ export class HomeComponent implements OnInit, OnDestroy {
 
     this.form = this.fb.group(parsedConfig);
 
-    this.form.valueChanges.subscribe(() => {
+    this.form.valueChanges.pipe(
+      takeUntil(this.destroy$)
+    ).subscribe(() => {
       this.storageService.setItem(HOME_CHART_DATA_SOURCES, JSON.stringify(this.form.getRawValue()));
       this.loadPreviousData();
     });
@@ -351,6 +353,9 @@ export class HomeComponent implements OnInit, OnDestroy {
 
   ngOnDestroy() {
     clearTimeout(this.resizeTimer);
+    clearTimeout(this.shareAcceptedTimeout);
+    clearTimeout(this.shareRejectedTimeout);
+    clearTimeout(this.workReceivedTimeout);
     clearInterval(this.staleCheckInterval);
     this.dashboardEditService.isActive$.next(false);
     this.dashboardEditService.editMode$.next(false);
@@ -1397,7 +1402,7 @@ export class HomeComponent implements OnInit, OnDestroy {
       });
     }
 
-    if (this.chartData) {
+    if (this.chartData && document.visibilityState !== 'hidden') {
       this.chartData = { ...this.chartData };
     }
   }

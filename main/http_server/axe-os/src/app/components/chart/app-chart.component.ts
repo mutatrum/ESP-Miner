@@ -1,4 +1,4 @@
-import { Component, ElementRef, Input, NgZone, OnChanges, OnDestroy, SimpleChanges, ViewChild } from '@angular/core';
+import { Component, ElementRef, HostListener, Input, NgZone, OnChanges, OnDestroy, SimpleChanges, ViewChild } from '@angular/core';
 import { Chart, registerables } from 'chart.js';
 
 Chart.register(...registerables);
@@ -24,8 +24,17 @@ export class AppChartComponent implements OnChanges, OnDestroy {
   @ViewChild('canvas', { static: true }) canvas!: ElementRef<HTMLCanvasElement>;
 
   public chart: Chart | null = null;
+  private pendingUpdate = false;
 
   constructor(private ngZone: NgZone) {}
+
+  @HostListener('document:visibilitychange')
+  onVisibilityChange() {
+    if (document.visibilityState === 'visible' && this.pendingUpdate) {
+      this.pendingUpdate = false;
+      this.updateChart();
+    }
+  }
 
   ngOnChanges(changes: SimpleChanges) {
     if (changes['data'] || changes['options'] || changes['type']) {
@@ -49,13 +58,20 @@ export class AppChartComponent implements OnChanges, OnDestroy {
   private updateChart() {
     if (!this.canvas) return;
 
+    if (document.visibilityState === 'hidden') {
+      this.pendingUpdate = true;
+      return;
+    }
+
+    this.pendingUpdate = false;
+
     this.ngZone.runOutsideAngular(() => {
       if (this.chart) {
         this.chart.data = this.data;
         if (this.options) {
           this.chart.options = this.options;
         }
-        this.chart.update();
+        this.chart.update('none');
       } else {
         this.initChart();
       }
