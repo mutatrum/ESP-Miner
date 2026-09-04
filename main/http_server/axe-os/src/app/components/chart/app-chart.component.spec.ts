@@ -72,6 +72,8 @@ describe('AppChartComponent', () => {
   it('should execute pending update when visibility changes to visible', () => {
     expect(component.chart).toBeTruthy();
     const updateSpy = spyOn(component.chart!, 'update');
+    const resizeSpy = spyOn(component.chart!, 'resize');
+    spyOn(window, 'requestAnimationFrame').and.callFake((cb: FrameRequestCallback) => { cb(0); return 1; });
 
     // Simulate tab hidden
     let currentVisibility: DocumentVisibilityState = 'hidden';
@@ -87,8 +89,21 @@ describe('AppChartComponent', () => {
     currentVisibility = 'visible';
     component.onVisibilityChange();
 
+    expect(resizeSpy).toHaveBeenCalled();
     expect(updateSpy).toHaveBeenCalledWith('none');
     expect(component['pendingUpdate']).toBeFalse();
+  });
+
+  it('should schedule resize when visible without pending update', () => {
+    expect(component.chart).toBeTruthy();
+    const resizeSpy = spyOn(component.chart!, 'resize');
+    spyOn(window, 'requestAnimationFrame').and.callFake((cb: FrameRequestCallback) => { cb(0); return 1; });
+
+    spyOnProperty(document, 'visibilityState', 'get').and.returnValue('visible');
+    component['pendingUpdate'] = false;
+    component.onVisibilityChange();
+
+    expect(resizeSpy).toHaveBeenCalled();
   });
 
   it('should destroy chart on ngOnDestroy', () => {

@@ -241,6 +241,38 @@ describe('HomeComponent', () => {
       expect(component['lastMessageTime']).toBeGreaterThan(initialTime);
     });
 
+    it('should call loadPreviousData and not prematurely updateChart when awayTime exceeds threshold', () => {
+      spyOnProperty(document, 'visibilityState', 'get').and.returnValue('visible');
+      const loadSpy = spyOn<any>(component, 'loadPreviousData');
+      const updateChartSpy = spyOn<any>(component, 'updateChart');
+
+      component.dataLabel = [Date.now() - 30000];
+      component['lastHiddenTime'] = Date.now() - 30000;
+      component['lastStatsFrequency'] = 10;
+
+      component.onVisibilityChange();
+
+      expect(loadSpy).toHaveBeenCalledWith(false);
+      expect(updateChartSpy).not.toHaveBeenCalled();
+      expect(component['lastHiddenTime']).toBe(0);
+    });
+
+    it('should call updateChart immediately when awayTime is below threshold', () => {
+      spyOnProperty(document, 'visibilityState', 'get').and.returnValue('visible');
+      const loadSpy = spyOn<any>(component, 'loadPreviousData');
+      const updateChartSpy = spyOn<any>(component, 'updateChart');
+
+      component.dataLabel = [Date.now() - 1000];
+      component['lastHiddenTime'] = Date.now() - 2000;
+      component['lastStatsFrequency'] = 10;
+
+      component.onVisibilityChange();
+
+      expect(loadSpy).not.toHaveBeenCalled();
+      expect(updateChartSpy).toHaveBeenCalledWith(undefined, true);
+      expect(component['lastHiddenTime']).toBe(0);
+    });
+
     it('should not update chartData reference when hidden in limitDataPoints', () => {
       spyOnProperty(document, 'visibilityState', 'get').and.returnValue('hidden');
       component['statsLimit'] = 2;

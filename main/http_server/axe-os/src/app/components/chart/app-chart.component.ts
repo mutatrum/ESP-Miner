@@ -25,14 +25,19 @@ export class AppChartComponent implements OnChanges, OnDestroy {
 
   public chart: Chart | null = null;
   private pendingUpdate = false;
+  private rafId: number | null = null;
 
   constructor(private ngZone: NgZone) {}
 
   @HostListener('document:visibilitychange')
   onVisibilityChange() {
-    if (document.visibilityState === 'visible' && this.pendingUpdate) {
-      this.pendingUpdate = false;
-      this.updateChart();
+    if (document.visibilityState === 'visible') {
+      if (this.pendingUpdate) {
+        this.pendingUpdate = false;
+        this.scheduleRender();
+      } else if (this.chart) {
+        this.scheduleRender(true);
+      }
     }
   }
 
@@ -43,7 +48,15 @@ export class AppChartComponent implements OnChanges, OnDestroy {
   }
 
   ngOnDestroy() {
+    this.cancelScheduledRender();
     this.destroyChart();
+  }
+
+  private cancelScheduledRender() {
+    if (this.rafId !== null) {
+      cancelAnimationFrame(this.rafId);
+      this.rafId = null;
+    }
   }
 
   private destroyChart() {
@@ -71,10 +84,32 @@ export class AppChartComponent implements OnChanges, OnDestroy {
         if (this.options) {
           this.chart.options = this.options;
         }
+        this.chart.resize();
         this.chart.update('none');
       } else {
         this.initChart();
       }
+    });
+  }
+
+  private scheduleRender(resizeOnly = false) {
+    this.ngZone.runOutsideAngular(() => {
+      this.cancelScheduledRender();
+      this.rafId = requestAnimationFrame(() => {
+        this.rafId = null;
+        if (this.chart) {
+          if (!resizeOnly) {
+            this.chart.data = this.data;
+            if (this.options) {
+              this.chart.options = this.options;
+            }
+          }
+          this.chart.resize();
+          this.chart.update('none');
+        } else if (!resizeOnly) {
+          this.initChart();
+        }
+      });
     });
   }
 

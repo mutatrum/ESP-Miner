@@ -318,9 +318,6 @@ export class HomeComponent implements OnInit, OnDestroy {
     }
 
     if (document.visibilityState === 'visible') {
-      // Immediately refresh the chart to display the accumulated data points and avoid a stale visual state
-      this.updateChart(undefined, true);
-
       // Reset lastMessageTime to prevent stale data warning immediately after wake up
       if (this.lastMessageTime > 0) {
         this.lastMessageTime = Date.now();
@@ -337,6 +334,8 @@ export class HomeComponent implements OnInit, OnDestroy {
 
       if (awayTime > threshold || !lastPoint || (Date.now() - lastPoint > threshold)) {
         this.loadPreviousData(false);
+      } else {
+        this.updateChart(undefined, true);
       }
       this.lastHiddenTime = 0;
     }
