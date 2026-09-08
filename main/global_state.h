@@ -179,6 +179,8 @@ typedef struct GlobalState
     pthread_mutex_t valid_jobs_lock;
 
     double pool_difficulty;
+    double current_difficulty;
+    double target_share_interval_s;
     bool new_set_mining_difficulty_msg;
     uint32_t version_mask;
     bool new_stratum_version_rolling_msg;

@@ -10,6 +10,8 @@
 #include "esp_timer.h"
 
 #include "asic.h"
+#include "asic_common.h"
+#include "difficulty_controller.h"
 #include "system.h"
 #include "esp_heap_caps.h"
 #include "sv2_protocol.h"
@@ -118,10 +120,16 @@ void create_jobs_task(void *pvParameters)
 
             current_work = new_work;
 
+            bool diff_updated = false;
             if (GLOBAL_STATE->new_set_mining_difficulty_msg) {
                 ESP_LOGI(TAG, "New pool difficulty %.2f", GLOBAL_STATE->pool_difficulty);
                 difficulty = GLOBAL_STATE->pool_difficulty;
                 GLOBAL_STATE->new_set_mining_difficulty_msg = false;
+
+                if (GLOBAL_STATE->ASIC_initalized) {
+                    difficulty_controller_update(GLOBAL_STATE);
+                    diff_updated = true;
+                }
             }
 
             if (GLOBAL_STATE->new_stratum_version_rolling_msg && GLOBAL_STATE->ASIC_initalized) {
@@ -145,6 +153,10 @@ void create_jobs_task(void *pvParameters)
             }
             if (!clean) {
                 continue;
+            }
+
+            if (!diff_updated && GLOBAL_STATE->ASIC_initalized) {
+                difficulty_controller_update(GLOBAL_STATE);
             }
         } else {
             if (current_work == NULL) {
