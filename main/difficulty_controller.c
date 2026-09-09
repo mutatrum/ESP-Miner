@@ -35,7 +35,7 @@ void difficulty_controller_update(GlobalState * GLOBAL_STATE)
                             ? GLOBAL_STATE->target_share_interval_s
                             : DEFAULT_SHARE_INTERVAL_S;
 
-    double eff_diff = calculate_effective_asic_difficulty((double)expected_ghs, interval_s, GLOBAL_STATE->pool_difficulty);
+    double eff_diff = calculate_effective_asic_difficulty((double)expected_ghs, interval_s, GLOBAL_STATE->SYSTEM_MODULE.pool_difficulty);
     double diff_to_apply = 0.0;
 
     // Initial setup, self-test, or downward adjustment: apply immediately!
@@ -44,7 +44,7 @@ void difficulty_controller_update(GlobalState * GLOBAL_STATE)
         s_pending_difficulty = 0.0;
         s_pending_increase_time_us = 0;
         ESP_LOGI(TAG, "ASIC difficulty updated: pool %.2f -> effective %.0f",
-                 GLOBAL_STATE->pool_difficulty, eff_diff);
+                 GLOBAL_STATE->SYSTEM_MODULE.pool_difficulty, eff_diff);
         diff_to_apply = eff_diff;
     } else if (eff_diff == GLOBAL_STATE->current_difficulty && s_pending_difficulty <= 0.0) {
         return;
