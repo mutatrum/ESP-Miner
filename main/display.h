@@ -5,10 +5,16 @@
 #include <stdbool.h>
 #include "esp_err.h"
 
+#if __has_include("esp_lcd_panel_io.h")
+#include "esp_lcd_panel_io.h"
+#include "esp_lcd_panel_ops.h"
+#include "esp_lvgl_port.h"
+#endif
+
 typedef struct GlobalState GlobalState;
 
 #define DEFAULT_DISPLAY "SSD1306 (128x32)"
-#define LCD_SH1107_I2C_CMD                   0X00
+#define LCD_SH1107_I2C_CMD                   0x00
 #define LCD_SH1107_PARAM_SET_DISP_OFFSET     0xD3
 #define LCD_SH1107_PARAM_DEFAULT_DISP_OFFSET 0x60
 
@@ -36,6 +42,18 @@ static const DisplayConfig display_configs[] = {
     { .name = "SH1107 (128x128)", .display = SH1107,  .h_res = 128, .v_res = 128, },
     { .name = "ST7789 (320x170)", .display = ST7789_I80, .h_res = 320, .v_res = 170, },
 };
+
+#if __has_include("esp_lcd_panel_io.h")
+typedef struct DisplayDriver {
+    esp_err_t (*init_panel)(GlobalState *state,
+                            esp_lcd_panel_io_handle_t *out_io,
+                            esp_lcd_panel_handle_t *out_panel,
+                            lvgl_port_display_cfg_t *out_disp_cfg);
+    esp_err_t (*set_power)(bool enable, esp_lcd_panel_handle_t panel);
+    void (*apply_theme)(lv_disp_t *disp);
+    bool (*probe)(GlobalState *state);
+} DisplayDriver;
+#endif
 
 esp_err_t display_init(GlobalState * GLOBAL_STATE);
 esp_err_t display_on(bool display_on);
