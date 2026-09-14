@@ -8,6 +8,7 @@
 #include "nvs_config.h"
 #include "array.h"
 #include "display.h"
+#include "display_driver.h"
 #include "display_oled.h"
 #include "display_st7789.h"
 

@@ -3,7 +3,7 @@
 
 #include <stdbool.h>
 #include "esp_err.h"
-#include "display.h"
+#include "display_driver.h"
 
 typedef struct GlobalState GlobalState;
 
