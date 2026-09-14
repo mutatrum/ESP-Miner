@@ -16,6 +16,15 @@
 #define LCD_CMD_BITS           8
 #define LCD_PARAM_BITS         8
 
+#define LCD_I80_PIXEL_CLOCK_HZ 4000000
+#define LCD_I80_BUF_LINES      40
+#define LCD_I80_GAP_X          0
+#define LCD_I80_GAP_Y          35
+
+#define LCD_BK_LIGHT_ON_LEVEL  1
+#define LCD_BK_LIGHT_OFF_LEVEL 0
+#define LCD_PWR_ON_LEVEL       1
+
 static const char * TAG = "display_st7789";
 
 static const I80Pins * current_st7789_pins = NULL;
@@ -89,7 +98,7 @@ static esp_err_t st7789_init_panel(GlobalState * GLOBAL_STATE,
             pins->data[7],
         },
         .bus_width = 8,
-        .max_transfer_bytes = LCD_I80_H_RES * LCD_I80_BUF_LINES * sizeof(uint16_t),
+        .max_transfer_bytes = GLOBAL_STATE->DISPLAY_CONFIG.h_res * LCD_I80_BUF_LINES * sizeof(uint16_t),
         .dma_burst_size = 64,
     };
     ESP_RETURN_ON_ERROR(esp_lcd_new_i80_bus(&bus_config, &i80_bus), TAG, "Failed to initialize i80 bus");
@@ -131,7 +140,7 @@ static esp_err_t st7789_init_panel(GlobalState * GLOBAL_STATE,
     memset(out_disp_cfg, 0, sizeof(lvgl_port_display_cfg_t));
     out_disp_cfg->io_handle = io_handle;
     out_disp_cfg->panel_handle = panel_handle;
-    out_disp_cfg->buffer_size = LCD_I80_H_RES * LCD_I80_BUF_LINES;
+    out_disp_cfg->buffer_size = GLOBAL_STATE->DISPLAY_CONFIG.h_res * LCD_I80_BUF_LINES;
     out_disp_cfg->double_buffer = true;
     out_disp_cfg->hres = GLOBAL_STATE->DISPLAY_CONFIG.h_res;
     out_disp_cfg->vres = GLOBAL_STATE->DISPLAY_CONFIG.v_res;
