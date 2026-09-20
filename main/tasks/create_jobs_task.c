@@ -41,7 +41,7 @@ static void generate_work_from_miner_job(GlobalState *GLOBAL_STATE, const miner_
         effective_version = current_version;
     }
 
-    if (job->type == JOB_TYPE_SV2_STANDARD) {
+    if (job->type == JOB_TYPE_SV2_STANDARD || job->type == JOB_TYPE_GBT) {
         memcpy(merkle_root, job->merkle_root, 32);
     } else {
         size_t e2_len = job->extranonce2_len;

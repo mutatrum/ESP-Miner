@@ -7,6 +7,7 @@
 #include "stratum_task.h"
 #include "stratum_v1_client.h"
 #include "stratum_v2_client.h"
+#include "gbt_client.h"
 #include "stratum_api.h"
 #include "connect.h"
 #include "system.h"
@@ -53,6 +54,8 @@ bool stratum_probe_pool(GlobalState *gs, uint16_t pool_idx)
 
     if (pool->protocol == STRATUM_PROTOCOL_V2) {
         return stratum_v2_probe_pool(gs, pool_idx);
+    } else if (pool->protocol == STRATUM_PROTOCOL_GBT) {
+        return gbt_probe_pool(gs, pool_idx);
     }
     return stratum_v1_probe_pool(gs, pool_idx);
 }
@@ -219,6 +222,8 @@ void stratum_task(void *pvParameters)
 
         if (protocol == STRATUM_PROTOCOL_V2) {
             err = stratum_v2_run(GLOBAL_STATE, active_idx);
+        } else if (protocol == STRATUM_PROTOCOL_GBT) {
+            err = gbt_run(GLOBAL_STATE, active_idx);
         } else {
             err = stratum_v1_run(GLOBAL_STATE, active_idx);
         }
@@ -273,6 +278,8 @@ int stratum_submit_share(GlobalState *GLOBAL_STATE, const bm_job *active_job,
     int ret;
     if (active_job->job_type == JOB_TYPE_SV2_STANDARD || active_job->job_type == JOB_TYPE_SV2_EXTENDED) {
         ret = stratum_v2_submit_share(GLOBAL_STATE, active_job, nonce, rolled_version, sent_time_us);
+    } else if (active_job->job_type == JOB_TYPE_GBT) {
+        ret = gbt_submit_share(GLOBAL_STATE, active_job, nonce, rolled_version, sent_time_us);
     } else {
         ret = stratum_v1_submit_share(GLOBAL_STATE, active_job, nonce, rolled_version, sent_time_us);
     }

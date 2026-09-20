@@ -915,6 +915,7 @@ stratum_protocol_t stratum_protocol_from_string(const char *s)
     if (!s) return STRATUM_PROTOCOL_UNKNOWN;
     if (strcmp(s, STRATUM_V1) == 0) return STRATUM_PROTOCOL_V1;
     if (strcmp(s, STRATUM_V2) == 0) return STRATUM_PROTOCOL_V2;
+    if (strcmp(s, STRATUM_GBT) == 0) return STRATUM_PROTOCOL_GBT;
     return STRATUM_PROTOCOL_UNKNOWN;
 }
 
@@ -923,6 +924,7 @@ const char *stratum_protocol_to_string(stratum_protocol_t p)
     switch (p) {
         case STRATUM_PROTOCOL_V1: return STRATUM_V1;
         case STRATUM_PROTOCOL_V2: return STRATUM_V2;
+        case STRATUM_PROTOCOL_GBT: return STRATUM_GBT;
         default: return "unknown";
     }
 }

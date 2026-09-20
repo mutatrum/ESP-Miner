@@ -14,7 +14,7 @@ interface ITlsOption {
 }
 
 interface IProtocolOption {
-  value: 'SV1' | 'SV2';
+  value: 'SV1' | 'SV2' | 'GBT';
   label: string;
 }
 
@@ -54,7 +54,8 @@ export class PoolComponent implements OnInit {
 
   public protocolOptions: IProtocolOption[] = [
     { value: 'SV1', label: 'Stratum V1' },
-    { value: 'SV2', label: 'Stratum V2' }
+    { value: 'SV2', label: 'Stratum V2' },
+    { value: 'GBT', label: 'Direct GBT (Bitcoin Node)' }
   ];
 
   public sv2ChannelOptions: IChannelOption[] = [
@@ -151,7 +152,9 @@ export class PoolComponent implements OnInit {
             stratumDecodeCoinbase: [pool.stratumDecodeCoinbase == true, [Validators.required]],
             stratumV2ChannelType: [pool.stratumV2ChannelType || 'extended'],
             stratumV2AuthorityPubkey: [pool.stratumV2AuthorityPubkey || '', [this.base58Validator()]],
-            stratumV2RequireAuth: [pool.stratumV2RequireAuth == true]
+            stratumV2RequireAuth: [pool.stratumV2RequireAuth == true],
+            payoutAddress: [pool.payoutAddress || '', [this.bitcoinAddressValidator()]],
+            minerTag: [pool.minerTag || '', [Validators.maxLength(64)]]
           });
         });
 
@@ -278,7 +281,9 @@ export class PoolComponent implements OnInit {
         stratumDecodeCoinbase: [true, [Validators.required]],
         stratumV2ChannelType: ['extended'],
         stratumV2AuthorityPubkey: ['', [this.base58Validator()]],
-        stratumV2RequireAuth: [false]
+        stratumV2RequireAuth: [false],
+        payoutAddress: ['', [this.bitcoinAddressValidator()]],
+        minerTag: ['', [Validators.maxLength(64)]]
       });
 
       this.poolsArray.push(poolGroup);
@@ -490,6 +495,21 @@ export class PoolComponent implements OnInit {
     if (!this.isPoolV2Enabled(index)) return false;
     const poolGroup = this.poolsArray.at(index);
     return poolGroup?.get('stratumV2ChannelType')?.value === 'extended';
+  }
+
+  isPoolGbtEnabled(index: number): boolean {
+    if (!this.poolsArray) return false;
+    const poolGroup = this.poolsArray.at(index);
+    return poolGroup?.get('stratumProtocol')?.value === 'GBT';
+  }
+
+  private bitcoinAddressValidator(): ValidatorFn {
+    return (control: AbstractControl): ValidationErrors | null => {
+      const value = control.value;
+      if (!value) return null;
+      const valid = /^(1[a-km-zA-HJ-NP-Z1-9]{25,34}|3[a-km-zA-HJ-NP-Z1-9]{25,34}|bc1[a-z0-9]{39,62}|tb1[a-z0-9]{39,62}|bcrt1[a-z0-9]{39,62})$/i.test(value);
+      return valid ? null : { invalidBitcoinAddress: true };
+    };
   }
 
   getProtocolLabel(value: string): string {

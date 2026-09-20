@@ -119,17 +119,21 @@
                 </div>
               </div>
 
-              <!-- User -->
+              <!-- User (RPC User for GBT, Stratum User for SV1/SV2) -->
               <div class="flex flex-col md:flex-row md:items-center gap-2">
-                <label [htmlFor]="'stratumUser_' + poolControl.get('id')?.value" class="w-full md:w-2/12 font-medium">User</label>
+                <label [htmlFor]="'stratumUser_' + poolControl.get('id')?.value" class="w-full md:w-2/12 font-medium">
+                  {{ isPoolGbtEnabled(i) ? 'RPC User' : 'User' }}
+                </label>
                 <div class="w-full md:w-10/12">
                   <input class="input-text" [id]="'stratumUser_' + poolControl.get('id')?.value" formControlName="stratumUser" sensitive-data type="text" />
                 </div>
               </div>
 
-              <!-- Password -->
+              <!-- Password (RPC Password for GBT, Stratum Password for SV1/SV2) -->
               <div class="flex flex-col md:flex-row md:items-center gap-2">
-                <label [htmlFor]="'stratumPassword_' + poolControl.get('id')?.value" class="w-full md:w-2/12 font-medium">Password</label>
+                <label [htmlFor]="'stratumPassword_' + poolControl.get('id')?.value" class="w-full md:w-2/12 font-medium">
+                  {{ isPoolGbtEnabled(i) ? 'RPC Password' : 'Password' }}
+                </label>
                 <div class="w-full md:w-10/12">
                   <div class="relative w-full">
                     <input class="input-text pr-10" [id]="'stratumPassword_' + poolControl.get('id')?.value" formControlName="stratumPassword"
@@ -143,6 +147,38 @@
                   </div>
                 </div>
               </div>
+
+              <!-- GBT Options -->
+              @if (isPoolGbtEnabled(i)) {
+                <!-- Payout Address -->
+                <div class="flex flex-col md:flex-row md:items-center gap-2">
+                  <label [htmlFor]="'payoutAddress_' + poolControl.get('id')?.value" class="w-full md:w-2/12 font-medium">
+                    <tooltip-text-icon
+                      text="Payout Address"
+                      tooltip="Bitcoin address where coinbase block rewards will be sent (supports P2PKH, P2SH, P2WPKH, P2WSH, and P2TR Taproot)."
+                    />
+                  </label>
+                  <div class="w-full md:w-10/12">
+                    <input class="input-text" [id]="'payoutAddress_' + poolControl.get('id')?.value" formControlName="payoutAddress" type="text" placeholder="bc1q... or 1..." />
+                    @if (poolControl.get('payoutAddress')?.hasError('invalidBitcoinAddress') && poolControl.get('payoutAddress')?.touched) {
+                      <small class="text-red-500 block mt-1">Invalid Bitcoin address format.</small>
+                    }
+                  </div>
+                </div>
+
+                <!-- Miner Tag (Coinbase ScriptSig Signature) -->
+                <div class="flex flex-col md:flex-row md:items-center gap-2">
+                  <label [htmlFor]="'minerTag_' + poolControl.get('id')?.value" class="w-full md:w-2/12 font-medium">
+                    <tooltip-text-icon
+                      text="Miner Tag"
+                      tooltip="Optional signature text included in the coinbase scriptSig (max 64 bytes)."
+                    />
+                  </label>
+                  <div class="w-full md:w-10/12">
+                    <input class="input-text" [id]="'minerTag_' + poolControl.get('id')?.value" formControlName="minerTag" type="text" placeholder="/AxeOS/" maxlength="64" />
+                  </div>
+                </div>
+              }
 
               <!-- SV2 Options -->
               @if (isPoolV2Enabled(i)) {
@@ -230,17 +266,18 @@
               }
 
               <!-- Advanced Options Border/Legend -->
-              <fieldset class="m-0 p-0 mt-2 border-t border-b-0 border-l-0 border-r-0 border-surface">
-                <legend class="p-0 pr-3">
-                  <span class="cursor-pointer font-semibold select-none text-main" (click)="showAdvancedOptions[poolControl.get('id')?.value] = !showAdvancedOptions[poolControl.get('id')?.value]">
-                    <i class="pi pi-angle-{{showAdvancedOptions[poolControl.get('id')?.value] ? 'down' : 'right'}} text-sm -ml-1 mr-1"></i>
-                    {{showAdvancedOptions[poolControl.get('id')?.value] ? 'Hide' : 'Show'}} Advanced Options
-                  </span>
-                </legend>
+              @if (!isPoolGbtEnabled(i)) {
+                <fieldset class="m-0 p-0 mt-2 border-t border-b-0 border-l-0 border-r-0 border-surface">
+                  <legend class="p-0 pr-3">
+                    <span class="cursor-pointer font-semibold select-none text-main" (click)="showAdvancedOptions[poolControl.get('id')?.value] = !showAdvancedOptions[poolControl.get('id')?.value]">
+                      <i class="pi pi-angle-{{showAdvancedOptions[poolControl.get('id')?.value] ? 'down' : 'right'}} text-sm -ml-1 mr-1"></i>
+                      {{showAdvancedOptions[poolControl.get('id')?.value] ? 'Hide' : 'Show'}} Advanced Options
+                    </span>
+                  </legend>
 
-                <div [hidden]="!showAdvancedOptions[poolControl.get('id')?.value]" class="pt-3 flex flex-col gap-4">
-                  <!-- SV1-only options (below the fold) -->
-                  @if (!isPoolV2Enabled(i)) {
+                  <div [hidden]="!showAdvancedOptions[poolControl.get('id')?.value]" class="pt-3 flex flex-col gap-4">
+                    <!-- SV1-only options (below the fold) -->
+                    @if (!isPoolV2Enabled(i)) {
                     <!-- Suggested Difficulty -->
                     <div class="flex flex-col md:flex-row md:items-center gap-2">
                       <label [htmlFor]="'stratumSuggestedDifficulty_' + poolControl.get('id')?.value" class="w-full md:w-2/12 font-medium">
@@ -344,6 +381,7 @@
                   }
                 </div>
               </fieldset>
+            }
             </div>
           </div>
         }

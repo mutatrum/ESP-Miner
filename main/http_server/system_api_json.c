@@ -172,11 +172,13 @@ static void system_api_add_config(cJSON *root, GlobalState *g) {
         if (p->url && strlen(p->url) > 0) {
             cJSON *p_obj = cJSON_CreateObject();
             cJSON_AddNumberToObject(p_obj, "id", i);
-            cJSON_AddStringToObject(p_obj, "stratumProtocol", p->protocol == STRATUM_PROTOCOL_V2 ? STRATUM_V2 : STRATUM_V1);
+            cJSON_AddStringToObject(p_obj, "stratumProtocol", stratum_protocol_to_string(p->protocol));
             cJSON_AddStringToObject(p_obj, "stratumURL", p->url);
             cJSON_AddNumberToObject(p_obj, "stratumPort", p->port);
             cJSON_AddStringToObject(p_obj, "stratumUser", p->user ? p->user : "");
             cJSON_AddStringToObject(p_obj, "stratumPassword", "*****"); // hide password in GET response
+            cJSON_AddStringToObject(p_obj, "payoutAddress", p->payout_address ? p->payout_address : "");
+            cJSON_AddStringToObject(p_obj, "minerTag", p->miner_tag ? p->miner_tag : "");
             cJSON_AddNumberToObject(p_obj, "stratumSuggestedDifficulty", p->difficulty);
             cJSON_AddBoolToObject(p_obj, "stratumExtranonceSubscribe", p->extranonce_subscribe);
             cJSON_AddNumberToObject(p_obj, "stratumTLS", p->tls);
@@ -202,7 +204,7 @@ static void system_api_add_config(cJSON *root, GlobalState *g) {
     cJSON_AddNumberToObject(root, "stratumTLS", prim_pool->tls);
     cJSON_AddStringToObject(root, "stratumCert", prim_pool->cert ? prim_pool->cert : "");
     cJSON_AddBoolToObject(root, "stratumDecodeCoinbase", prim_pool->decode_coinbase_tx);
-    cJSON_AddStringToObject(root, "stratumProtocol", prim_pool->protocol == STRATUM_PROTOCOL_V2 ? STRATUM_V2 : STRATUM_V1);
+    cJSON_AddStringToObject(root, "stratumProtocol", stratum_protocol_to_string(prim_pool->protocol));
     cJSON_AddStringToObject(root, "stratumV2AuthorityPubkey", prim_pool->sv2_authority_pubkey ? prim_pool->sv2_authority_pubkey : "");
     cJSON_AddStringToObject(root, "stratumV2ChannelType", sv2_channel_type_to_string(prim_pool->sv2_channel_type));
 
@@ -214,7 +216,7 @@ static void system_api_add_config(cJSON *root, GlobalState *g) {
     cJSON_AddNumberToObject(root, "fallbackStratumTLS", sec_pool->tls);
     cJSON_AddStringToObject(root, "fallbackStratumCert", sec_pool->cert ? sec_pool->cert : "");
     cJSON_AddBoolToObject(root, "fallbackStratumDecodeCoinbase", sec_pool->decode_coinbase_tx);
-    cJSON_AddStringToObject(root, "fallbackStratumProtocol", sec_pool->protocol == STRATUM_PROTOCOL_V2 ? STRATUM_V2 : STRATUM_V1);
+    cJSON_AddStringToObject(root, "fallbackStratumProtocol", stratum_protocol_to_string(sec_pool->protocol));
     cJSON_AddStringToObject(root, "fallbackStratumV2AuthorityPubkey", sec_pool->sv2_authority_pubkey ? sec_pool->sv2_authority_pubkey : "");
     cJSON_AddStringToObject(root, "fallbackStratumV2ChannelType", sv2_channel_type_to_string(sec_pool->sv2_channel_type));
 

@@ -25,6 +25,8 @@ typedef struct PoolConfig
     char * user;
     char * pass;
     stratum_protocol_t protocol;
+    char * payout_address;
+    char * miner_tag;
     uint16_t difficulty;
     bool extranonce_subscribe;
     uint16_t tls;

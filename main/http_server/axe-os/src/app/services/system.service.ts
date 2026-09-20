@@ -118,7 +118,9 @@ export class SystemApiService {
             stratumDecodeCoinbase: true,
             stratumV2ChannelType: "extended" as const,
             stratumV2AuthorityPubkey: "",
-            stratumV2RequireAuth: false
+            stratumV2RequireAuth: false,
+            payoutAddress: "",
+            minerTag: "/AxeOS/"
           },
           {
             id: 1,
@@ -134,7 +136,9 @@ export class SystemApiService {
             stratumDecodeCoinbase: true,
             stratumV2ChannelType: "extended" as const,
             stratumV2AuthorityPubkey: "",
-            stratumV2RequireAuth: false
+            stratumV2RequireAuth: false,
+            payoutAddress: "",
+            minerTag: "/AxeOS/"
           }
         ],
         stratumProtocol: "SV1" as const,

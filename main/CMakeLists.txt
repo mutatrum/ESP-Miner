@@ -40,6 +40,7 @@ SRCS
     "./tasks/stratum_task.c"
     "./tasks/stratum_v1_client.c"
     "./tasks/stratum_v2_client.c"
+    "./tasks/gbt_client.c"
     "./tasks/create_jobs_task.c"
     "./tasks/asic_result_task.c"
     "./tasks/power_management_task.c"
@@ -100,6 +101,7 @@ PRIV_REQUIRES
     "tcp_transport"
     "esp_mm"
     "bt"
+    "esp_http_client"
 
 EMBED_FILES "http_server/recovery_page.html"
 )

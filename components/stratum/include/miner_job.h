@@ -9,6 +9,7 @@ typedef enum {
     JOB_TYPE_V1 = 0,
     JOB_TYPE_SV2_STANDARD,
     JOB_TYPE_SV2_EXTENDED,
+    JOB_TYPE_GBT,
 } miner_job_type_t;
 
 #define MAX_COINBASE_PREFIX_LEN 1024

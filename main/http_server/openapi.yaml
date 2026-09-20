@@ -48,8 +48,14 @@ components:
       properties:
         stratumProtocol:
           type: string
-          enum: [SV1, SV2]
+          enum: [SV1, SV2, GBT]
           description: Stratum protocol
+        payoutAddress:
+          type: string
+          description: Payout Bitcoin address for GBT solo mining coinbase
+        minerTag:
+          type: string
+          description: Optional custom miner tag in coinbase scriptSig (max 64 characters)
         stratumURL:
           type: string
           description: Stratum server URL
@@ -568,7 +574,7 @@ components:
           description: Primary stratum server port
         stratumProtocol:
           type: string
-          enum: [SV1, SV2]
+          enum: [SV1, SV2, GBT]
           description: Configured stratum protocol
         stratumV2AuthorityPubkey:
           type: string
@@ -879,9 +885,15 @@ components:
         stratumProtocol:
           type: string
           description: Stratum protocol
-          enum: [SV1, SV2]
+          enum: [SV1, SV2, GBT]
           examples:
             - "SV1"
+        payoutAddress:
+          type: string
+          description: Payout Bitcoin address for GBT solo mining coinbase
+        minerTag:
+          type: string
+          description: Optional custom miner tag in coinbase scriptSig (max 64 characters)
         stratumV2ChannelType:
           type: string
           description: SV2 channel type
@@ -906,7 +918,7 @@ components:
         fallbackStratumProtocol:
           type: string
           description: Fallback stratum protocol
-          enum: [SV1, SV2]
+          enum: [SV1, SV2, GBT]
           examples:
             - "SV1"
         fallbackStratumV2ChannelType:

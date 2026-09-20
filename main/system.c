@@ -79,6 +79,8 @@ static void parse_pool_config_json(const char *json_str, PoolConfig *cfg, int in
     cfg->sv2_channel_type = SV2_CHANNEL_EXTENDED;
     cfg->sv2_authority_pubkey = strdup("");
     cfg->sv2_require_auth = false;
+    cfg->payout_address = strdup("");
+    cfg->miner_tag = strdup("");
 
     if (!json_str || strlen(json_str) == 0) {
         return;
@@ -163,6 +165,18 @@ static void parse_pool_config_json(const char *json_str, PoolConfig *cfg, int in
         cfg->sv2_require_auth = cJSON_IsTrue(item) || (cJSON_IsNumber(item) && item->valueint != 0);
     }
 
+    item = cJSON_GetObjectItem(root, "payoutAddress");
+    if (item && cJSON_IsString(item)) {
+        free(cfg->payout_address);
+        cfg->payout_address = strdup(item->valuestring);
+    }
+
+    item = cJSON_GetObjectItem(root, "minerTag");
+    if (item && cJSON_IsString(item)) {
+        free(cfg->miner_tag);
+        cfg->miner_tag = strdup(item->valuestring);
+    }
+
     cJSON_Delete(root);
 }
 
@@ -240,6 +254,8 @@ void SYSTEM_init_system(GlobalState * GLOBAL_STATE)
         module->pools[i].pass = NULL;
         module->pools[i].cert = NULL;
         module->pools[i].sv2_authority_pubkey = NULL;
+        module->pools[i].payout_address = NULL;
+        module->pools[i].miner_tag = NULL;
         SYSTEM_load_pool_from_nvs(GLOBAL_STATE, i);
     }
 
@@ -756,12 +772,16 @@ void SYSTEM_load_pool_from_nvs(GlobalState * GLOBAL_STATE, int i) {
     free(cfg->pass);
     free(cfg->cert);
     free(cfg->sv2_authority_pubkey);
+    free(cfg->payout_address);
+    free(cfg->miner_tag);
     
     cfg->url = NULL;
     cfg->user = NULL;
     cfg->pass = NULL;
     cfg->cert = NULL;
     cfg->sv2_authority_pubkey = NULL;
+    cfg->payout_address = NULL;
+    cfg->miner_tag = NULL;
 
     char *json_str = nvs_config_get_string_indexed(NVS_CONFIG_POOL, i);
     parse_pool_config_json(json_str, cfg, i);
