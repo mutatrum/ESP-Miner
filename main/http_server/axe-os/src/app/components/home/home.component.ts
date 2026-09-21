@@ -971,6 +971,8 @@ export class HomeComponent implements OnInit, OnDestroy {
         if (activeProtocol === 'SV2') {
           const channelType = isCurrentlyFallback ? info.fallbackStratumV2ChannelType : info.stratumV2ChannelType;
           this.activePoolProtocol = channelType === 'standard' ? 'SV2 Standard Channel' : 'SV2 Extended Channel';
+        } else if (activeProtocol === 'GBT') {
+          this.activePoolProtocol = 'GetBlockTemplate (GBT)';
         } else {
           this.activePoolProtocol = 'SV1';
         }
@@ -1242,7 +1244,17 @@ export class HomeComponent implements OnInit, OnDestroy {
     updateMessage(!!info.power_fault, 'POWER_FAULT', 'error', `${info.power_fault} Check your Power Supply.`);
     updateMessage(!!info.hardware_fault, 'HARDWARE_FAULT', 'error', `${info.hardware_fault}`);
     updateMessage(isFrequencyLow(info.frequency, frequencyOptions), 'FREQUENCY_LOW', 'warn', 'Device frequency is set low - See settings');
-    updateMessage(info.isUsingFallbackStratum === 1 && info.useFallbackStratum === 0, 'FALLBACK_STRATUM', 'warn', 'Primary pool unreachable - operating on fallback pool.');
+    if (info.isUsingFallbackStratum === 1) {
+      const severity = info.useFallbackStratum === 1 ? 'info' : 'warn';
+      const text = info.primaryPoolError
+        ? `${info.primaryPoolError} - operating on fallback pool.`
+        : (info.useFallbackStratum === 1
+          ? 'Operating on fallback pool by user preference.'
+          : 'Primary pool unreachable - operating on fallback pool.');
+      updateMessage(true, 'FALLBACK_STRATUM', severity, text);
+    } else {
+      updateMessage(false, 'FALLBACK_STRATUM', 'info', '');
+    }
     if (info.coinbaseOutputs && info.coinbaseOutputs.length > 0) {
       let percentage = this.getPayoutPercentage(info);
       updateMessage(percentage > 0 && percentage < 95, 'NOT_SOLO_MINING', 'warn', `Your share of the mining reward is only ${percentage.toFixed(1)}%`);

@@ -761,6 +761,8 @@ esp_err_t stratum_v2_run(GlobalState *GLOBAL_STATE, uint16_t pool_idx)
                 run_result = ESP_OK;
             } else {
                 ESP_LOGE(TAG, "Failed to receive frame, reconnecting...");
+                snprintf(GLOBAL_STATE->SYSTEM_MODULE.pool_connection_info,
+                         sizeof(GLOBAL_STATE->SYSTEM_MODULE.pool_connection_info), "SV2: Connection lost");
                 run_result = ESP_FAIL;
             }
             break;

@@ -242,6 +242,8 @@ esp_err_t gbt_run(GlobalState *gs, uint16_t pool_idx)
     if (!coinbase_validate_address(pool->payout_address)) {
         ESP_LOGE(TAG, "Pool %u GBT payout address '%s' is INVALID. Aborting GBT.",
                  pool_idx, pool->payout_address ? pool->payout_address : "");
+        snprintf(gs->SYSTEM_MODULE.pool_connection_info, sizeof(gs->SYSTEM_MODULE.pool_connection_info),
+                 "GBT: Invalid payout address");
         return ESP_ERR_INVALID_ARG;
     }
 
@@ -275,6 +277,8 @@ esp_err_t gbt_run(GlobalState *gs, uint16_t pool_idx)
         esp_http_client_handle_t client = esp_http_client_init(&config);
         if (!client) {
             ESP_LOGE(TAG, "Failed to init HTTP client");
+            snprintf(gs->SYSTEM_MODULE.pool_connection_info, sizeof(gs->SYSTEM_MODULE.pool_connection_info),
+                     "GBT: Internal error");
             return ESP_FAIL;
         }
 
@@ -289,6 +293,8 @@ esp_err_t gbt_run(GlobalState *gs, uint16_t pool_idx)
         esp_err_t err = esp_http_client_open(client, strlen(gbt_req));
         if (err != ESP_OK) {
             ESP_LOGE(TAG, "Failed to open GBT POST request: %s", esp_err_to_name(err));
+            snprintf(gs->SYSTEM_MODULE.pool_connection_info, sizeof(gs->SYSTEM_MODULE.pool_connection_info),
+                     "GBT: Connection failed");
             esp_http_client_cleanup(client);
             return err;
         }
@@ -299,7 +305,19 @@ esp_err_t gbt_run(GlobalState *gs, uint16_t pool_idx)
         int status_code = esp_http_client_get_status_code(client);
 
         if (status_code != 200) {
-            ESP_LOGE(TAG, "GBT request failed with HTTP %d", status_code);
+            char err_buf[128] = {0};
+            int r = esp_http_client_read(client, err_buf, sizeof(err_buf) - 1);
+            if (r > 0 && strstr(err_buf, "downloading blocks")) {
+                snprintf(gs->SYSTEM_MODULE.pool_connection_info, sizeof(gs->SYSTEM_MODULE.pool_connection_info),
+                         "GBT: Node in IBD (500)");
+            } else if (status_code == 401) {
+                snprintf(gs->SYSTEM_MODULE.pool_connection_info, sizeof(gs->SYSTEM_MODULE.pool_connection_info),
+                         "GBT: Auth rejected (401)");
+            } else {
+                snprintf(gs->SYSTEM_MODULE.pool_connection_info, sizeof(gs->SYSTEM_MODULE.pool_connection_info),
+                         "GBT: HTTP %d", status_code);
+            }
+            ESP_LOGE(TAG, "GBT request failed with HTTP %d%s%s", status_code, r > 0 ? ": " : "", r > 0 ? err_buf : "");
             esp_http_client_close(client);
             esp_http_client_cleanup(client);
             return ESP_FAIL;
@@ -321,6 +339,8 @@ esp_err_t gbt_run(GlobalState *gs, uint16_t pool_idx)
 
         if (err != ESP_OK || s_template.height == 0 || s_template.nbits == 0) {
             ESP_LOGE(TAG, "Failed to stream complete GBT template");
+            snprintf(gs->SYSTEM_MODULE.pool_connection_info, sizeof(gs->SYSTEM_MODULE.pool_connection_info),
+                     "GBT: Parse error");
             return ESP_FAIL;
         }
 

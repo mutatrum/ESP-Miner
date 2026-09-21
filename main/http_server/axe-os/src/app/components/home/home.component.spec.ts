@@ -107,6 +107,7 @@ const mockSystemInfo: ISystemInfo = {
   coreVoltage: 0,
   maxPower: 20,
   poolConnectionInfo: 'Connected',
+  primaryPoolError: '',
   responseTime: 45,
   responseShareBatch: 1,
   poolDifficulty: 1000,
