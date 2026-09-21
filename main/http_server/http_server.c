@@ -800,6 +800,8 @@ static bool validate_pool_json(const cJSON *pool_item, int i) {
 
     if (!validate_string_field(cJSON_GetObjectItem(pool_item, "stratumV2AuthorityPubkey"), "stratumV2AuthorityPubkey", 128, i)) return false;
     if (!validate_bool_or_num(cJSON_GetObjectItem(pool_item, "stratumV2RequireAuth"), "stratumV2RequireAuth", i)) return false;
+    if (!validate_string_field(cJSON_GetObjectItem(pool_item, "payoutAddress"), "payoutAddress", 128, i)) return false;
+    if (!validate_string_field(cJSON_GetObjectItem(pool_item, "minerTag"), "minerTag", 64, i)) return false;
 
     return true;
 }
@@ -843,6 +845,8 @@ static bool update_pool_nvs(const cJSON *pool_item, int i) {
     add_string_field_default(p_obj, pool_item, "stratumV2ChannelType", sv2_channel_type_to_string(SV2_CHANNEL_EXTENDED));
     add_string_field_default(p_obj, pool_item, "stratumV2AuthorityPubkey", "");
     add_bool_field_default(p_obj, pool_item, "stratumV2RequireAuth", false);
+    add_string_field_default(p_obj, pool_item, "payoutAddress", "");
+    add_string_field_default(p_obj, pool_item, "minerTag", "");
 
     char *json_str = cJSON_PrintUnformatted(p_obj);
     bool modified = true;
