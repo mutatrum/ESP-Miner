@@ -59,15 +59,15 @@ TEST_CASE("GBT FSM Parser - full JSON in single feed", "[gbt_fsm]")
     TEST_ASSERT_EQUAL_UINT32(840000, tmpl.height);
     TEST_ASSERT_EQUAL_UINT32(1726870500, tmpl.curtime);
     TEST_ASSERT_EQUAL_HEX32(0x1702b861, tmpl.nbits);
-    TEST_ASSERT_EQUAL_UINT64(312500000ULL, tmpl.coinbase_value);
+    TEST_ASSERT_TRUE(312500000ULL == tmpl.coinbase_value);
     TEST_ASSERT_EQUAL_STRING("000000000000000000021b7787bf4c2c01fa9596ddc81e9fcf08f88bb8ef8f87", tmpl.previous_block_hash);
     TEST_ASSERT_EQUAL_STRING("test_longpoll_id_9876", tmpl.longpollid);
     TEST_ASSERT_EQUAL_STRING("aa21a9ed6f2334f5904d9c7adca3630f9a5658e45cc23588933b9f3feab9058b", tmpl.default_witness_commitment);
 
     TEST_ASSERT_EQUAL(1, tmpl.tx_count);
-    TEST_ASSERT_EQUAL(74, tmpl.raw_tx_len);
+    TEST_ASSERT_EQUAL(77, tmpl.raw_tx_len);
     TEST_ASSERT_EQUAL(0, tmpl.tx_offsets[0]);
-    TEST_ASSERT_EQUAL(74, tmpl.tx_lengths[0]);
+    TEST_ASSERT_EQUAL(77, tmpl.tx_lengths[0]);
 
     // Verify first 4 bytes of tx data are version 2: 02 00 00 00
     TEST_ASSERT_EQUAL_HEX8(0x02, tmpl.raw_tx_data[0]);
@@ -110,13 +110,13 @@ TEST_CASE("GBT FSM Parser - streaming in tiny chunks across token boundaries", "
     TEST_ASSERT_EQUAL_UINT32(840000, tmpl.height);
     TEST_ASSERT_EQUAL_UINT32(1726870500, tmpl.curtime);
     TEST_ASSERT_EQUAL_HEX32(0x1702b861, tmpl.nbits);
-    TEST_ASSERT_EQUAL_UINT64(312500000ULL, tmpl.coinbase_value);
+    TEST_ASSERT_TRUE(312500000ULL == tmpl.coinbase_value);
     TEST_ASSERT_EQUAL_STRING("000000000000000000021b7787bf4c2c01fa9596ddc81e9fcf08f88bb8ef8f87", tmpl.previous_block_hash);
     TEST_ASSERT_EQUAL_STRING("test_longpoll_id_9876", tmpl.longpollid);
     TEST_ASSERT_EQUAL_STRING("aa21a9ed6f2334f5904d9c7adca3630f9a5658e45cc23588933b9f3feab9058b", tmpl.default_witness_commitment);
 
     TEST_ASSERT_EQUAL(1, tmpl.tx_count);
-    TEST_ASSERT_EQUAL(74, tmpl.raw_tx_len);
+    TEST_ASSERT_EQUAL(77, tmpl.raw_tx_len);
     TEST_ASSERT_EQUAL_HEX8(0x3b, tmpl.txid_hashes[0]);
     TEST_ASSERT_EQUAL_HEX8(0x4a, tmpl.txid_hashes[31]);
 

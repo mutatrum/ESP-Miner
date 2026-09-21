@@ -238,11 +238,7 @@ esp_err_t gbt_fsm_parser_feed(gbt_fsm_parser_t *parser,
             }
 
             case GBT_FSM_PARSE_VALUE: {
-                if (c == '"') {
-                    // Start of string value
-                    parser->in_string = true;
-                    parser->val_len = 0;
-                } else if (parser->in_string) {
+                if (parser->in_string) {
                     if (parser->escape_next) {
                         parser->escape_next = false;
                         if (parser->val_len < sizeof(parser->val_buf) - 1) {
@@ -262,6 +258,10 @@ esp_err_t gbt_fsm_parser_feed(gbt_fsm_parser_t *parser,
                             parser->val_buf[parser->val_len++] = c;
                         }
                     }
+                } else if (c == '"') {
+                    // Start of string value
+                    parser->in_string = true;
+                    parser->val_len = 0;
                 } else {
                     // Non-string scalar value (number, bool, etc.)
                     if (c == ',' || c == '}' || c == ']' || isspace((unsigned char)c)) {
