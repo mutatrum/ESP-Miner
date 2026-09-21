@@ -48,6 +48,24 @@ static volatile bool s_gbt_should_stop = false;
 static char s_current_longpollid[GBT_LONGPOLLID_MAX_LEN] = { 0 };
 static uint16_t s_active_pool_idx = 0;
 
+static void format_rpc_url(char *dst, size_t dst_size, const char *url, uint16_t port)
+{
+    if (!url) {
+        dst[0] = '\0';
+        return;
+    }
+    const char *scheme = "http://";
+    if (strncmp(url, "http://", 7) == 0 || strncmp(url, "https://", 8) == 0) {
+        scheme = "";
+    }
+    const char *colon = strrchr(url, ':');
+    if (colon && colon > url + 6) {
+        snprintf(dst, dst_size, "%s%s", scheme, url);
+    } else {
+        snprintf(dst, dst_size, "%s%s:%u", scheme, url, port > 0 ? port : 8332);
+    }
+}
+
 static void serialize_block_header(uint32_t version,
                                    const uint8_t prev_hash[32],
                                    const uint8_t merkle_root[32],
@@ -138,7 +156,7 @@ static void gbt_longpoll_task(void *pvParameters)
             continue;
         }
 
-        snprintf(longpoll_url, sizeof(longpoll_url), "%s:%u", pool->url, pool->port > 0 ? pool->port : 8332);
+        format_rpc_url(longpoll_url, sizeof(longpoll_url), pool->url, pool->port);
         snprintf(post_data, sizeof(post_data),
                  "{\"jsonrpc\":\"1.0\",\"id\":\"lp\",\"method\":\"getblocktemplate\",\"params\":[{\"rules\":[\"segwit\"],\"longpollid\":\"%s\"}]}",
                  s_current_longpollid);
@@ -256,7 +274,7 @@ esp_err_t gbt_run(GlobalState *gs, uint16_t pool_idx)
     }
 
     char rpc_url[160];
-    snprintf(rpc_url, sizeof(rpc_url), "%s:%u", pool->url, pool->port > 0 ? pool->port : 8332);
+    format_rpc_url(rpc_url, sizeof(rpc_url), pool->url, pool->port);
 
     const char *gbt_req = "{\"jsonrpc\":\"1.0\",\"id\":\"gbt\",\"method\":\"getblocktemplate\",\"params\":[{\"rules\":[\"segwit\"]}]}";
     gbt_fsm_parser_t parser;
@@ -307,7 +325,7 @@ esp_err_t gbt_run(GlobalState *gs, uint16_t pool_idx)
         if (status_code != 200) {
             char err_buf[128] = {0};
             int r = esp_http_client_read(client, err_buf, sizeof(err_buf) - 1);
-            if (r > 0 && strstr(err_buf, "downloading blocks")) {
+            if (r > 0 && (strstr(err_buf, "initial sync") || strstr(err_buf, "downloading blocks") || strstr(err_buf, "-10"))) {
                 snprintf(gs->SYSTEM_MODULE.pool_connection_info, sizeof(gs->SYSTEM_MODULE.pool_connection_info),
                          "GBT: Node in IBD (500)");
             } else if (status_code == 401) {
@@ -455,7 +473,7 @@ esp_err_t gbt_submit_block(GlobalState *gs,
     ESP_LOGI(TAG, "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
 
     char rpc_url[160];
-    snprintf(rpc_url, sizeof(rpc_url), "%s:%u", pool->url, pool->port > 0 ? pool->port : 8332);
+    format_rpc_url(rpc_url, sizeof(rpc_url), pool->url, pool->port);
 
     uint8_t header[80];
     uint32_t final_version = rolled_version != 0 ? rolled_version : active_job->version;
