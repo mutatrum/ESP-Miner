@@ -166,6 +166,20 @@ curl -X PUT http://YOUR-BITAXE-IP/api/system/pools/1 \
        "stratumV2AuthorityPubkey": "your_base58_sv2_authority_public_key"
      }'
 
+# Configure a Direct GetBlockTemplate (GBT) Solo Mining Pool (Slot Index 2)
+# For full setup guide and security practices, see doc/gbt_mining.md
+curl -X PUT http://YOUR-BITAXE-IP/api/system/pools/2 \
+     -H "Content-Type: application/json" \
+     -d '{
+       "stratumProtocol": "GBT",
+       "stratumURL": "192.168.1.229:8332",
+       "stratumPort": 8332,
+       "stratumUser": "miner",
+       "stratumPassword": "your_rpc_password",
+       "payoutAddress": "bc1qsz776dlrlp4p54rwpxd3tc4s9p2a8ppuceyvdc",
+       "minerTag": "Bitaxe Solo"
+     }'
+
 # Stream logs
 websocat ws://YOUR-BITAXE-IP/api/ws
 
