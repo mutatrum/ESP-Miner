@@ -109,6 +109,7 @@ void gbt_fsm_parser_init(gbt_fsm_parser_t *parser)
 
 enum {
     KEY_NONE = 0,
+    KEY_RESULT,
     KEY_VERSION,
     KEY_BITS,
     KEY_CURTIME,
@@ -124,6 +125,7 @@ enum {
 
 static int identify_key(const char *key)
 {
+    if (strcmp(key, "result") == 0) return KEY_RESULT;
     if (strcmp(key, "version") == 0) return KEY_VERSION;
     if (strcmp(key, "bits") == 0) return KEY_BITS;
     if (strcmp(key, "curtime") == 0) return KEY_CURTIME;
@@ -217,14 +219,20 @@ esp_err_t gbt_fsm_parser_feed(gbt_fsm_parser_t *parser,
 
             case GBT_FSM_AFTER_KEY: {
                 if (c == ':') {
-                    if (parser->active_key_id == KEY_TRANSACTIONS) {
+                    if (parser->active_key_id == KEY_RESULT) {
+                        parser->state = GBT_FSM_SEEK_KEY;
+                    } else if (parser->active_key_id == KEY_TRANSACTIONS) {
                         parser->state = GBT_FSM_IN_TX_ARRAY;
                     } else if (parser->active_key_id != KEY_NONE) {
                         parser->val_len = 0;
                         parser->state = GBT_FSM_PARSE_VALUE;
                     } else {
+                        parser->skip_depth = 0;
                         parser->state = GBT_FSM_SKIP_VALUE;
                     }
+                } else if (!isspace((unsigned char)c)) {
+                    parser->active_key_id = KEY_NONE;
+                    parser->state = GBT_FSM_SEEK_KEY;
                 }
                 break;
             }
@@ -279,18 +287,23 @@ esp_err_t gbt_fsm_parser_feed(gbt_fsm_parser_t *parser,
                 if (c == '"') {
                     parser->prev_state = GBT_FSM_SKIP_VALUE;
                     parser->state = GBT_FSM_SKIP_STRING;
-                } else if (c == '{') {
-                    parser->brace_depth++;
-                } else if (c == '}') {
-                    if (parser->brace_depth > 0) parser->brace_depth--;
-                    parser->state = GBT_FSM_SEEK_KEY;
-                } else if (c == '[') {
-                    parser->bracket_depth++;
-                } else if (c == ']') {
-                    if (parser->bracket_depth > 0) parser->bracket_depth--;
-                    parser->state = GBT_FSM_SEEK_KEY;
+                } else if (c == '{' || c == '[') {
+                    parser->skip_depth++;
+                } else if (c == '}' || c == ']') {
+                    if (parser->skip_depth > 0) {
+                        parser->skip_depth--;
+                        if (parser->skip_depth == 0) {
+                            parser->state = GBT_FSM_SEEK_KEY;
+                        }
+                    } else {
+                        if (c == '}' && parser->brace_depth > 0) parser->brace_depth--;
+                        if (c == ']' && parser->bracket_depth > 0) parser->bracket_depth--;
+                        parser->state = GBT_FSM_SEEK_KEY;
+                    }
                 } else if (c == ',') {
-                    parser->state = GBT_FSM_SEEK_KEY;
+                    if (parser->skip_depth == 0) {
+                        parser->state = GBT_FSM_SEEK_KEY;
+                    }
                 }
                 break;
             }
@@ -363,8 +376,12 @@ esp_err_t gbt_fsm_parser_feed(gbt_fsm_parser_t *parser,
                         parser->txid_hex_len = 0;
                         parser->state = GBT_FSM_TX_PARSE_TXID;
                     } else {
+                        parser->skip_depth = 0;
                         parser->state = GBT_FSM_TX_SKIP_VALUE;
                     }
+                } else if (!isspace((unsigned char)c)) {
+                    parser->active_key_id = KEY_NONE;
+                    parser->state = GBT_FSM_IN_TX_OBJECT;
                 }
                 break;
             }
@@ -438,20 +455,26 @@ esp_err_t gbt_fsm_parser_feed(gbt_fsm_parser_t *parser,
                 if (c == '"') {
                     parser->prev_state = GBT_FSM_TX_SKIP_VALUE;
                     parser->state = GBT_FSM_SKIP_STRING;
-                } else if (c == '{') {
-                    parser->tx_brace_depth++;
-                } else if (c == '}') {
-                    parser->tx_brace_depth--;
-                    if (parser->tx_brace_depth == 0) {
-                        if (tmpl->tx_count < tmpl->tx_cap) {
-                            tmpl->tx_count++;
+                } else if (c == '{' || c == '[') {
+                    parser->skip_depth++;
+                } else if (c == '}' || c == ']') {
+                    if (parser->skip_depth > 0) {
+                        parser->skip_depth--;
+                    } else if (c == '}') {
+                        parser->tx_brace_depth--;
+                        if (parser->tx_brace_depth == 0) {
+                            if (tmpl->tx_count < tmpl->tx_cap) {
+                                tmpl->tx_count++;
+                            }
+                            parser->state = GBT_FSM_IN_TX_ARRAY;
+                        } else {
+                            parser->state = GBT_FSM_IN_TX_OBJECT;
                         }
-                        parser->state = GBT_FSM_IN_TX_ARRAY;
-                    } else {
-                        parser->state = GBT_FSM_IN_TX_OBJECT;
                     }
                 } else if (c == ',') {
-                    parser->state = GBT_FSM_IN_TX_OBJECT;
+                    if (parser->skip_depth == 0) {
+                        parser->state = GBT_FSM_IN_TX_OBJECT;
+                    }
                 }
                 break;
             }

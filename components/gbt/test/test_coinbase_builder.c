@@ -45,7 +45,7 @@ TEST_CASE("Coinbase address validation and decoding - P2SH", "[coinbase_builder]
     TEST_ASSERT_EQUAL_HEX8(0x87, script[22]); // OP_EQUAL
 
     // Testnet P2SH
-    const char *addr_testnet = "2MzQwSSnBHWHq3431up74QX3sVUMeiBuJEB";
+    const char *addr_testnet = "2MzQwSSnBHWHq3431up74QX3sVUMej84Dbu";
     TEST_ASSERT_TRUE(coinbase_validate_address(addr_testnet));
     err = coinbase_address_to_script(addr_testnet, script, sizeof(script), &script_len);
     TEST_ASSERT_EQUAL(ESP_OK, err);
@@ -63,8 +63,8 @@ TEST_CASE("Coinbase address validation and decoding - SegWit v0 P2WPKH / P2WSH",
     esp_err_t err = coinbase_address_to_script(p2wpkh, script, sizeof(script), &script_len);
     TEST_ASSERT_EQUAL(ESP_OK, err);
     TEST_ASSERT_EQUAL(22, script_len);
-    TEST_ASSERT_EQUAL_HEX8(0x00, script[0]); // OP_0
-    TEST_ASSERT_EQUAL_HEX8(0x14, script[1]); // OP_PUSHDATA(20)
+    TEST_ASSERT_EQUAL_HEX8(0x00, script[0]);  // OP_0
+    TEST_ASSERT_EQUAL_HEX8(0x14, script[1]);  // OP_PUSHDATA(20)
 
     // Mainnet P2WSH (32-byte witness program)
     const char *p2wsh = "bc1qrp33g0q5c5txsp9arysrx4k6zdkfs4nce4xj0gdcccefvpysxf3qccfmv3";
@@ -72,8 +72,8 @@ TEST_CASE("Coinbase address validation and decoding - SegWit v0 P2WPKH / P2WSH",
     err = coinbase_address_to_script(p2wsh, script, sizeof(script), &script_len);
     TEST_ASSERT_EQUAL(ESP_OK, err);
     TEST_ASSERT_EQUAL(34, script_len);
-    TEST_ASSERT_EQUAL_HEX8(0x00, script[0]); // OP_0
-    TEST_ASSERT_EQUAL_HEX8(0x20, script[1]); // OP_PUSHDATA(32)
+    TEST_ASSERT_EQUAL_HEX8(0x00, script[0]);  // OP_0
+    TEST_ASSERT_EQUAL_HEX8(0x20, script[1]);  // OP_PUSHDATA(32)
 
     // Testnet P2WPKH
     const char *tb_p2wpkh = "tb1qw508d6qejxtdg4y5r3zarvary0c5xw7kxpjzsx";
@@ -82,7 +82,7 @@ TEST_CASE("Coinbase address validation and decoding - SegWit v0 P2WPKH / P2WSH",
 
 TEST_CASE("Coinbase address validation and decoding - SegWit v1 Taproot P2TR", "[coinbase_builder]")
 {
-    // Mainnet P2TR
+    // Mainnet P2TR (32-byte witness program)
     const char *p2tr = "bc1p0xlxvlhemja6c4dqv22uapctqupfhlxm9h8z3k2e72q4k9hcz7vqzk5jj0";
     TEST_ASSERT_TRUE(coinbase_validate_address(p2tr));
 
@@ -91,17 +91,16 @@ TEST_CASE("Coinbase address validation and decoding - SegWit v1 Taproot P2TR", "
     esp_err_t err = coinbase_address_to_script(p2tr, script, sizeof(script), &script_len);
     TEST_ASSERT_EQUAL(ESP_OK, err);
     TEST_ASSERT_EQUAL(34, script_len);
-    TEST_ASSERT_EQUAL_HEX8(0x51, script[0]); // OP_1
-    TEST_ASSERT_EQUAL_HEX8(0x20, script[1]); // OP_PUSHDATA(32)
+    TEST_ASSERT_EQUAL_HEX8(0x51, script[0]);  // OP_1
+    TEST_ASSERT_EQUAL_HEX8(0x20, script[1]);  // OP_PUSHDATA(32)
 }
 
 TEST_CASE("Coinbase address validation - invalid addresses", "[coinbase_builder]")
 {
     TEST_ASSERT_FALSE(coinbase_validate_address(NULL));
     TEST_ASSERT_FALSE(coinbase_validate_address(""));
-    TEST_ASSERT_FALSE(coinbase_validate_address("invalid_address"));
-    // Corrupted checksum
-    TEST_ASSERT_FALSE(coinbase_validate_address("1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNb"));
+    TEST_ASSERT_FALSE(coinbase_validate_address("invalid_address_string"));
+    TEST_ASSERT_FALSE(coinbase_validate_address("1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNb")); // Bad checksum
     TEST_ASSERT_FALSE(coinbase_validate_address("bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t5"));
 }
 
@@ -111,16 +110,16 @@ TEST_CASE("Coinbase scriptSig construction and BIP34 height", "[coinbase_builder
     size_t scriptsig_len = 0;
     uint8_t extranonce[8] = { 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08 };
 
-    // Block 840,000 (0x0cd090)
+    // Block 840,000 (0x0cd140)
     uint32_t height = 840000;
     esp_err_t err = coinbase_build_scriptsig(height, extranonce, sizeof(extranonce), "/AxeOS/", scriptsig, &scriptsig_len);
     TEST_ASSERT_EQUAL(ESP_OK, err);
     TEST_ASSERT_TRUE(scriptsig_len >= 2 && scriptsig_len <= 100);
 
-    // BIP34: first byte is height len (3), followed by 0x90, 0xd0, 0x0c
+    // BIP34: first byte is height len (3), followed by 0x40, 0xd1, 0x0c
     TEST_ASSERT_EQUAL_HEX8(0x03, scriptsig[0]);
-    TEST_ASSERT_EQUAL_HEX8(0x90, scriptsig[1]);
-    TEST_ASSERT_EQUAL_HEX8(0xd0, scriptsig[2]);
+    TEST_ASSERT_EQUAL_HEX8(0x40, scriptsig[1]);
+    TEST_ASSERT_EQUAL_HEX8(0xd1, scriptsig[2]);
     TEST_ASSERT_EQUAL_HEX8(0x0c, scriptsig[3]);
 
     // Next is tag push: opcode 0x07, "/AxeOS/"

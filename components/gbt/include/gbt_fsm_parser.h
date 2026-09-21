@@ -73,6 +73,7 @@ typedef struct {
     int brace_depth;
     int bracket_depth;
     int tx_brace_depth;
+    int skip_depth;
     bool in_string;
     bool escape_next;
 
