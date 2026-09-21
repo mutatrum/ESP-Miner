@@ -147,7 +147,7 @@ TEST_CASE("BM1397 work packet and returned midstate preserve version mapping",
         TEST_ASSERT_EQUAL_HEX8(4, result->job_id);
         TEST_ASSERT_EQUAL_HEX32(nonce, result->nonce);
         TEST_ASSERT_EQUAL_HEX32(expected_versions[index], result->rolled_version);
-        TEST_ASSERT_TRUE(result->timestamp_us == UINT64_C(123456789));
+        TEST_ASSERT_EQUAL_UINT64(123456789, result->timestamp_us);
     }
     bm1397_harness_end();
 }
@@ -214,7 +214,7 @@ TEST_CASE("BM1397 register results preserve type address value and reset job fie
     TEST_ASSERT_EQUAL_HEX8(0, result->job_id);
     TEST_ASSERT_EQUAL_HEX32(0, result->nonce);
     TEST_ASSERT_EQUAL_HEX32(0, result->rolled_version);
-    TEST_ASSERT_TRUE(result->timestamp_us == UINT64_C(123456789));
+    TEST_ASSERT_EQUAL_UINT64(123456789, result->timestamp_us);
 
     const uint8_t unknown_register[BM1397_HARNESS_RESPONSE_SIZE] = {
         0xaa, 0x55, 0, 0, 0, 0, 0, 0x01, 0x00,

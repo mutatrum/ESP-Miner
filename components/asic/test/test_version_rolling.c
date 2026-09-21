@@ -148,8 +148,7 @@ TEST_CASE("BM13xx response version bits reconstruct rolled block versions",
             TEST_ASSERT_EQUAL_UINT8(1, result->asic_nr);
             TEST_ASSERT_EQUAL_UINT8(77, result->core_id);
             TEST_ASSERT_EQUAL_UINT8(3, result->small_core_id);
-            /* ESP-IDF's Unity build does not enable the UINT64 assertions. */
-            TEST_ASSERT_TRUE(result->timestamp_us == UINT64_C(123456789));
+            TEST_ASSERT_EQUAL_UINT64(123456789, result->timestamp_us);
             TEST_ASSERT_EQUAL_INT(REGISTER_INVALID, result->register_type);
             TEST_ASSERT_NULL(driver->process_work(state)); /* response consumed */
         }

@@ -10,7 +10,7 @@ TEST_CASE("Varint decode single byte", "[coinbase_decoder]")
     uint8_t data[] = {0x42};
     int offset = 0;
     uint64_t result = coinbase_decode_varint(data, sizeof(data), &offset);
-    TEST_ASSERT_TRUE(0x42 == result);
+    TEST_ASSERT_EQUAL_UINT64(0x42, result);
     TEST_ASSERT_EQUAL_INT(1, offset);
 }
 
@@ -19,7 +19,7 @@ TEST_CASE("Varint decode FD format", "[coinbase_decoder]")
     uint8_t data[] = {0xFD, 0x34, 0x12};  // 0x1234 in little-endian
     int offset = 0;
     uint64_t result = coinbase_decode_varint(data, sizeof(data), &offset);
-    TEST_ASSERT_TRUE(0x1234 == result);
+    TEST_ASSERT_EQUAL_UINT64(0x1234, result);
     TEST_ASSERT_EQUAL_INT(3, offset);
 }
 
@@ -28,7 +28,7 @@ TEST_CASE("Varint decode FE format", "[coinbase_decoder]")
     uint8_t data[] = {0xFE, 0x78, 0x56, 0x34, 0x12};  // 0x12345678 in little-endian
     int offset = 0;
     uint64_t result = coinbase_decode_varint(data, sizeof(data), &offset);
-    TEST_ASSERT_TRUE(0x12345678 == result);
+    TEST_ASSERT_EQUAL_UINT64(0x12345678, result);
     TEST_ASSERT_EQUAL_INT(5, offset);
 }
 
@@ -37,7 +37,7 @@ TEST_CASE("Varint decode FF format", "[coinbase_decoder]")
     uint8_t data[] = {0xFF, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08};
     int offset = 0;
     uint64_t result = coinbase_decode_varint(data, sizeof(data), &offset);
-    TEST_ASSERT_TRUE(0x0807060504030201ULL == result);
+    TEST_ASSERT_EQUAL_UINT64(0x0807060504030201ULL, result);
     TEST_ASSERT_EQUAL_INT(9, offset);
 }
 
@@ -45,27 +45,27 @@ TEST_CASE("Varint decode truncated buffer bounds checks", "[coinbase_decoder]")
 {
     int offset = 0;
     // NULL checks
-    TEST_ASSERT_TRUE(0 == coinbase_decode_varint(NULL, 10, &offset));
+    TEST_ASSERT_EQUAL_UINT64(0, coinbase_decode_varint(NULL, 10, &offset));
 
     // Truncated FD (only 1 byte payload instead of 2)
     uint8_t trunc_fd[] = {0xFD, 0x34};
     offset = 0;
-    TEST_ASSERT_TRUE(0 == coinbase_decode_varint(trunc_fd, sizeof(trunc_fd), &offset));
+    TEST_ASSERT_EQUAL_UINT64(0, coinbase_decode_varint(trunc_fd, sizeof(trunc_fd), &offset));
 
     // Truncated FE (only 2 bytes payload instead of 4)
     uint8_t trunc_fe[] = {0xFE, 0x78, 0x56};
     offset = 0;
-    TEST_ASSERT_TRUE(0 == coinbase_decode_varint(trunc_fe, sizeof(trunc_fe), &offset));
+    TEST_ASSERT_EQUAL_UINT64(0, coinbase_decode_varint(trunc_fe, sizeof(trunc_fe), &offset));
 
     // Truncated FF (only 4 bytes payload instead of 8)
     uint8_t trunc_ff[] = {0xFF, 0x01, 0x02, 0x03, 0x04};
     offset = 0;
-    TEST_ASSERT_TRUE(0 == coinbase_decode_varint(trunc_ff, sizeof(trunc_ff), &offset));
+    TEST_ASSERT_EQUAL_UINT64(0, coinbase_decode_varint(trunc_ff, sizeof(trunc_ff), &offset));
 
     // Offset at or beyond buffer length
     uint8_t single[] = {0x42};
     offset = 1;
-    TEST_ASSERT_TRUE(0 == coinbase_decode_varint(single, sizeof(single), &offset));
+    TEST_ASSERT_EQUAL_UINT64(0, coinbase_decode_varint(single, sizeof(single), &offset));
 }
 
 TEST_CASE("Decode P2PKH address", "[coinbase_decoder]")

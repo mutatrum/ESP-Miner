@@ -136,7 +136,7 @@ void result_task_spy_register_read(void *state, register_type_t type,
     TEST_ASSERT_EQUAL(REGISTER_TOTAL_COUNT, type);
     TEST_ASSERT_EQUAL_UINT8(2, asic_nr);
     TEST_ASSERT_EQUAL_UINT32(55, value);
-    TEST_ASSERT_TRUE(timestamp == UINT64_C(1000));
+    TEST_ASSERT_EQUAL_UINT64(1000, timestamp);
     fixture_registers++;
 }
 

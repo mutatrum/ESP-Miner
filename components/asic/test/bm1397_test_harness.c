@@ -135,7 +135,7 @@ esp_err_t bm1397_fake_receive_work(uint8_t *buffer, int size,
     }
     memcpy(buffer, queued_response, sizeof(queued_response));
     response_ready = false;
-    *timestamp_us = UINT64_C(123456789);
+    *timestamp_us = 123456789;
     return ESP_OK;
 }
 

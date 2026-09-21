@@ -59,7 +59,7 @@ TEST_CASE("GBT FSM Parser - full JSON in single feed", "[gbt_fsm]")
     TEST_ASSERT_EQUAL_UINT32(840000, tmpl.height);
     TEST_ASSERT_EQUAL_UINT32(1726870500, tmpl.curtime);
     TEST_ASSERT_EQUAL_HEX32(0x1702b861, tmpl.nbits);
-    TEST_ASSERT_TRUE(312500000ULL == tmpl.coinbase_value);
+    TEST_ASSERT_EQUAL_UINT64(312500000ULL, tmpl.coinbase_value);
     TEST_ASSERT_EQUAL_STRING("000000000000000000021b7787bf4c2c01fa9596ddc81e9fcf08f88bb8ef8f87", tmpl.previous_block_hash);
     TEST_ASSERT_EQUAL_STRING("test_longpoll_id_9876", tmpl.longpollid);
     TEST_ASSERT_EQUAL_STRING("aa21a9ed6f2334f5904d9c7adca3630f9a5658e45cc23588933b9f3feab9058b", tmpl.default_witness_commitment);
@@ -110,7 +110,7 @@ TEST_CASE("GBT FSM Parser - streaming in tiny chunks across token boundaries", "
     TEST_ASSERT_EQUAL_UINT32(840000, tmpl.height);
     TEST_ASSERT_EQUAL_UINT32(1726870500, tmpl.curtime);
     TEST_ASSERT_EQUAL_HEX32(0x1702b861, tmpl.nbits);
-    TEST_ASSERT_TRUE(312500000ULL == tmpl.coinbase_value);
+    TEST_ASSERT_EQUAL_UINT64(312500000ULL, tmpl.coinbase_value);
     TEST_ASSERT_EQUAL_STRING("000000000000000000021b7787bf4c2c01fa9596ddc81e9fcf08f88bb8ef8f87", tmpl.previous_block_hash);
     TEST_ASSERT_EQUAL_STRING("test_longpoll_id_9876", tmpl.longpollid);
     TEST_ASSERT_EQUAL_STRING("aa21a9ed6f2334f5904d9c7adca3630f9a5658e45cc23588933b9f3feab9058b", tmpl.default_witness_commitment);
