@@ -5,8 +5,6 @@ SRCS
     "stratum_api.c"
     "stratum_socket.c"
     "coinbase_decoder.c"
-    "gbt_fsm_parser.c"
-    "coinbase_builder.c"
     "segwit_addr.c"
     "base58.c"
     "miner_job.c"
@@ -21,5 +19,4 @@ REQUIRES
     "tcp_transport"
     "esp_netif"
     "esp_psram"
-    "cjson"
 )

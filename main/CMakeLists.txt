@@ -80,6 +80,7 @@ REQUIRES
     "dns_server"
     "stratum"
     "stratum_v2"
+    "gbt"
 
 PRIV_REQUIRES
     "app_update"
