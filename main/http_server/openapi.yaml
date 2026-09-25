@@ -321,6 +321,7 @@ components:
         - coinbaseValueUserSatoshis
         - coinbaseOthersCount
         - coinbaseOthersValueSatoshis
+        - coinbaseHasUserAddress
         - miningPaused
         - statsLimit
         - partitions
@@ -680,6 +681,9 @@ components:
               address:
                 type: string
                 description: Output address
+              isUserOutput:
+                type: integer
+                description: Whether this output belongs to the user (0=no, 1=yes)
         coinbaseValueTotalSatoshis:
           type: integer
           description: Total value of coinbase transaction in satoshis
@@ -692,6 +696,9 @@ components:
         coinbaseOthersValueSatoshis:
           type: integer
           description: Summed value in satoshis of the outputs counted in coinbaseOthersCount
+        coinbaseHasUserAddress:
+          type: integer
+          description: Whether user field contains at least one valid payout address (0=no, 1=yes)
         hashrateMonitor:
           type: object
           required:
