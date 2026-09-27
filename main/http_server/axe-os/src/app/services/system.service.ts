@@ -223,7 +223,6 @@ export class SystemApiService {
         coinbaseValueUserSatoshis: 50,
         coinbaseOthersCount: 0,
         coinbaseOthersValueSatoshis: 0,
-        coinbaseHasUserAddress: 1,
         miningPaused: false,
         workReceived: 42,
       }

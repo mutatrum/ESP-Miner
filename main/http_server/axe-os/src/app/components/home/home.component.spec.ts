@@ -43,7 +43,6 @@ const mockSystemInfo: ISystemInfo = {
   autofanspeed: 1,
   blockSignals: [],
   coinbaseValueUserSatoshis: 0,
-  coinbaseHasUserAddress: 0,
   display: 'SSD1306',
   displayTimeout: 0,
   errorPercentage: 0,
@@ -342,14 +341,13 @@ describe('HomeComponent', () => {
       const getUserHtml = () => fixture.debugElement.nativeElement.querySelector('[sensitive-data] span')?.innerHTML ?? '';
 
       // 1. Account username (not an address) - displayed cleanly without address formatting or font-mono
-      emitPoolInfo({ stratumUser: 'satoshi.worker1', coinbaseHasUserAddress: 0 });
+      emitPoolInfo({ stratumUser: 'satoshi.worker1' });
       fixture.detectChanges();
       expect(getUserHtml()).toBe('satoshi.worker1');
 
       // 2. Bitcoin address (single) - address is formatted with font-mono, worker suffix preserved
       emitPoolInfo({
         stratumUser: 'bc1q42aueh0wluqpzg3ng32kvaugnx4thnxa7y625x.worker1',
-        coinbaseHasUserAddress: 1,
         coinbaseOutputs: [
           { address: 'bc1q42aueh0wluqpzg3ng32kvaugnx4thnxa7y625x', value: 50000, isUserOutput: 1 }
         ]
@@ -363,7 +361,6 @@ describe('HomeComponent', () => {
       // 3. Bitcoin address (multiple addresses) - both formatted, separator preserved
       emitPoolInfo({
         stratumUser: 'bc1q42aueh0wluqpzg3ng32kvaugnx4thnxa7y625x, 1DYwPTnC4NgEmoqbLbcRqoSzVeH3ehmGbV.worker1',
-        coinbaseHasUserAddress: 1,
         coinbaseOutputs: [
           { address: 'bc1q42aueh0wluqpzg3ng32kvaugnx4thnxa7y625x', value: 25000, isUserOutput: 1 },
           { address: '1DYwPTnC4NgEmoqbLbcRqoSzVeH3ehmGbV', value: 25000, isUserOutput: 1 }
@@ -377,7 +374,6 @@ describe('HomeComponent', () => {
       // 4. SRI solo pattern - prefix and worker suffix preserved, address formatted and wrapped in font-mono
       emitPoolInfo({
         stratumUser: 'sri/solo/bc1q42aueh0wluqpzg3ng32kvaugnx4thnxa7y625x/worker1',
-        coinbaseHasUserAddress: 1,
         coinbaseOutputs: [
           { address: 'bc1q42aueh0wluqpzg3ng32kvaugnx4thnxa7y625x', value: 50000, isUserOutput: 1 }
         ]
@@ -390,7 +386,6 @@ describe('HomeComponent', () => {
       // 5. SRI donate pattern - donation prefix preserved, address formatted and wrapped in font-mono
       emitPoolInfo({
         stratumUser: 'sri/donate/10/bc1q42aueh0wluqpzg3ng32kvaugnx4thnxa7y625x/worker1',
-        coinbaseHasUserAddress: 1,
         coinbaseOutputs: [
           { address: 'bc1q42aueh0wluqpzg3ng32kvaugnx4thnxa7y625x', value: 45000, isUserOutput: 1 }
         ]
@@ -403,7 +398,6 @@ describe('HomeComponent', () => {
       // 6. Full donation / pool worker (no address) - displayed as-is
       emitPoolInfo({
         stratumUser: 'sri/donate/worker1',
-        coinbaseHasUserAddress: 0,
         coinbaseOutputs: [
           { address: 'bc1qpool', value: 50000, isUserOutput: 0 }
         ]

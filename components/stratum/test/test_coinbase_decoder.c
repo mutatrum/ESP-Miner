@@ -811,10 +811,9 @@ TEST_CASE("Multi-address job payout verification", "[coinbase_decoder]")
     TEST_ASSERT_TRUE(30000ULL == result.user_value_satoshis);
     TEST_ASSERT_TRUE(result.outputs[0].is_user_output);
     TEST_ASSERT_TRUE(result.outputs[1].is_user_output);
-    TEST_ASSERT_TRUE(result.has_user_address);
 }
 
-TEST_CASE("Account-based pool username - has_user_address is false", "[coinbase_decoder]")
+TEST_CASE("Account-based pool username - user satoshis is 0", "[coinbase_decoder]")
 {
     static miner_job_t job;
     memset(&job, 0, sizeof(job));
@@ -849,7 +848,6 @@ TEST_CASE("Account-based pool username - has_user_address is false", "[coinbase_
 
     esp_err_t err = coinbase_process_miner_job(&job, account_user, true, &result);
     TEST_ASSERT_EQUAL(ESP_OK, err);
-    TEST_ASSERT_FALSE(result.has_user_address);
     TEST_ASSERT_TRUE(0ULL == result.user_value_satoshis);
 }
 
@@ -895,14 +893,12 @@ TEST_CASE("User scriptPubKey caching across jobs and cache clear", "[coinbase_de
     // First call: populates cache
     esp_err_t err = coinbase_process_miner_job(&job, user, true, &result);
     TEST_ASSERT_EQUAL(ESP_OK, err);
-    TEST_ASSERT_TRUE(result.has_user_address);
     TEST_ASSERT_TRUE(50000ULL == result.user_value_satoshis);
 
     // Second call with same user: hits cache
     memset(&result, 0, sizeof(result));
     err = coinbase_process_miner_job(&job, user, true, &result);
     TEST_ASSERT_EQUAL(ESP_OK, err);
-    TEST_ASSERT_TRUE(result.has_user_address);
     TEST_ASSERT_TRUE(50000ULL == result.user_value_satoshis);
 
     // Clear cache and call again
@@ -910,7 +906,6 @@ TEST_CASE("User scriptPubKey caching across jobs and cache clear", "[coinbase_de
     memset(&result, 0, sizeof(result));
     err = coinbase_process_miner_job(&job, user, true, &result);
     TEST_ASSERT_EQUAL(ESP_OK, err);
-    TEST_ASSERT_TRUE(result.has_user_address);
     TEST_ASSERT_TRUE(50000ULL == result.user_value_satoshis);
 }
 
@@ -1006,7 +1001,6 @@ TEST_CASE("SRI pattern mining job payout verification and network detection", "[
     const char *sri_donate_user = "sri/donate/10/bc1q42aueh0wluqpzg3ng32kvaugnx4thnxa7y625x/worker1";
     esp_err_t err = coinbase_process_miner_job(&job, sri_donate_user, true, &result);
     TEST_ASSERT_EQUAL(ESP_OK, err);
-    TEST_ASSERT_TRUE(result.has_user_address);
     TEST_ASSERT_TRUE(50000ULL == result.user_value_satoshis);
     TEST_ASSERT_TRUE(result.outputs[0].is_user_output);
     TEST_ASSERT_EQUAL_STRING("bc1q42aueh0wluqpzg3ng32kvaugnx4thnxa7y625x", result.outputs[0].address);
@@ -1015,7 +1009,6 @@ TEST_CASE("SRI pattern mining job payout verification and network detection", "[
     memset(&result, 0, sizeof(result));
     err = coinbase_process_miner_job(&job, "sri/donate/worker1", true, &result);
     TEST_ASSERT_EQUAL(ESP_OK, err);
-    TEST_ASSERT_FALSE(result.has_user_address);
     TEST_ASSERT_TRUE(0ULL == result.user_value_satoshis);
     TEST_ASSERT_FALSE(result.outputs[0].is_user_output);
 
@@ -1023,7 +1016,6 @@ TEST_CASE("SRI pattern mining job payout verification and network detection", "[
     memset(&result, 0, sizeof(result));
     err = coinbase_process_miner_job(&job, "sri/solo/tb1q42aueh0wluqpzg3ng32kvaugnx4thnxa5zpe04/worker1", true, &result);
     TEST_ASSERT_EQUAL(ESP_OK, err);
-    TEST_ASSERT_TRUE(result.has_user_address);
     TEST_ASSERT_TRUE(50000ULL == result.user_value_satoshis);
     TEST_ASSERT_TRUE(result.outputs[0].is_user_output);
     TEST_ASSERT_EQUAL_STRING("tb1q42aueh0wluqpzg3ng32kvaugnx4thnxa5zpe04", result.outputs[0].address);

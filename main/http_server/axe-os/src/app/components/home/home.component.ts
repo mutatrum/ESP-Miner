@@ -9,6 +9,7 @@ import { DateAgoPipe } from 'src/app/pipes/date-ago.pipe';
 import { HashSuffixPipe } from 'src/app/pipes/hash-suffix.pipe';
 import { ByteSuffixPipe } from 'src/app/pipes/byte-suffix.pipe';
 import { DiffSuffixPipe } from 'src/app/pipes/diff-suffix.pipe';
+import { AddressPipe } from 'src/app/pipes/address.pipe';
 import { QuicklinkService } from 'src/app/services/quicklink.service';
 import { ShareRejectionExplanationService } from 'src/app/services/share-rejection-explanation.service';
 import { LoadingService } from 'src/app/services/loading.service';
@@ -1219,8 +1220,12 @@ export class HomeComponent implements OnInit, OnDestroy {
     return [...userOutputs, ...outputs.filter(o => !isUserOutput(o))];
   }
 
+  get hasPayoutAddress(): boolean {
+    return AddressPipe.hasAddress(this.activePoolUser);
+  }
+
   getPayoutPercentage(info: ISystemInfo) {
-    if (info.coinbaseHasUserAddress === 1 && info.coinbaseValueTotalSatoshis) {
+    if (this.hasPayoutAddress && info.coinbaseValueTotalSatoshis) {
       return (info.coinbaseValueUserSatoshis ?? 0) / info.coinbaseValueTotalSatoshis * 100;
     }
     return -1;
@@ -1262,7 +1267,7 @@ export class HomeComponent implements OnInit, OnDestroy {
       let percentage = this.getPayoutPercentage(info);
       const warn = this.activePoolShareWarning;
       updateMessage(warn && percentage > 0 && percentage < 95, 'NOT_SOLO_MINING', 'warn', `Your share of the mining reward is only ${percentage.toFixed(1)}%`);
-      updateMessage(warn && info.coinbaseHasUserAddress === 1 && percentage === 0, 'NO_MINING_REWARD', 'warn', `You don't have a share in the mining reward`);
+      updateMessage(warn && this.hasPayoutAddress && percentage === 0, 'NO_MINING_REWARD', 'warn', `You don't have a share in the mining reward`);
     }
   }
 

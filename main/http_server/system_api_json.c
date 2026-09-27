@@ -85,7 +85,6 @@ static void system_api_add_telemetry(cJSON *root, GlobalState *g) {
     cJSON_AddNumberToObject(root, "networkDifficulty", g->network_nonce_diff);
     cJSON_AddNumberToObject(root, "coinbaseValueTotalSatoshis", g->coinbase_value_total_satoshis);
     cJSON_AddNumberToObject(root, "coinbaseValueUserSatoshis", g->coinbase_value_user_satoshis);
-    cJSON_AddNumberToObject(root, "coinbaseHasUserAddress", g->coinbase_has_user_address ? 1 : 0);
 
     // Dynamic System Stats
     cJSON_AddNumberToObject(root, "freeHeap", esp_get_free_heap_size());

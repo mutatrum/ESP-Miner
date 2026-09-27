@@ -99,7 +99,6 @@ typedef struct {
     uint64_t others_value_satoshis; // summed value of those outputs
     uint64_t total_value_satoshis;
     uint64_t user_value_satoshis;
-    bool has_user_address;
     bool decode_coinbase_tx;
     bool bip54_signaling;  // BIP-54: nLockTime = height - 1 && nSequence != 0xffffffff
     bool bip110_signaling; // BIP-110: signaling via version bit 4 (0x00000010)

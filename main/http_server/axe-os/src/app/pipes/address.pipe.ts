@@ -16,6 +16,12 @@ export class AddressPipe implements PipeTransform {
     return this._this.transform(value, args);
   }
 
+  public static hasAddress(value: string): boolean {
+    if (!value) return false;
+    const addressRegex = /\b(bc1[a-zA-HJ-NP-Z0-9]{39,87}|tb1[a-zA-HJ-NP-Z0-9]{39,87}|bcrt1[a-zA-HJ-NP-Z0-9]{39,87}|[13mn2][a-km-zA-HJ-NP-Z1-9]{25,34})\b/;
+    return addressRegex.test(value);
+  }
+
   public static formatAddress(address: string, maxLength: number = 22): string {
     if (!address) return address;
 

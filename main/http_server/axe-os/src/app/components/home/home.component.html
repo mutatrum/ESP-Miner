@@ -448,7 +448,7 @@
                 --
               }
             </div>
-            @if (info.coinbaseHasUserAddress === 1 && (info.coinbaseOutputs?.length ?? 0) > 0) {
+            @if (hasPayoutAddress && (info.coinbaseOutputs?.length ?? 0) > 0) {
               <div class="flex flex-nowrap">
                 @let percentage = payoutPercentage;
                 @if (percentage >= 95) {

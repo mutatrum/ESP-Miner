@@ -59,8 +59,15 @@ describe('AddressPipe', () => {
     expect(result).toContain('</span>.worker1');
   });
 
-  it('should handle empty or null values gracefully', () => {
-    expect(pipe.transform('')).toBe('');
-    expect(pipe.transform(null as any)).toBe(null as any);
+  it('should correctly detect if a string contains a Bitcoin payout address', () => {
+    expect(AddressPipe.hasAddress('bc1q42aueh0wluqpzg3ng32kvaugnx4thnxa7y625x')).toBeTrue();
+    expect(AddressPipe.hasAddress('bc1q42aueh0wluqpzg3ng32kvaugnx4thnxa7y625x.worker1')).toBeTrue();
+    expect(AddressPipe.hasAddress('sri/solo/bc1q42aueh0wluqpzg3ng32kvaugnx4thnxa7y625x/worker1')).toBeTrue();
+    expect(AddressPipe.hasAddress('sri/donate/10/bc1q42aueh0wluqpzg3ng32kvaugnx4thnxa7y625x/worker1')).toBeTrue();
+    expect(AddressPipe.hasAddress('1DYwPTnC4NgEmoqbLbcRqoSzVeH3ehmGbV')).toBeTrue();
+    expect(AddressPipe.hasAddress('satoshi.worker1')).toBeFalse();
+    expect(AddressPipe.hasAddress('sri/donate/worker1')).toBeFalse();
+    expect(AddressPipe.hasAddress('')).toBeFalse();
+    expect(AddressPipe.hasAddress(null as any)).toBeFalse();
   });
 });

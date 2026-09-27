@@ -581,7 +581,6 @@ esp_err_t coinbase_process_miner_job(const miner_job_t *job,
     result->user_value_satoshis = 0;
     result->others_count = 0;
     result->others_value_satoshis = 0;
-    result->has_user_address = false;
     result->decode_coinbase_tx = decode_coinbase_tx;
 
     const char *bech32_hrp = "bc";
@@ -605,7 +604,6 @@ esp_err_t coinbase_process_miner_job(const miner_job_t *job,
         user_script_count = s_cached_script_count;
         bech32_hrp = s_cached_bech32_hrp;
         is_testnet = s_cached_is_testnet;
-        result->has_user_address = (user_script_count > 0);
     }
 
     // Parse Coinbase prefix for ScriptSig info
