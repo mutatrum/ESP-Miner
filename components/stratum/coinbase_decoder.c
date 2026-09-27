@@ -201,6 +201,9 @@ static void coinbase_store_output(mining_notification_result_t *result, const ch
     result->outputs[idx].is_user_output = is_user_output;
 }
 
+#define MIN_ADDRESS_LEN 26
+#define MAX_ADDRESS_LEN 90
+
 static const char *coinbase_detect_bech32_hrp(const char *addr) {
     if (!addr) return NULL;
     while (*addr && isspace((unsigned char)*addr)) addr++;
@@ -210,61 +213,15 @@ static const char *coinbase_detect_bech32_hrp(const char *addr) {
     return NULL;
 }
 
-static void coinbase_detect_network(const char *addr, const char **bech32_hrp, bool *is_testnet) {
-    const char *hrp = coinbase_detect_bech32_hrp(addr);
-    if (hrp) {
-        if (bech32_hrp) *bech32_hrp = hrp;
-        if (is_testnet) *is_testnet = (strcmp(hrp, "bc") != 0);
-        return;
-    }
-    if (addr) {
-        while (*addr && isspace((unsigned char)*addr)) addr++;
-        if (*addr == 'm' || *addr == 'n' || *addr == '2' || *addr == 'M' || *addr == 'N') {
-            if (bech32_hrp) *bech32_hrp = "tb";
-            if (is_testnet) *is_testnet = true;
-            return;
-        }
-    }
-    if (bech32_hrp) *bech32_hrp = "bc";
-    if (is_testnet) *is_testnet = false;
-}
-
-size_t coinbase_address_to_scriptpubkey(const char *user, uint8_t *script_out, size_t max_out) {
-    if (!user || !script_out || max_out < MAX_SCRIPTPUBKEY_LEN) {
-        return 0;
-    }
-
-    // Trim leading whitespace
-    while (isspace((unsigned char)*user)) {
-        user++;
-    }
-    if (*user == '\0') {
-        return 0;
-    }
-
-    // Copy to candidate buffer
-    char candidate[MAX_ADDRESS_STRING_LEN];
-    strncpy(candidate, user, sizeof(candidate) - 1);
-    candidate[sizeof(candidate) - 1] = '\0';
-
-    // Strip worker or diff delimiters ('.', '_', '/', '+', ':')
-    char *delim = strpbrk(candidate, "._/+:");
-    if (delim) {
-        *delim = '\0';
-    }
-
-    // Trim trailing whitespace
-    size_t cand_len = strlen(candidate);
-    while (cand_len > 0 && isspace((unsigned char)candidate[cand_len - 1])) {
-        candidate[--cand_len] = '\0';
-    }
-    if (cand_len == 0) {
+static size_t coinbase_decode_single_address_script(const char *candidate, size_t cand_len,
+                                                    uint8_t *script_out, size_t max_out) {
+    if (!candidate || cand_len < MIN_ADDRESS_LEN || cand_len > MAX_ADDRESS_LEN ||
+        !script_out || max_out < MAX_SCRIPTPUBKEY_LEN) {
         return 0;
     }
 
     // 1. Check Bech32 / Bech32m (P2WPKH, P2WSH, P2TR)
     const char *hrp = coinbase_detect_bech32_hrp(candidate);
-
     if (hrp != NULL) {
         int witver = 0;
         uint8_t witprog[40];
@@ -355,6 +312,66 @@ size_t coinbase_address_to_scriptpubkey(const char *user, uint8_t *script_out, s
     return 0;
 }
 
+static void coinbase_detect_network(const char *user, const char **bech32_hrp, bool *is_testnet) {
+    const char *detected_hrp = "bc";
+    bool detected_testnet = false;
+
+    if (user) {
+        const char *p = user;
+        while (*p) {
+            while (*p && !isalnum((unsigned char)*p)) {
+                p++;
+            }
+            if (!*p) break;
+
+            const char *start = p;
+            while (*p && isalnum((unsigned char)*p)) {
+                p++;
+            }
+            size_t seg_len = p - start;
+
+            if (seg_len >= MIN_ADDRESS_LEN && seg_len <= MAX_ADDRESS_LEN) {
+                char candidate[MAX_ADDRESS_LEN + 1];
+                memcpy(candidate, start, seg_len);
+                candidate[seg_len] = '\0';
+
+                const char *hrp = coinbase_detect_bech32_hrp(candidate);
+                if (hrp) {
+                    detected_hrp = hrp;
+                    detected_testnet = (strcmp(hrp, "bc") != 0);
+                    break;
+                }
+
+                // Check Base58Check
+                ensure_base58_init();
+                uint8_t b58bin[25];
+                size_t binsz = sizeof(b58bin);
+                if (b58tobin(b58bin, &binsz, candidate, seg_len)) {
+                    if (binsz == 25 && b58check(b58bin, 25, candidate, seg_len) >= 0) {
+                        uint8_t ver = b58bin[0];
+                        if (ver == 0x6F || ver == 0xC4) {
+                            detected_hrp = "tb";
+                            detected_testnet = true;
+                            break;
+                        } else if (ver == 0x00 || ver == 0x05) {
+                            detected_hrp = "bc";
+                            detected_testnet = false;
+                            break;
+                        }
+                    }
+                } else if (seg_len <= 35 && (candidate[0] == 'm' || candidate[0] == 'n' || candidate[0] == '2')) {
+                    detected_hrp = "tb";
+                    detected_testnet = true;
+                    break;
+                }
+            }
+        }
+    }
+
+    if (bech32_hrp) *bech32_hrp = detected_hrp;
+    if (is_testnet) *is_testnet = detected_testnet;
+}
+
 int coinbase_parse_user_scriptpubkeys(const char *user,
                                       uint8_t scripts_out[][MAX_SCRIPTPUBKEY_LEN],
                                       size_t script_lens[],
@@ -364,40 +381,69 @@ int coinbase_parse_user_scriptpubkeys(const char *user,
     }
 
     int count = 0;
-    const char *start = user;
+    const char *p = user;
 
-    while (*start && count < max_scripts) {
-        // Skip leading delimiters or whitespace
-        while (*start && (*start == ',' || *start == ';' || isspace((unsigned char)*start))) {
-            start++;
+    while (*p && count < max_scripts) {
+        // Skip anything that can't be in an address (non-alphanumeric)
+        while (*p && !isalnum((unsigned char)*p)) {
+            p++;
         }
-        if (!*start) break;
+        if (!*p) break;
 
-        // Find delimiter separating addresses (comma or semicolon)
-        const char *end = start;
-        while (*end && *end != ',' && *end != ';') {
-            end++;
+        const char *start = p;
+        while (*p && isalnum((unsigned char)*p)) {
+            p++;
         }
+        size_t seg_len = p - start;
 
-        size_t token_len = end - start;
-        if (token_len > 0 && token_len < MAX_ADDRESS_STRING_LEN) {
-            char token[MAX_ADDRESS_STRING_LEN];
-            memcpy(token, start, token_len);
-            token[token_len] = '\0';
+        // Fast length check: only attempt decoding if segment length matches valid Bitcoin addresses
+        if (seg_len >= MIN_ADDRESS_LEN && seg_len <= MAX_ADDRESS_LEN) {
+            char candidate[MAX_ADDRESS_LEN + 1];
+            memcpy(candidate, start, seg_len);
+            candidate[seg_len] = '\0';
 
-            size_t slen = coinbase_address_to_scriptpubkey(token,
-                                                           scripts_out[count],
-                                                           MAX_SCRIPTPUBKEY_LEN);
+            uint8_t script_buf[MAX_SCRIPTPUBKEY_LEN];
+            size_t slen = coinbase_decode_single_address_script(candidate, seg_len,
+                                                                script_buf,
+                                                                sizeof(script_buf));
             if (slen > 0) {
-                script_lens[count] = slen;
-                count++;
+                // Avoid storing duplicate scriptPubKeys
+                bool dup = false;
+                for (int i = 0; i < count; i++) {
+                    if (script_lens[i] == slen && memcmp(scripts_out[i], script_buf, slen) == 0) {
+                        dup = true;
+                        break;
+                    }
+                }
+                if (!dup) {
+                    memcpy(scripts_out[count], script_buf, slen);
+                    script_lens[count] = slen;
+                    count++;
+                }
             }
         }
-
-        start = end;
     }
 
     return count;
+}
+
+size_t coinbase_address_to_scriptpubkey(const char *user, uint8_t *script_out, size_t max_out) {
+    if (!user || !script_out || max_out < MAX_SCRIPTPUBKEY_LEN) {
+        return 0;
+    }
+
+    uint8_t scripts[1][MAX_SCRIPTPUBKEY_LEN];
+    size_t lens[1];
+    int count = coinbase_parse_user_scriptpubkeys(user, scripts, lens, 1);
+    if (count > 0) {
+        if (max_out < lens[0]) {
+            return 0;
+        }
+        memcpy(script_out, scripts[0], lens[0]);
+        return lens[0];
+    }
+
+    return 0;
 }
 
 static esp_err_t parse_coinbase_suffix(const miner_job_t *job,

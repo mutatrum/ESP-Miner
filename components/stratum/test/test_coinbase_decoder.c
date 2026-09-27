@@ -913,3 +913,118 @@ TEST_CASE("User scriptPubKey caching across jobs and cache clear", "[coinbase_de
     TEST_ASSERT_TRUE(result.has_user_address);
     TEST_ASSERT_TRUE(50000ULL == result.user_value_satoshis);
 }
+
+TEST_CASE("Address to scriptpubkey - SRI user identity patterns", "[coinbase_decoder]")
+{
+    const char *base = "bc1q42aueh0wluqpzg3ng32kvaugnx4thnxa7y625x";
+    uint8_t expected[MAX_SCRIPTPUBKEY_LEN];
+    size_t exp_len = coinbase_address_to_scriptpubkey(base, expected, sizeof(expected));
+    TEST_ASSERT_EQUAL_INT(22, exp_len);
+
+    uint8_t out[MAX_SCRIPTPUBKEY_LEN];
+
+    // 1. sri/solo/<addr>/<worker>
+    size_t len = coinbase_address_to_scriptpubkey("sri/solo/bc1q42aueh0wluqpzg3ng32kvaugnx4thnxa7y625x/worker1", out, sizeof(out));
+    TEST_ASSERT_EQUAL_INT(22, len);
+    TEST_ASSERT_EQUAL_HEX8_ARRAY(expected, out, 22);
+
+    // 2. sri/solo/<addr> (no worker)
+    len = coinbase_address_to_scriptpubkey("sri/solo/bc1q42aueh0wluqpzg3ng32kvaugnx4thnxa7y625x", out, sizeof(out));
+    TEST_ASSERT_EQUAL_INT(22, len);
+    TEST_ASSERT_EQUAL_HEX8_ARRAY(expected, out, 22);
+
+    // 3. sri/donate/<pct>/<addr>/<worker>
+    len = coinbase_address_to_scriptpubkey("sri/donate/10/bc1q42aueh0wluqpzg3ng32kvaugnx4thnxa7y625x/worker1", out, sizeof(out));
+    TEST_ASSERT_EQUAL_INT(22, len);
+    TEST_ASSERT_EQUAL_HEX8_ARRAY(expected, out, 22);
+
+    // 4. sri/donate/<pct>/<addr> (no worker)
+    len = coinbase_address_to_scriptpubkey("sri/donate/5/bc1q42aueh0wluqpzg3ng32kvaugnx4thnxa7y625x", out, sizeof(out));
+    TEST_ASSERT_EQUAL_INT(22, len);
+    TEST_ASSERT_EQUAL_HEX8_ARRAY(expected, out, 22);
+
+    // 5. sri/<addr>/<worker>
+    len = coinbase_address_to_scriptpubkey("sri/bc1q42aueh0wluqpzg3ng32kvaugnx4thnxa7y625x/worker1", out, sizeof(out));
+    TEST_ASSERT_EQUAL_INT(22, len);
+    TEST_ASSERT_EQUAL_HEX8_ARRAY(expected, out, 22);
+
+    // 6. Base58 address with sri/solo/
+    const char *b58_base = "1DYwPTnC4NgEmoqbLbcRqoSzVeH3ehmGbV";
+    uint8_t b58_expected[MAX_SCRIPTPUBKEY_LEN];
+    size_t b58_exp_len = coinbase_address_to_scriptpubkey(b58_base, b58_expected, sizeof(b58_expected));
+    TEST_ASSERT_EQUAL_INT(25, b58_exp_len);
+
+    len = coinbase_address_to_scriptpubkey("sri/solo/1DYwPTnC4NgEmoqbLbcRqoSzVeH3ehmGbV/rig4", out, sizeof(out));
+    TEST_ASSERT_EQUAL_INT(25, len);
+    TEST_ASSERT_EQUAL_HEX8_ARRAY(b58_expected, out, 25);
+
+    // 7. Full donation (sri/donate, sri/donate/worker) -> no user address, returns 0
+    TEST_ASSERT_EQUAL_INT(0, coinbase_address_to_scriptpubkey("sri/donate", out, sizeof(out)));
+    TEST_ASSERT_EQUAL_INT(0, coinbase_address_to_scriptpubkey("sri/donate/worker1", out, sizeof(out)));
+    TEST_ASSERT_EQUAL_INT(0, coinbase_address_to_scriptpubkey("sri/donate/100", out, sizeof(out)));
+}
+
+TEST_CASE("SRI pattern mining job payout verification and network detection", "[coinbase_decoder]")
+{
+    static miner_job_t job;
+    memset(&job, 0, sizeof(job));
+    job.coinbase_prefix = s_test_pbuf;
+    job.coinbase_suffix = s_test_sbuf;
+    job.type = JOB_TYPE_V1;
+    job.version = 0x20000000;
+    job.nbits = 0x1d00ffff;
+
+    const char *c1 = "01000000010000000000000000000000000000000000000000000000000000000000000000ffffffff0403a08601";
+    hex2bin(c1, job.coinbase_prefix, strlen(c1) / 2);
+    job.coinbase_prefix_len = strlen(c1) / 2;
+
+    uint8_t script[22] = {
+        0x00, 0x14,
+        0xaa, 0xbb, 0xcc, 0xdd, 0xee, 0xff, 0x00, 0x11, 0x22, 0x33,
+        0x44, 0x55, 0x66, 0x77, 0x88, 0x99, 0xaa, 0xbb, 0xcc, 0xdd
+    };
+
+    uint8_t *s = s_test_sbuf;
+    int pos = 0;
+    s[pos++] = 0xff; s[pos++] = 0xff; s[pos++] = 0xff; s[pos++] = 0xff; // nSequence
+    s[pos++] = 0x01; // 1 output
+
+    uint64_t val = 50000;
+    for (int b = 0; b < 8; b++) s[pos++] = (uint8_t)(val >> (b * 8));
+    s[pos++] = 22;
+    memcpy(s + pos, script, 22);
+    pos += 22;
+    s[pos++] = 0x00; s[pos++] = 0x00; s[pos++] = 0x00; s[pos++] = 0x00; // locktime
+
+    job.coinbase_suffix_len = pos;
+    job.extranonce1_len = 0;
+    job.extranonce2_len = 0;
+
+    mining_notification_result_t result = { 0 };
+
+    // 1. Partial donation pattern: sri/donate/10/<addr>/<worker>
+    const char *sri_donate_user = "sri/donate/10/bc1q42aueh0wluqpzg3ng32kvaugnx4thnxa7y625x/worker1";
+    esp_err_t err = coinbase_process_miner_job(&job, sri_donate_user, true, &result);
+    TEST_ASSERT_EQUAL(ESP_OK, err);
+    TEST_ASSERT_TRUE(result.has_user_address);
+    TEST_ASSERT_TRUE(50000ULL == result.user_value_satoshis);
+    TEST_ASSERT_TRUE(result.outputs[0].is_user_output);
+    TEST_ASSERT_EQUAL_STRING("bc1q42aueh0wluqpzg3ng32kvaugnx4thnxa7y625x", result.outputs[0].address);
+
+    // 2. Full donation pattern: sri/donate/<worker>
+    memset(&result, 0, sizeof(result));
+    err = coinbase_process_miner_job(&job, "sri/donate/worker1", true, &result);
+    TEST_ASSERT_EQUAL(ESP_OK, err);
+    TEST_ASSERT_FALSE(result.has_user_address);
+    TEST_ASSERT_TRUE(0ULL == result.user_value_satoshis);
+    TEST_ASSERT_FALSE(result.outputs[0].is_user_output);
+
+    // 3. Testnet SRI solo: sri/solo/tb1q42aueh0wluqpzg3ng32kvaugnx4thnxa5zpe04/worker1
+    memset(&result, 0, sizeof(result));
+    err = coinbase_process_miner_job(&job, "sri/solo/tb1q42aueh0wluqpzg3ng32kvaugnx4thnxa5zpe04/worker1", true, &result);
+    TEST_ASSERT_EQUAL(ESP_OK, err);
+    TEST_ASSERT_TRUE(result.has_user_address);
+    TEST_ASSERT_TRUE(50000ULL == result.user_value_satoshis);
+    TEST_ASSERT_TRUE(result.outputs[0].is_user_output);
+    TEST_ASSERT_EQUAL_STRING("tb1q42aueh0wluqpzg3ng32kvaugnx4thnxa5zpe04", result.outputs[0].address);
+}
