@@ -349,7 +349,7 @@ describe('HomeComponent', () => {
       emitPoolInfo({
         stratumUser: 'bc1q42aueh0wluqpzg3ng32kvaugnx4thnxa7y625x.worker1',
         coinbaseOutputs: [
-          { address: 'bc1q42aueh0wluqpzg3ng32kvaugnx4thnxa7y625x', value: 50000, isUserOutput: 1 }
+          { address: 'bc1q42aueh0wluqpzg3ng32kvaugnx4thnxa7y625x', value: 50000 }
         ]
       });
       fixture.detectChanges();
@@ -362,8 +362,8 @@ describe('HomeComponent', () => {
       emitPoolInfo({
         stratumUser: 'bc1q42aueh0wluqpzg3ng32kvaugnx4thnxa7y625x, 1DYwPTnC4NgEmoqbLbcRqoSzVeH3ehmGbV.worker1',
         coinbaseOutputs: [
-          { address: 'bc1q42aueh0wluqpzg3ng32kvaugnx4thnxa7y625x', value: 25000, isUserOutput: 1 },
-          { address: '1DYwPTnC4NgEmoqbLbcRqoSzVeH3ehmGbV', value: 25000, isUserOutput: 1 }
+          { address: 'bc1q42aueh0wluqpzg3ng32kvaugnx4thnxa7y625x', value: 25000 },
+          { address: '1DYwPTnC4NgEmoqbLbcRqoSzVeH3ehmGbV', value: 25000 }
         ]
       });
       fixture.detectChanges();
@@ -375,7 +375,7 @@ describe('HomeComponent', () => {
       emitPoolInfo({
         stratumUser: 'sri/solo/bc1q42aueh0wluqpzg3ng32kvaugnx4thnxa7y625x/worker1',
         coinbaseOutputs: [
-          { address: 'bc1q42aueh0wluqpzg3ng32kvaugnx4thnxa7y625x', value: 50000, isUserOutput: 1 }
+          { address: 'bc1q42aueh0wluqpzg3ng32kvaugnx4thnxa7y625x', value: 50000 }
         ]
       });
       fixture.detectChanges();
@@ -387,7 +387,7 @@ describe('HomeComponent', () => {
       emitPoolInfo({
         stratumUser: 'sri/donate/10/bc1q42aueh0wluqpzg3ng32kvaugnx4thnxa7y625x/worker1',
         coinbaseOutputs: [
-          { address: 'bc1q42aueh0wluqpzg3ng32kvaugnx4thnxa7y625x', value: 45000, isUserOutput: 1 }
+          { address: 'bc1q42aueh0wluqpzg3ng32kvaugnx4thnxa7y625x', value: 45000 }
         ]
       });
       fixture.detectChanges();
@@ -399,7 +399,7 @@ describe('HomeComponent', () => {
       emitPoolInfo({
         stratumUser: 'sri/donate/worker1',
         coinbaseOutputs: [
-          { address: 'bc1qpool', value: 50000, isUserOutput: 0 }
+          { address: 'bc1qpool', value: 50000 }
         ]
       });
       fixture.detectChanges();

@@ -303,7 +303,6 @@ static void system_api_add_block_info(cJSON *root, GlobalState *g) {
             if (obj) {
                 cJSON_AddNumberToObject(obj, "value", g->coinbase_outputs[i].value_satoshis);
                 cJSON_AddStringToObject(obj, "address", g->coinbase_outputs[i].address);
-                cJSON_AddNumberToObject(obj, "isUserOutput", g->coinbase_outputs[i].is_user_output ? 1 : 0);
                 cJSON_AddItemToArray(outputs, obj);
             }
         }
