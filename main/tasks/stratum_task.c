@@ -111,6 +111,7 @@ void stratum_notify_pool_modified(GlobalState *gs, uint16_t pool_idx)
     if (!gs) return;
 
     gs->SYSTEM_MODULE.primary_pool_error[0] = '\0';
+    gs->SYSTEM_MODULE.pool_banner[0] = '\0';
     uint16_t prim_idx = gs->SYSTEM_MODULE.primary_pool_index;
 
     if (pool_idx == s_running_pool_idx) {
@@ -125,6 +126,7 @@ void stratum_notify_pool_selection_changed(GlobalState *gs)
     if (!gs) return;
 
     gs->SYSTEM_MODULE.primary_pool_error[0] = '\0';
+    gs->SYSTEM_MODULE.pool_banner[0] = '\0';
     uint16_t prim_idx = gs->SYSTEM_MODULE.primary_pool_index;
     uint16_t sec_idx = gs->SYSTEM_MODULE.secondary_pool_index;
     uint16_t target_idx = gs->SYSTEM_MODULE.is_using_fallback ? sec_idx : prim_idx;

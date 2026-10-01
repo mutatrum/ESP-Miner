@@ -110,6 +110,7 @@ const mockSystemInfo: ISystemInfo = {
   maxPower: 20,
   poolConnectionInfo: 'Connected',
   primaryPoolError: '',
+  poolBanner: '',
   responseTime: 45,
   responseShareBatch: 1,
   poolDifficulty: 1000,
@@ -319,15 +320,17 @@ describe('HomeComponent', () => {
       const updateSpy = spyOn(mockSystemApiService, 'updateSystem').and.callThrough();
       await expectSelectedPool('Primary');
 
-      emitPoolInfo({ useFallbackStratum: 0, isUsingFallbackStratum: 1 });
+      emitPoolInfo({ useFallbackStratum: 0, isUsingFallbackStratum: 1, fallbackStratumTLS: true });
       await expectSelectedPool('Fallback');
       expect(component.activePoolURL).toBe(mockSystemInfo.fallbackStratumURL);
       expect(component.activePoolUser).toBe(mockSystemInfo.fallbackStratumUser);
+      expect(component.activePoolTLS).toBe(true);
 
-      emitPoolInfo({ useFallbackStratum: 0, isUsingFallbackStratum: 0 });
+      emitPoolInfo({ useFallbackStratum: 0, isUsingFallbackStratum: 0, stratumTLS: false });
       await expectSelectedPool('Primary');
       expect(component.activePoolURL).toBe(mockSystemInfo.stratumURL);
       expect(component.activePoolUser).toBe(mockSystemInfo.stratumUser);
+      expect(component.activePoolTLS).toBe(false);
       expect(updateSpy).not.toHaveBeenCalled();
     });
 
@@ -336,6 +339,13 @@ describe('HomeComponent', () => {
 
       await expectSelectedPool('Primary');
       expect(component.activePoolURL).toBe(mockSystemInfo.stratumURL);
+    });
+
+    it('should display pool message in pool card when poolBanner is present', () => {
+      emitPoolInfo({ poolBanner: 'Welcome to Public-Pool!' });
+      fixture.detectChanges();
+      const compiled = fixture.nativeElement as HTMLElement;
+      expect(compiled.textContent).toContain('Welcome to Public-Pool!');
     });
 
     for (const target of ['Primary', 'Fallback'] as const) {
@@ -518,7 +528,7 @@ describe('HomeComponent', () => {
         const msg = component.messages.find(m => m.type === 'FALLBACK_STRATUM');
         expect(msg).toBeDefined();
         expect(msg?.severity).toBe('info');
-        expect(msg?.text).toBe('Operating on fallback pool by user preference.');
+        expect(msg?.text).toBe('Mining on fallback pool by user preference.');
       });
 
       it('should show warn banner with primaryPoolError when primary fails over to fallback', () => {
@@ -526,13 +536,13 @@ describe('HomeComponent', () => {
           ...mockSystemInfo,
           isUsingFallbackStratum: 1,
           useFallbackStratum: 0,
-          primaryPoolError: 'SV1: Pool unreachable',
+          primaryPoolError: 'Pool unreachable',
         }, error);
 
         const msg = component.messages.find(m => m.type === 'FALLBACK_STRATUM');
         expect(msg).toBeDefined();
         expect(msg?.severity).toBe('warn');
-        expect(msg?.text).toBe('SV1: Pool unreachable - operating on fallback pool.');
+        expect(msg?.text).toBe('Primary pool (stratum.pool.com:3333): Pool unreachable - mining on fallback pool.');
       });
 
       it('should show default warn banner when failover occurs without primaryPoolError', () => {
@@ -546,7 +556,7 @@ describe('HomeComponent', () => {
         const msg = component.messages.find(m => m.type === 'FALLBACK_STRATUM');
         expect(msg).toBeDefined();
         expect(msg?.severity).toBe('warn');
-        expect(msg?.text).toBe('Primary pool unreachable - operating on fallback pool.');
+        expect(msg?.text).toBe('Primary pool (stratum.pool.com:3333): Pool unreachable - mining on fallback pool.');
       });
 
       it('should show warn banner when user requested fallback but operating on primary', () => {
@@ -559,14 +569,14 @@ describe('HomeComponent', () => {
         const msg = component.messages.find(m => m.type === 'FALLBACK_STRATUM');
         expect(msg).toBeDefined();
         expect(msg?.severity).toBe('warn');
-        expect(msg?.text).toBe('Fallback pool unreachable - operating on primary pool.');
+        expect(msg?.text).toBe('Fallback pool (fallback.pool.com:3333): Pool unreachable - mining on primary pool.');
       });
 
       it('should dismiss banner when operating normally on primary pool', () => {
         component.messages = [{
           type: 'FALLBACK_STRATUM',
           severity: 'warn',
-          text: 'Primary pool unreachable - operating on fallback pool.',
+          text: 'Primary pool (stratum.pool.com:3333): Pool unreachable - mining on fallback pool.',
         }];
 
         component.handleSystemMessages({

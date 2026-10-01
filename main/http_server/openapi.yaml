@@ -278,6 +278,7 @@ components:
         - pools
         - poolConnectionInfo
         - primaryPoolError
+        - poolBanner
         - poolDifficulty
         - power
         - resetReason
@@ -521,6 +522,9 @@ components:
         primaryPoolError:
           type: string
           description: Last error encountered by primary pool causing failover
+        poolBanner:
+          type: string
+          description: Banner or message provided by the active pool
         poolDifficulty:
           type: number
           description: Current pool difficulty
