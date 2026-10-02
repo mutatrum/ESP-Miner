@@ -82,6 +82,9 @@ components:
         stratumDecodeCoinbase:
           type: boolean
           description: Enable pool coinbase transaction decoding
+        stratumShareWarning:
+          type: boolean
+          description: Warn on the dashboard when the payout share of the coinbase reward is low. Disable for pools that pay miners directly through many coinbase outputs.
         stratumV2ChannelType:
           type: string
           enum: [standard, extended]
@@ -237,6 +240,7 @@ components:
         - fallbackStratumTLS
         - fallbackStratumCert
         - fallbackStratumDecodeCoinbase
+        - fallbackStratumShareWarning
         - fanrpm
         - fan2rpm
         - fanspeed
@@ -270,6 +274,7 @@ components:
         - overclockEnabled
         - primaryPoolIndex
         - secondaryPoolIndex
+        - useFallbackStratum
         - pools
         - poolConnectionInfo
         - poolDifficulty
@@ -294,9 +299,11 @@ components:
         - stratumTLS
         - stratumCert
         - stratumDecodeCoinbase
+        - stratumShareWarning
         - temp
         - temp2
         - uptimeSeconds
+        - useNTP
         - version
         - axeOSVersion
         - voltage
@@ -312,6 +319,8 @@ components:
         - blockFound
         - coinbaseValueTotalSatoshis
         - coinbaseValueUserSatoshis
+        - coinbaseOthersCount
+        - coinbaseOthersValueSatoshis
         - miningPaused
         - statsLimit
         - authEnabled
@@ -379,6 +388,9 @@ components:
         fallbackStratumDecodeCoinbase:
           type: boolean
           description: Enable fallback pool coinbase transaction decoding
+        fallbackStratumShareWarning:
+          type: boolean
+          description: Warn on the dashboard when the payout share of the coinbase reward is low, while mining on the fallback pool
         fallbackStratumProtocol:
           type: string
           enum: [SV1, SV2]
@@ -537,6 +549,15 @@ components:
         sharesRejected:
           type: number
           description: Number of rejected shares
+        totalUptimeSeconds:
+          type: number
+          description: Total uptime in seconds
+        totalHashes:
+          type: number
+          description: Total hashes done by the device
+        totalLog2Work:
+          type: number
+          description: Log2 of total hashes
         sharesPending:
           type: number
           description: Shares submitted but not yet resolved by the pool (SV2; 0 for SV1). Rises while the pool batches/buffers acks, drops to 0 once it catches up.
@@ -592,6 +613,9 @@ components:
         stratumDecodeCoinbase:
           type: boolean
           description: Enable primary pool coinbase transaction decoding
+        stratumShareWarning:
+          type: boolean
+          description: Warn on the dashboard when the payout share of the coinbase reward is low, while mining on the primary pool
         temp:
           type: number
           description: Average chip temperature
@@ -601,6 +625,9 @@ components:
         uptimeSeconds:
           type: number
           description: System uptime in seconds
+        useFallbackStratum:
+          type: integer
+          description: Whether fallback stratum is selected as primary preference (0=no, 1=yes)
         version:
           type: string
           description: Firmware version
@@ -667,6 +694,12 @@ components:
         coinbaseValueUserSatoshis:
           type: integer
           description: User's portion of coinbase value in satoshis
+        coinbaseOthersCount:
+          type: integer
+          description: Number of payout outputs that did not fit in coinbaseOutputs
+        coinbaseOthersValueSatoshis:
+          type: integer
+          description: Summed value in satoshis of the outputs counted in coinbaseOthersCount
         hashrateMonitor:
           type: object
           required:
@@ -691,7 +724,9 @@ components:
           description: List of available app partitions and their firmware versions
           items:
             $ref: '#/components/schemas/SystemPartition'
-
+        useNTP:
+          type: boolean
+          description: Whether NTP time sync is enabled
     SystemASIC:
       type: object
       required:
@@ -711,6 +746,7 @@ components:
             - BM1366
             - BM1368
             - BM1370
+            - BM1373
             - BM1397
           examples:
             - "BM1366"
@@ -982,7 +1018,7 @@ components:
           enum: [0, 1]
           examples:
             - 1
-        fanspeed:
+        manualFanSpeed:
           type: integer
           description: Manual fan speed percentage when autofanspeed is disabled
           minimum: 0

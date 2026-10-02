@@ -17,6 +17,7 @@ import * as functions from '../generated/functions';
 import { ISystemUpdateResponse } from 'src/models/ISystemUpdateResponse';
 
 import { environment } from '../../environments/environment';
+import { useAnimation } from '@angular/animations';
 
 const API_TIMEOUT = 15000;
 
@@ -86,6 +87,7 @@ export class SystemApiService {
         wifiStatus: "Connected!",
         wifiRSSI: -32,
         apEnabled: 0,
+        useNTP: true,
         sharesAccepted: 1,
         sharesRejected: 10,
         sharesPending: 0,
@@ -94,6 +96,9 @@ export class SystemApiService {
           { message: "Duplicate share", count: 2 }
         ],
         uptimeSeconds: 38,
+        totalUptimeSeconds: 123456,
+        totalHashes: 456789012345,
+        totalLog2Work: 38.729,
         smallCoreCount: 672,
         ASICModel: "BM1370" as any,
         primaryPoolIndex: 0,
@@ -111,6 +116,7 @@ export class SystemApiService {
             stratumTLS: 0,
             stratumCert: "",
             stratumDecodeCoinbase: true,
+            stratumShareWarning: true,
             stratumV2ChannelType: "extended" as const,
             stratumV2AuthorityPubkey: "",
             stratumV2RequireAuth: false
@@ -127,6 +133,7 @@ export class SystemApiService {
             stratumTLS: 0,
             stratumCert: "",
             stratumDecodeCoinbase: true,
+            stratumShareWarning: true,
             stratumV2ChannelType: "extended" as const,
             stratumV2AuthorityPubkey: "",
             stratumV2RequireAuth: false
@@ -143,6 +150,7 @@ export class SystemApiService {
         stratumV2AuthorityPubkey: "",
         stratumV2ChannelType: "extended" as const,
         stratumDecodeCoinbase: true,
+        stratumShareWarning: true,
         fallbackStratumProtocol: "SV1" as const,
         fallbackStratumURL: "test.public-pool.io",
         fallbackStratumPort: 21497,
@@ -152,12 +160,14 @@ export class SystemApiService {
         fallbackStratumTLS: !!0,
         fallbackStratumCert: "",
         fallbackStratumDecodeCoinbase: true,
+        fallbackStratumShareWarning: true,
         fallbackStratumV2AuthorityPubkey: "",
         fallbackStratumV2ChannelType: "extended" as const,
         poolDifficulty: 1000,
         responseTime: 10,
         responseShareBatch: 1,
         isUsingFallbackStratum: 0,
+        useFallbackStratum: 0,
         poolConnectionInfo: "IPv4 (TLS)",
         frequency: 485,
         actualFrequency: 485,
@@ -213,6 +223,8 @@ export class SystemApiService {
         coinbaseOutputs: [{value: 50, address: "payoutaddress"}],
         coinbaseValueTotalSatoshis: 50,
         coinbaseValueUserSatoshis: 50,
+        coinbaseOthersCount: 0,
+        coinbaseOthersValueSatoshis: 0,
         miningPaused: false,
         workReceived: 42,
       }

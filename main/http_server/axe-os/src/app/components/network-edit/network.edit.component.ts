@@ -48,6 +48,7 @@ export class NetworkEditComponent implements OnInit {
           hostname: [info.hostname, [Validators.required]],
           ssid: [info.ssid, [Validators.required]],
           wifiPass: ['*****'],
+          useNTP: [info.useNTP],
           axeosPassword: [info.authEnabled === 1 ? '*****' : ''],
           authReadRequired: [info.authReadRequired === 1]
         });

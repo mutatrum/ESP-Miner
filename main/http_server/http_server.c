@@ -40,6 +40,8 @@
 #include "http_auth.h"
 #include "http_cors.h"
 #include "embedded_web_ui.h"
+#include "sv2_protocol.h"
+#include "tasks/stratum_task.h"
 #include "websocket.h"
 #include "websocket_log.h"
 #include "websocket_api.h"
@@ -539,6 +541,7 @@ static bool validate_pool_json(const cJSON *pool_item, int i) {
     if (!validate_number_range(cJSON_GetObjectItem(pool_item, "stratumTLS"), "stratumTLS", 0, 2, i)) return false;
     if (!validate_string_field(cJSON_GetObjectItem(pool_item, "stratumCert"), "stratumCert", 3000, i)) return false;
     if (!validate_bool_or_num(cJSON_GetObjectItem(pool_item, "stratumDecodeCoinbase"), "stratumDecodeCoinbase", i)) return false;
+    if (!validate_bool_or_num(cJSON_GetObjectItem(pool_item, "stratumShareWarning"), "stratumShareWarning", i)) return false;
 
     cJSON *v2chan = cJSON_GetObjectItem(pool_item, "stratumV2ChannelType");
     if (v2chan) {
@@ -555,15 +558,15 @@ static bool validate_pool_json(const cJSON *pool_item, int i) {
     return true;
 }
 
-static void update_pool_nvs(const cJSON *pool_item, int i) {
+static bool update_pool_nvs(const cJSON *pool_item, int i) {
     cJSON *p_obj = cJSON_CreateObject();
     
+    char *old_json_str = nvs_config_get_string_indexed(NVS_CONFIG_POOL, i);
     cJSON *new_pass = cJSON_GetObjectItem(pool_item, "stratumPassword");
     const char *pass_to_save = NULL;
     char *old_pass = NULL;
     
     if (new_pass && cJSON_IsString(new_pass) && strcmp(new_pass->valuestring, "*****") == 0) {
-        char *old_json_str = nvs_config_get_string_indexed(NVS_CONFIG_POOL, i);
         if (old_json_str && strlen(old_json_str) > 0) {
             cJSON *old_json = cJSON_Parse(old_json_str);
             if (old_json) {
@@ -574,7 +577,6 @@ static void update_pool_nvs(const cJSON *pool_item, int i) {
                 cJSON_Delete(old_json);
             }
         }
-        free(old_json_str);
         pass_to_save = old_pass ? old_pass : "x";
     } else if (new_pass && cJSON_IsString(new_pass)) {
         pass_to_save = new_pass->valuestring;
@@ -592,19 +594,29 @@ static void update_pool_nvs(const cJSON *pool_item, int i) {
     add_number_field_default(p_obj, pool_item, "stratumTLS", 0);
     add_string_field_default(p_obj, pool_item, "stratumCert", "");
     add_bool_field_default(p_obj, pool_item, "stratumDecodeCoinbase", true);
-    add_string_field_default(p_obj, pool_item, "stratumV2ChannelType", SV2_CHANNEL_TYPE_EXTENDED);
+    add_bool_field_default(p_obj, pool_item, "stratumShareWarning", true);
+    add_string_field_default(p_obj, pool_item, "stratumV2ChannelType", sv2_channel_type_to_string(SV2_CHANNEL_EXTENDED));
     add_string_field_default(p_obj, pool_item, "stratumV2AuthorityPubkey", "");
     add_bool_field_default(p_obj, pool_item, "stratumV2RequireAuth", false);
 
     char *json_str = cJSON_PrintUnformatted(p_obj);
+    bool modified = true;
     if (json_str) {
-        nvs_config_set_string_indexed(NVS_CONFIG_POOL, i, json_str);
+        if (old_json_str && strcmp(old_json_str, json_str) == 0) {
+            modified = false;
+        } else {
+            nvs_config_set_string_indexed(NVS_CONFIG_POOL, i, json_str);
+        }
         free(json_str);
     }
     cJSON_Delete(p_obj);
     if (old_pass) free(old_pass);
+    if (old_json_str) free(old_json_str);
 
-    SYSTEM_load_pool_from_nvs(GLOBAL_STATE, i);
+    if (modified) {
+        SYSTEM_load_pool_from_nvs(GLOBAL_STATE, i);
+    }
+    return modified;
 }
 
 bool check_settings_and_update(const cJSON * const root, char **redirect_url)
@@ -777,6 +789,7 @@ bool check_settings_and_update(const cJSON * const root, char **redirect_url)
             }
         }
 
+        bool modified_pools[MAX_POOLS] = {false};
         // Save pools array to NVS
         if (pools_item && cJSON_IsArray(pools_item)) {
             int size = cJSON_GetArraySize(pools_item);
@@ -786,9 +799,35 @@ bool check_settings_and_update(const cJSON * const root, char **redirect_url)
                 if (id_item && cJSON_IsNumber(id_item)) {
                     int idx = id_item->valueint;
                     if (idx >= 0 && idx < MAX_POOLS) {
-                        update_pool_nvs(pool_item, idx);
+                        if (update_pool_nvs(pool_item, idx)) {
+                            modified_pools[idx] = true;
+                        }
                     }
                 }
+            }
+        }
+
+        cJSON *use_fallback_item = cJSON_GetObjectItem(root, "useFallbackStratum");
+        bool pool_selection_changed = (cJSON_GetObjectItem(root, "primaryPoolIndex") != NULL) ||
+                                      (cJSON_GetObjectItem(root, "secondaryPoolIndex") != NULL) ||
+                                      (use_fallback_item != NULL);
+        if (pools_item != NULL || pool_selection_changed) {
+            SYSTEM_reload_pool_config(GLOBAL_STATE);
+
+            if (use_fallback_item) {
+                GLOBAL_STATE->SYSTEM_MODULE.is_using_fallback = GLOBAL_STATE->SYSTEM_MODULE.use_fallback_stratum;
+            } else if (cJSON_GetObjectItem(root, "primaryPoolIndex") != NULL && !GLOBAL_STATE->SYSTEM_MODULE.use_fallback_stratum) {
+                GLOBAL_STATE->SYSTEM_MODULE.is_using_fallback = false;
+            }
+
+            for (int i = 0; i < MAX_POOLS; i++) {
+                if (modified_pools[i]) {
+                    stratum_notify_pool_modified(GLOBAL_STATE, i);
+                }
+            }
+
+            if (pool_selection_changed) {
+                stratum_notify_pool_selection_changed(GLOBAL_STATE);
             }
         }
     }
@@ -872,9 +911,8 @@ static esp_err_t PATCH_update_settings(httpd_req_t * req)
         }
     }
 
-    // Create response JSON
-    cJSON *response = cJSON_CreateObject();
     if (redirect_url) {
+        cJSON *response = cJSON_CreateObject();
         cJSON_AddStringToObject(response, "status", "success");
         cJSON *redirect = cJSON_CreateObject();
         cJSON_AddStringToObject(redirect, "url", redirect_url);
@@ -1044,6 +1082,9 @@ static esp_err_t PUT_system_pool(httpd_req_t *req)
     update_pool_nvs(root, idx);
     cJSON_Delete(root);
 
+    SYSTEM_reload_pool_config(GLOBAL_STATE);
+    stratum_notify_pool_modified(GLOBAL_STATE, idx);
+
     cJSON *resp = cJSON_CreateObject();
     cJSON_AddStringToObject(resp, "message", "Pool updated successfully");
     httpd_resp_set_type(req, "application/json");
@@ -1084,6 +1125,7 @@ static esp_err_t DELETE_system_pool(httpd_req_t *req)
 
     // Reload in global state memory
     SYSTEM_load_pool_from_nvs(GLOBAL_STATE, idx);
+    SYSTEM_reload_pool_config(GLOBAL_STATE);
 
     cJSON *resp = cJSON_CreateObject();
     cJSON_AddStringToObject(resp, "message", "Pool cleared successfully");
@@ -1383,8 +1425,11 @@ static esp_err_t GET_scoreboard(httpd_req_t * req)
     cJSON * root = cJSON_CreateArray();
 
     if (xSemaphoreTake(scoreboard->mutex, portMAX_DELAY) == pdTRUE) {
-        for (int i = 0; i < scoreboard->count; i++) {
+        for (int i = 0; i < MAX_SCOREBOARD; i++) {
             const ScoreboardEntry *e = &scoreboard->entries[i];
+            if (e->difficulty <= 0.0) {
+                break;
+            }
             cJSON *entry = cJSON_CreateObject();
 
             char nonce_str[9], version_bits_str[9];
@@ -1623,6 +1668,7 @@ esp_err_t start_rest_server(GlobalState * global_state)
     config.max_uri_handlers = 25;
     config.close_fn = websocket_close_fn;
     config.lru_purge_enable = true;
+    config.keep_alive_enable = true;
 
     ESP_LOGI(TAG, "Starting HTTP Server");
     REST_CHECK(httpd_start(&server, &config) == ESP_OK, "Start server failed", err_start);
