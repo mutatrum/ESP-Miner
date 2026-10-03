@@ -277,8 +277,8 @@ void SYSTEM_init_system(GlobalState * GLOBAL_STATE)
     // The stratum tasks touch valid_jobs (SYSTEM_clean_jobs_queue) as soon as they
     // connect, so tying the allocation to create_jobs_task actually starting is a
     // NULL dereference waiting to happen if that task ever fails to spawn.
-    GLOBAL_STATE->ASIC_TASK_MODULE.active_jobs = heap_caps_calloc(MAX_ASIC_JOBS, sizeof(bm_job *), MALLOC_CAP_SPIRAM);
-    GLOBAL_STATE->ASIC_TASK_MODULE.valid_jobs = heap_caps_calloc(MAX_ASIC_JOBS, sizeof(uint8_t), MALLOC_CAP_SPIRAM);
+    GLOBAL_STATE->ASIC_TASK_MODULE.active_jobs = calloc(MAX_ASIC_JOBS, sizeof(bm_job *));
+    GLOBAL_STATE->ASIC_TASK_MODULE.valid_jobs = calloc(MAX_ASIC_JOBS, sizeof(uint8_t));
     if (GLOBAL_STATE->ASIC_TASK_MODULE.active_jobs == NULL || GLOBAL_STATE->ASIC_TASK_MODULE.valid_jobs == NULL) {
         ESP_LOGE(TAG, "Failed to allocate job tracking tables");
         abort();
