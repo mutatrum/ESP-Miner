@@ -120,7 +120,7 @@ void stratum_v1_close_connection(GlobalState *GLOBAL_STATE)
 
     GLOBAL_STATE->SYSTEM_MODULE.shares_pending = 0;
     SYSTEM_clean_jobs_queue(GLOBAL_STATE);
-    SYSTEM_reset_coinbase_ui_state(GLOBAL_STATE, "");
+    SYSTEM_reset_coinbase_ui_state(GLOBAL_STATE);
 }
 
 esp_err_t stratum_v1_run(GlobalState *GLOBAL_STATE, uint16_t pool_idx)

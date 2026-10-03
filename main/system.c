@@ -488,15 +488,11 @@ void SYSTEM_notify_new_ntime(GlobalState * GLOBAL_STATE, uint32_t ntime)
 // Reset decoded coinbase UI fields (scriptsig, coinbase values, outputs, block signals).
 // Note: block_height is intentionally NOT reset here; it is preserved as the "last known good"
 // network height so the UI, screen, and BAP do not flicker or lose context on transient disconnects.
-void SYSTEM_reset_coinbase_ui_state(GlobalState * GLOBAL_STATE, const char *scriptsig_msg)
+void SYSTEM_reset_coinbase_ui_state(GlobalState * GLOBAL_STATE)
 {
     if (!GLOBAL_STATE) return;
 
     memset(&GLOBAL_STATE->coinbase, 0, sizeof(GLOBAL_STATE->coinbase));
-    if (scriptsig_msg) {
-        strncpy(GLOBAL_STATE->coinbase.scriptsig, scriptsig_msg, sizeof(GLOBAL_STATE->coinbase.scriptsig) - 1);
-        GLOBAL_STATE->coinbase.scriptsig[sizeof(GLOBAL_STATE->coinbase.scriptsig) - 1] = '\0';
-    }
     GLOBAL_STATE->block_signals_count = 0;
 }
 
@@ -514,7 +510,7 @@ void SYSTEM_decode_and_apply_coinbase(GlobalState * GLOBAL_STATE, const miner_jo
     // Direct Merkle Root jobs (e.g. SV2 Standard) don't carry coinbase parts
     if (job->type == JOB_TYPE_SV2_STANDARD) {
         GLOBAL_STATE->block_height = 0;
-        SYSTEM_reset_coinbase_ui_state(GLOBAL_STATE, NULL);
+        SYSTEM_reset_coinbase_ui_state(GLOBAL_STATE);
         return;
     }
 
@@ -527,7 +523,8 @@ void SYSTEM_decode_and_apply_coinbase(GlobalState * GLOBAL_STATE, const miner_jo
 
     if (coinbase_process_miner_job(job, user, decode_coinbase_tx, result) != ESP_OK) {
         ESP_LOGW(TAG, "Failed to decode coinbase for job %s", job->job_id);
-        SYSTEM_reset_coinbase_ui_state(GLOBAL_STATE, "[decode error]");
+        SYSTEM_reset_coinbase_ui_state(GLOBAL_STATE);
+        snprintf(GLOBAL_STATE->coinbase.scriptsig, sizeof(GLOBAL_STATE->coinbase.scriptsig), "[decode error]");
         return;
     }
 
