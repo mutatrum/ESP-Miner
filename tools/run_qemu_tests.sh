@@ -49,6 +49,6 @@ idf.py build
 echo "Merging binaries..."
 cd build
 esptool --chip esp32s3 merge-bin --pad-to-size 16MB -o flash_image.bin @flash_args
+
 echo "Running tests in QEMU emulator..."
 qemu-system-xtensa -machine esp32s3 -monitor none -nographic -no-reboot -semihosting -drive file=flash_image.bin,if=mtd,format=raw -m 4 -serial stdio
-
