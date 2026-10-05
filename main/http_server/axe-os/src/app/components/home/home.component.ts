@@ -9,7 +9,6 @@ import { DateAgoPipe } from 'src/app/pipes/date-ago.pipe';
 import { HashSuffixPipe } from 'src/app/pipes/hash-suffix.pipe';
 import { ByteSuffixPipe } from 'src/app/pipes/byte-suffix.pipe';
 import { DiffSuffixPipe } from 'src/app/pipes/diff-suffix.pipe';
-import { AddressPipe } from 'src/app/pipes/address.pipe';
 import { QuicklinkService } from 'src/app/services/quicklink.service';
 import { ShareRejectionExplanationService } from 'src/app/services/share-rejection-explanation.service';
 import { LoadingService } from 'src/app/services/loading.service';
@@ -27,7 +26,6 @@ import { GridStack, GridItemHTMLElement } from 'gridstack';
 import { DashboardEditService, WidgetDef } from 'src/app/services/dashboard-edit.service';
 
 type PoolLabel = 'Primary' | 'Fallback';
-type ProtocolLabel = 'SV2 Standard Channel' | 'SV2 Extended Channel';
 type MessageType =
   | 'SYSTEM_INFO_ERROR'
   | 'MINING_PAUSED'
@@ -178,8 +176,6 @@ export class HomeComponent implements OnInit, OnDestroy {
   private lastChartUpdate: number = 0;
   private lastBucket: number = -1;
 
-  // Performance optimization cache properties
-  private primaryColorRgb: { r: number, g: number, b: number } = { r: 0, g: 0, b: 0 };
   private isHardwareConfigInitialized = false;
   public asicsAmount: number = 0;
   public asicDomainsAmount: number = 0;
@@ -198,7 +194,6 @@ export class HomeComponent implements OnInit, OnDestroy {
   private lastHasFan2Rpm = false;
 
   private destroy$ = new Subject<void>();
-  private infoSubscription?: Subscription;
   private statsSubscription?: Subscription;
   private latestInfo?: ISystemInfo;
   private liveDataStarted = false;
@@ -581,7 +576,6 @@ export class HomeComponent implements OnInit, OnDestroy {
     const textColorSecondary = documentStyle.getPropertyValue('--color-text-secondary').trim();
     const surfaceBorder = documentStyle.getPropertyValue('--color-border-content').trim();
     const primaryColor = documentStyle.getPropertyValue('--color-primary').trim();
-    this.primaryColorRgb = this.hexToRgb(primaryColor);
 
     this.rebuildChartDatasets();
 
@@ -623,7 +617,6 @@ export class HomeComponent implements OnInit, OnDestroy {
     const textColorSecondary = documentStyle.getPropertyValue('--color-text-secondary').trim();
     const surfaceBorder = documentStyle.getPropertyValue('--color-border-content').trim();
     const primaryColor = documentStyle.getPropertyValue('--color-primary').trim();
-    this.primaryColorRgb = this.hexToRgb(primaryColor);
 
     this.chartData = {
       labels: this.dataLabel,
@@ -1079,7 +1072,7 @@ export class HomeComponent implements OnInit, OnDestroy {
       startWith(undefined)
     );
 
-    this.infoSubscription = combineLatest([this.info$, this.systemInfoError$, asicSettings$])
+    combineLatest([this.info$, this.systemInfoError$, asicSettings$])
       .pipe(takeUntil(this.destroy$))
       .subscribe(([info, systemInfoError, asicSettings]) => {
         this.handleSystemMessages(info, systemInfoError, asicSettings?.frequencyOptions);
@@ -1175,21 +1168,6 @@ export class HomeComponent implements OnInit, OnDestroy {
     this.titleService.setTitle(parts.filter(Boolean).join(' • '));
   }
 
-
-
-  private hexToRgb(hex: string): { r: number, g: number, b: number } {
-    if (hex[0] === '#') hex = hex.slice(1);
-    if (hex.length === 3) {
-      hex = hex.split('').map((h: string) => h + h).join('');
-    }
-
-    const r = parseInt(hex.slice(0, 2), 16);
-    const g = parseInt(hex.slice(2, 4), 16);
-    const b = parseInt(hex.slice(4, 6), 16);
-
-    return { r, g, b };
-  }
-
   getRejectionExplanation(reason: string): string | null {
     return this.shareRejectReasonsService.getExplanation(reason);
   }
@@ -1221,12 +1199,9 @@ export class HomeComponent implements OnInit, OnDestroy {
     return [...userOutputs, ...outputs.filter(o => !isUserOutput(o))];
   }
 
-  get hasPayoutAddress(): boolean {
-    return AddressPipe.hasAddress(this.activePoolUser);
-  }
 
   getPayoutPercentage(info: ISystemInfo) {
-    if (this.hasPayoutAddress && info.coinbaseValueTotalSatoshis) {
+    if ((info.coinbasePayoutStatus === 'verified' || info.coinbasePayoutStatus === 'not_found') && info.coinbaseValueTotalSatoshis) {
       return (info.coinbaseValueUserSatoshis ?? 0) / info.coinbaseValueTotalSatoshis * 100;
     }
     return -1;
@@ -1268,7 +1243,7 @@ export class HomeComponent implements OnInit, OnDestroy {
       let percentage = this.getPayoutPercentage(info);
       const warn = this.activePoolShareWarning;
       updateMessage(warn && percentage > 0 && percentage < 95, 'NOT_SOLO_MINING', 'warn', `Your share of the mining reward is only ${percentage.toFixed(1)}%`);
-      updateMessage(warn && this.hasPayoutAddress && percentage === 0, 'NO_MINING_REWARD', 'warn', `You don't have a share in the mining reward`);
+      updateMessage(warn && info.coinbasePayoutStatus === 'not_found', 'NO_MINING_REWARD', 'warn', `You don't have a share in the mining reward`);
     }
   }
 

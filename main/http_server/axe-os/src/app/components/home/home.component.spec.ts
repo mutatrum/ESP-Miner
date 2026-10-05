@@ -43,6 +43,7 @@ const mockSystemInfo: ISystemInfo = {
   autofanspeed: 1,
   blockSignals: [],
   coinbaseValueUserSatoshis: 0,
+  coinbasePayoutStatus: 'unknown',
   display: 'SSD1306',
   displayTimeout: 0,
   errorPercentage: 0,
@@ -256,6 +257,33 @@ describe('HomeComponent', () => {
     expect(component.messages.some(message => message.type === 'FREQUENCY_LOW')).toBeTrue();
     component.handleSystemMessages(info, error, [100, 200, 300]);
     expect(component.messages.some(message => message.type === 'FREQUENCY_LOW')).toBeFalse();
+  });
+
+  it('handles mining reward messages using coinbasePayoutStatus', () => {
+    const error = { duration: 0, startTime: null };
+    const baseInfo: ISystemInfo = {
+      ...mockSystemInfo,
+      coinbaseOutputs: [{ address: 'bc1qother', value: 50000 }],
+      coinbaseValueTotalSatoshis: 50000,
+      coinbaseValueUserSatoshis: 0,
+    };
+
+    // When payout status is not_found and share warning is enabled, alert NO_MINING_REWARD
+    component.activePoolShareWarning = true;
+    component.handleSystemMessages({ ...baseInfo, coinbasePayoutStatus: 'not_found' }, error);
+    expect(component.messages.some(message => message.type === 'NO_MINING_REWARD')).toBeTrue();
+
+    // When payout status is not_applicable (account pool), NO_MINING_REWARD is not shown
+    component.handleSystemMessages({ ...baseInfo, coinbasePayoutStatus: 'not_applicable' }, error);
+    expect(component.messages.some(message => message.type === 'NO_MINING_REWARD')).toBeFalse();
+
+    // When payout status is verified, NO_MINING_REWARD is not shown
+    component.handleSystemMessages({
+      ...baseInfo,
+      coinbaseValueUserSatoshis: 50000,
+      coinbasePayoutStatus: 'verified'
+    }, error);
+    expect(component.messages.some(message => message.type === 'NO_MINING_REWARD')).toBeFalse();
   });
 
   it('keeps telemetry and messages live while settings load and after settings fail', () => {

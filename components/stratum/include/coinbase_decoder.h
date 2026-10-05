@@ -79,6 +79,21 @@ void coinbase_decode_address_from_scriptpubkey(const uint8_t *script, size_t scr
                                                 const char *bech32_hrp, bool is_testnet);
 
 /**
+ * @brief Aggregate payout address verification status against coinbase transaction
+ */
+typedef enum {
+    COINBASE_PAYOUT_UNKNOWN = 0,
+    COINBASE_PAYOUT_NOT_APPLICABLE,
+    COINBASE_PAYOUT_NOT_FOUND,
+    COINBASE_PAYOUT_VERIFIED,
+} coinbase_payout_status_t;
+
+/**
+ * @brief Convert coinbase_payout_status_t enum to string representation
+ */
+const char *coinbase_payout_status_to_string(coinbase_payout_status_t status);
+
+/**
  * @brief Structure representing a decoded coinbase transaction output
  */
 typedef struct {
@@ -99,6 +114,7 @@ typedef struct {
     uint64_t others_value_satoshis; // summed value of those outputs
     uint64_t total_value_satoshis;
     uint64_t user_value_satoshis;
+    coinbase_payout_status_t payout_status;
     bool decode_coinbase_tx;
     bool bip54_signaling;  // BIP-54: nLockTime = height - 1 && nSequence != 0xffffffff
     bool bip110_signaling; // BIP-110: signaling via version bit 4 (0x00000010)

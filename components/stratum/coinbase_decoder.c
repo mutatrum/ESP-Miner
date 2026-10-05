@@ -570,6 +570,20 @@ void coinbase_clear_user_cache(void) {
     s_cached_is_testnet = false;
 }
 
+const char *coinbase_payout_status_to_string(coinbase_payout_status_t status) {
+    switch (status) {
+        case COINBASE_PAYOUT_VERIFIED:
+            return "verified";
+        case COINBASE_PAYOUT_NOT_FOUND:
+            return "not_found";
+        case COINBASE_PAYOUT_NOT_APPLICABLE:
+            return "not_applicable";
+        case COINBASE_PAYOUT_UNKNOWN:
+        default:
+            return "unknown";
+    }
+}
+
 esp_err_t coinbase_process_miner_job(const miner_job_t *job,
                                      const char *user_address,
                                      bool decode_coinbase_tx,
@@ -581,6 +595,7 @@ esp_err_t coinbase_process_miner_job(const miner_job_t *job,
     result->user_value_satoshis = 0;
     result->others_count = 0;
     result->others_value_satoshis = 0;
+    result->payout_status = COINBASE_PAYOUT_UNKNOWN;
     result->decode_coinbase_tx = decode_coinbase_tx;
 
     const char *bech32_hrp = "bc";
@@ -696,7 +711,18 @@ esp_err_t coinbase_process_miner_job(const miner_job_t *job,
             free(result->scriptsig);
             result->scriptsig = NULL;
         }
+        result->payout_status = COINBASE_PAYOUT_UNKNOWN;
         return err;
+    }
+
+    if (!decode_coinbase_tx) {
+        result->payout_status = COINBASE_PAYOUT_UNKNOWN;
+    } else if (user_script_count == 0) {
+        result->payout_status = COINBASE_PAYOUT_NOT_APPLICABLE;
+    } else if (result->user_value_satoshis > 0) {
+        result->payout_status = COINBASE_PAYOUT_VERIFIED;
+    } else {
+        result->payout_status = COINBASE_PAYOUT_NOT_FOUND;
     }
 
     return ESP_OK;

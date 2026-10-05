@@ -811,6 +811,8 @@ TEST_CASE("Multi-address job payout verification", "[coinbase_decoder]")
     TEST_ASSERT_TRUE(30000ULL == result.user_value_satoshis);
     TEST_ASSERT_TRUE(result.outputs[0].is_user_output);
     TEST_ASSERT_TRUE(result.outputs[1].is_user_output);
+    TEST_ASSERT_EQUAL(COINBASE_PAYOUT_VERIFIED, result.payout_status);
+    TEST_ASSERT_EQUAL_STRING("verified", coinbase_payout_status_to_string(result.payout_status));
 }
 
 TEST_CASE("Account-based pool username - user satoshis is 0", "[coinbase_decoder]")
@@ -849,6 +851,8 @@ TEST_CASE("Account-based pool username - user satoshis is 0", "[coinbase_decoder
     esp_err_t err = coinbase_process_miner_job(&job, account_user, true, &result);
     TEST_ASSERT_EQUAL(ESP_OK, err);
     TEST_ASSERT_TRUE(0ULL == result.user_value_satoshis);
+    TEST_ASSERT_EQUAL(COINBASE_PAYOUT_NOT_APPLICABLE, result.payout_status);
+    TEST_ASSERT_EQUAL_STRING("not_applicable", coinbase_payout_status_to_string(result.payout_status));
 }
 
 TEST_CASE("User scriptPubKey caching across jobs and cache clear", "[coinbase_decoder]")
@@ -1004,6 +1008,7 @@ TEST_CASE("SRI pattern mining job payout verification and network detection", "[
     TEST_ASSERT_TRUE(50000ULL == result.user_value_satoshis);
     TEST_ASSERT_TRUE(result.outputs[0].is_user_output);
     TEST_ASSERT_EQUAL_STRING("bc1q42aueh0wluqpzg3ng32kvaugnx4thnxa7y625x", result.outputs[0].address);
+    TEST_ASSERT_EQUAL(COINBASE_PAYOUT_VERIFIED, result.payout_status);
 
     // 2. Full donation pattern: sri/donate/<worker>
     memset(&result, 0, sizeof(result));
@@ -1011,6 +1016,7 @@ TEST_CASE("SRI pattern mining job payout verification and network detection", "[
     TEST_ASSERT_EQUAL(ESP_OK, err);
     TEST_ASSERT_TRUE(0ULL == result.user_value_satoshis);
     TEST_ASSERT_FALSE(result.outputs[0].is_user_output);
+    TEST_ASSERT_EQUAL(COINBASE_PAYOUT_NOT_APPLICABLE, result.payout_status);
 
     // 3. Testnet SRI solo: sri/solo/tb1q42aueh0wluqpzg3ng32kvaugnx4thnxa5zpe04/worker1
     memset(&result, 0, sizeof(result));
@@ -1019,4 +1025,52 @@ TEST_CASE("SRI pattern mining job payout verification and network detection", "[
     TEST_ASSERT_TRUE(50000ULL == result.user_value_satoshis);
     TEST_ASSERT_TRUE(result.outputs[0].is_user_output);
     TEST_ASSERT_EQUAL_STRING("tb1q42aueh0wluqpzg3ng32kvaugnx4thnxa5zpe04", result.outputs[0].address);
+    TEST_ASSERT_EQUAL(COINBASE_PAYOUT_VERIFIED, result.payout_status);
+}
+
+TEST_CASE("User address not in coinbase - payout status is not_found", "[coinbase_decoder]")
+{
+    static miner_job_t job;
+    memset(&job, 0, sizeof(job));
+    job.coinbase_prefix = s_test_pbuf;
+    job.coinbase_suffix = s_test_sbuf;
+    job.type = JOB_TYPE_V1;
+    job.version = 0x20000000;
+    job.nbits = 0x1d00ffff;
+
+    const char *c1 = "01000000010000000000000000000000000000000000000000000000000000000000000000ffffffff0403a08601";
+    hex2bin(c1, job.coinbase_prefix, strlen(c1) / 2);
+    job.coinbase_prefix_len = strlen(c1) / 2;
+
+    uint8_t *s = s_test_sbuf;
+    int pos = 0;
+    s[pos++] = 0xff; s[pos++] = 0xff; s[pos++] = 0xff; s[pos++] = 0xff; // nSequence
+    s[pos++] = 0x01; // 1 output
+
+    uint64_t val = 50000;
+    for (int b = 0; b < 8; b++) s[pos++] = (uint8_t)(val >> (b * 8));
+    s[pos++] = 22;
+    memset(s + pos, 0x11, 22);
+    pos += 22;
+    s[pos++] = 0x00; s[pos++] = 0x00; s[pos++] = 0x00; s[pos++] = 0x00; // locktime
+
+    job.coinbase_suffix_len = pos;
+    job.extranonce1_len = 0;
+    job.extranonce2_len = 0;
+
+    mining_notification_result_t result = { 0 };
+    const char *user_addr = "bc1q42aueh0wluqpzg3ng32kvaugnx4thnxa7y625x.worker1";
+
+    esp_err_t err = coinbase_process_miner_job(&job, user_addr, true, &result);
+    TEST_ASSERT_EQUAL(ESP_OK, err);
+    TEST_ASSERT_EQUAL(COINBASE_PAYOUT_NOT_FOUND, result.payout_status);
+    TEST_ASSERT_EQUAL_STRING("not_found", coinbase_payout_status_to_string(result.payout_status));
+    TEST_ASSERT_TRUE(0ULL == result.user_value_satoshis);
+
+    // When decode_coinbase_tx is false, status should be unknown
+    memset(&result, 0, sizeof(result));
+    err = coinbase_process_miner_job(&job, user_addr, false, &result);
+    TEST_ASSERT_EQUAL(ESP_OK, err);
+    TEST_ASSERT_EQUAL(COINBASE_PAYOUT_UNKNOWN, result.payout_status);
+    TEST_ASSERT_EQUAL_STRING("unknown", coinbase_payout_status_to_string(result.payout_status));
 }
