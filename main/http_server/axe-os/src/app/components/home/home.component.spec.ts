@@ -167,7 +167,8 @@ const mockSystemStatistics: ISystemStatistics = {
 
 const mockLiveDataService = {
   info$: new BehaviorSubject<ISystemInfo>(mockSystemInfo),
-  connected$: of(true)
+  connected$: of(true),
+  domainHistory: []
 };
 
 const mockSystemApiService = {

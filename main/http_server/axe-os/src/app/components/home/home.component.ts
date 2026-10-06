@@ -50,15 +50,12 @@ interface ISystemInfoError {
 
 export interface SparklineDomainCell {
   id: string;
-  asicIndex: number;
-  domainIndex: number;
   x: number;
   y: number;
   width: number;
   height: number;
   nominalY: number;
   path: string;
-  currentValue: number;
   tooltip: string;
 }
 
@@ -193,9 +190,6 @@ export class HomeComponent implements OnInit, OnDestroy {
 
   // Performance optimization cache properties
   private primaryColorRgb: { r: number, g: number, b: number } = { r: 0, g: 0, b: 0 };
-  get domainHistory(): number[][][] {
-    return this.liveDataService?.domainHistory || [];
-  }
   public sparklineCells: SparklineDomainCell[] = [];
   public sparklineViewBox: string = '0 0 600 100';
   public efficiency: number = 0;
@@ -1304,13 +1298,6 @@ export class HomeComponent implements OnInit, OnDestroy {
       return;
     }
 
-    if (!this.liveDataService.domainHistory) {
-      this.liveDataService.domainHistory = [];
-    }
-    if (this.liveDataService.recordDomainHistory) {
-      this.liveDataService.recordDomainHistory(info);
-    }
-
     const cellW = 100;
     const cellH = 50;
     const totalW = domainsCount * cellW;
@@ -1339,7 +1326,7 @@ export class HomeComponent implements OnInit, OnDestroy {
         const cellX = d * cellW + padX;
         const cellY = a * cellH + padY;
         const nominalY = cellY + nominalYOffset;
-        const history = this.liveDataService.domainHistory[a]?.[d] ?? [domains[d] ?? 0];
+        const history = this.liveDataService?.domainHistory?.[a]?.[d] ?? [domains[d] ?? 0];
         const currentVal = domains[d] ?? 0;
 
         let path = '';
@@ -1362,15 +1349,12 @@ export class HomeComponent implements OnInit, OnDestroy {
 
         cells.push({
           id: `${a}-${d}`,
-          asicIndex: a,
-          domainIndex: d,
           x: cellX,
           y: cellY,
           width: innerW,
           height: innerH,
           nominalY,
           path,
-          currentValue: currentVal,
           tooltip
         });
       }
