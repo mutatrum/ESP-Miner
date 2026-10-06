@@ -48,6 +48,20 @@ interface ISystemInfoError {
   startTime: number | null;
 }
 
+export interface SparklineDomainCell {
+  id: string;
+  asicIndex: number;
+  domainIndex: number;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  nominalY: number;
+  path: string;
+  currentValue: number;
+  tooltip: string;
+}
+
 const HOME_CHART_DATA_SOURCES = 'HOME_CHART_DATA_SOURCES';
 const HOME_CHART_HIDDEN_SENSORS = 'HOME_CHART_HIDDEN_SENSORS';
 const DASHBOARD_LAYOUT_KEY = 'DASHBOARD_LAYOUT_V1';
@@ -182,6 +196,11 @@ export class HomeComponent implements OnInit, OnDestroy {
   private isHardwareConfigInitialized = false;
   public asicsAmount: number = 0;
   public asicDomainsAmount: number = 0;
+  get domainHistory(): number[][][] {
+    return this.liveDataService?.domainHistory || [];
+  }
+  public sparklineCells: SparklineDomainCell[] = [];
+  public sparklineViewBox: string = '0 0 600 100';
   public efficiency: number = 0;
   public efficiencyAverage: number = 0;
   public expectedEfficiency: number = 0;
@@ -947,6 +966,8 @@ export class HomeComponent implements OnInit, OnDestroy {
           this.asicDomainsAmount = info.hashrateMonitor.asics[0]?.domains?.length ?? 0;
         }
 
+        this.updateDomainSparklines(info);
+
         this.updateChartDataSources(info);
 
         this.efficiency = this.calculateEfficiency(info, 'hashRate');
@@ -1281,6 +1302,94 @@ export class HomeComponent implements OnInit, OnDestroy {
     const percentage = (info.bestDiff / info.networkDifficulty) * 100;
     // Show 2 significant digits
     return percentage < 10 ? percentage.toPrecision(2) : percentage.toFixed(1);
+  }
+
+  private updateDomainSparklines(info: ISystemInfo): void {
+    const asics = info.hashrateMonitor?.asics;
+    if (!asics || !asics.length) {
+      return;
+    }
+
+    const asicsCount = asics.length;
+    const domainsCount = asics[0]?.domains?.length ?? 0;
+    if (domainsCount === 0) {
+      return;
+    }
+
+    if (!this.liveDataService.domainHistory) {
+      this.liveDataService.domainHistory = [];
+    }
+    if (this.liveDataService.recordDomainHistory) {
+      this.liveDataService.recordDomainHistory(info);
+    }
+
+    const cellW = 100;
+    const cellH = 50;
+    const totalW = domainsCount * cellW;
+    const totalH = asicsCount * cellH;
+
+    this.sparklineViewBox = `0 0 ${totalW} ${totalH}`;
+
+    const expected = info.expectedHashrate || 0;
+    const nominal = (expected > 0 && asicsCount > 0 && domainsCount > 0)
+      ? expected / (asicsCount * domainsCount)
+      : 1;
+
+    const padX = 2;
+    const padY = 2;
+    const innerW = Math.max(1, cellW - 2 * padX);
+    const innerH = Math.max(1, cellH - 2 * padY);
+    const nominalYOffset = innerH * (1 - (1.0 / 1.5));
+
+    const cells: SparklineDomainCell[] = [];
+
+    for (let a = 0; a < asicsCount; a++) {
+      const domains = asics[a].domains || [];
+      const errorCount = asics[a].errorCount ?? 0;
+
+      for (let d = 0; d < domainsCount; d++) {
+        const cellX = d * cellW + padX;
+        const cellY = a * cellH + padY;
+        const nominalY = cellY + nominalYOffset;
+        const history = this.liveDataService.domainHistory[a]?.[d] ?? [domains[d] ?? 0];
+        const currentVal = domains[d] ?? 0;
+
+        let path = '';
+        const pts = history.length === 1 ? [history[0], history[0]] : history;
+        const nPts = pts.length;
+        if (nPts >= 2) {
+          for (let k = 0; k < nPts; k++) {
+            const px = cellX + (k / (nPts - 1)) * innerW;
+            const ratio = Math.max(0, Math.min(1.5, pts[k] / (nominal || 1))) / 1.5;
+            const py = cellY + innerH * (1 - ratio);
+            path += (k === 0 ? 'M ' : ' L ') + px.toFixed(1) + ' ' + py.toFixed(1);
+          }
+        }
+
+        const pct = nominal > 0 ? Math.round((currentVal / nominal) * 100) : 0;
+        const valStr = HashSuffixPipe.transform(currentVal);
+        const title = asicsCount > 1 ? `ASIC ${a + 1} • Domain ${d + 1}` : `Domain ${d + 1}`;
+        const errorLine = errorCount > 0 ? `\nErrors: ${errorCount}` : '';
+        const tooltip = `${title}\n${valStr} (${pct}% target)${errorLine}`;
+
+        cells.push({
+          id: `${a}-${d}`,
+          asicIndex: a,
+          domainIndex: d,
+          x: cellX,
+          y: cellY,
+          width: innerW,
+          height: innerH,
+          nominalY,
+          path,
+          currentValue: currentVal,
+          tooltip
+        });
+      }
+    }
+
+    this.sparklineCells = cells;
+    this.cd.markForCheck();
   }
 
   public getHeatmapLightness(domainHashrate: number, expectedHashrate: number): string {
