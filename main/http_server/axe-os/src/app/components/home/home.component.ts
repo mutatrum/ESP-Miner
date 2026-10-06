@@ -193,9 +193,6 @@ export class HomeComponent implements OnInit, OnDestroy {
 
   // Performance optimization cache properties
   private primaryColorRgb: { r: number, g: number, b: number } = { r: 0, g: 0, b: 0 };
-  private isHardwareConfigInitialized = false;
-  public asicsAmount: number = 0;
-  public asicDomainsAmount: number = 0;
   get domainHistory(): number[][][] {
     return this.liveDataService?.domainHistory || [];
   }
@@ -959,12 +956,6 @@ export class HomeComponent implements OnInit, OnDestroy {
         this.maxFrequency = Math.max(800, info.actualFrequency || info.frequency || 0);
         this.statsLimit = info.statsLimit || 720;
 
-        // Pre-compute values for template performance
-        if (!this.isHardwareConfigInitialized && info.hashrateMonitor?.asics?.length) {
-          this.isHardwareConfigInitialized = true;
-          this.asicsAmount = info.hashrateMonitor.asics.length;
-          this.asicDomainsAmount = info.hashrateMonitor.asics[0]?.domains?.length ?? 0;
-        }
 
         this.updateDomainSparklines(info);
 
@@ -1225,9 +1216,6 @@ export class HomeComponent implements OnInit, OnDestroy {
   hasCoinbaseVisibility(info: ISystemInfo): boolean {
     return info.blockHeight > 0;
   }
-  trackByIndex(index: number, _item: any) {
-    return index;
-  }
 
   // Pools that pay miners directly from the coinbase can push the user's own output far down
   // the list, so lift it to the top. Outputs beyond the firmware's capacity are not in this
@@ -1392,18 +1380,6 @@ export class HomeComponent implements OnInit, OnDestroy {
     this.cd.markForCheck();
   }
 
-  public getHeatmapLightness(domainHashrate: number, expectedHashrate: number): string {
-    const expected = expectedHashrate || 1;
-    const ratio = Math.max(0, Math.min(2, (domainHashrate / expected) * this.asicsAmount) * this.asicDomainsAmount);
-    const deviation = isNaN(ratio) ? 1 : Math.abs(ratio - 1);  // 0 = perfect, 1 = 100% off
-    const t = 1 - Math.pow(1 - deviation, 1.5); // Exponent controls graduality
-
-    const direction = ratio > 1 ? 1 : -1;
-    const amount = direction * t * 0.4;
-    const lightness = 0.5 + amount;
-
-    return lightness.toFixed(3);
-  }
 
   private updateChartUnitGroups() {
     this.chartUnitGroups = ChartUnitGroups.map(group => {
