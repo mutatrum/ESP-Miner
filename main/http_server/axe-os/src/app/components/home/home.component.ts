@@ -50,13 +50,17 @@ interface ISystemInfoError {
 
 export interface SparklineDomainCell {
   id: string;
-  x: number;
-  y: number;
-  width: number;
-  height: number;
+  domainNumber: number;
+  hashrate: string;
   nominalY: number;
   path: string;
   tooltip: string;
+}
+
+export interface SparklineAsicRow {
+  id: string;
+  label: string;
+  cells: SparklineDomainCell[];
 }
 
 const HOME_CHART_DATA_SOURCES = 'HOME_CHART_DATA_SOURCES';
@@ -190,8 +194,7 @@ export class HomeComponent implements OnInit, OnDestroy {
 
   // Performance optimization cache properties
   private primaryColorRgb: { r: number, g: number, b: number } = { r: 0, g: 0, b: 0 };
-  public sparklineCells: SparklineDomainCell[] = [];
-  public sparklineViewBox: string = '0 0 600 100';
+  public sparklineAsicRows: SparklineAsicRow[] = [];
   public efficiency: number = 0;
   public efficiencyAverage: number = 0;
   public expectedEfficiency: number = 0;
@@ -1298,34 +1301,20 @@ export class HomeComponent implements OnInit, OnDestroy {
       return;
     }
 
-    const cellW = 100;
-    const cellH = 50;
-    const totalW = domainsCount * cellW;
-    const totalH = asicsCount * cellH;
-
-    this.sparklineViewBox = `0 0 ${totalW} ${totalH}`;
-
     const expected = info.expectedHashrate || 0;
     const nominal = (expected > 0 && asicsCount > 0 && domainsCount > 0)
       ? expected / (asicsCount * domainsCount)
       : 1;
 
-    const padX = 2;
-    const padY = 2;
-    const innerW = Math.max(1, cellW - 2 * padX);
-    const innerH = Math.max(1, cellH - 2 * padY);
-    const nominalYOffset = innerH * (1 - (1.0 / 1.5));
-
-    const cells: SparklineDomainCell[] = [];
+    const nominalY = 10;
+    const rows: SparklineAsicRow[] = [];
 
     for (let a = 0; a < asicsCount; a++) {
       const domains = asics[a].domains || [];
       const errorCount = asics[a].errorCount ?? 0;
+      const cells: SparklineDomainCell[] = [];
 
       for (let d = 0; d < domainsCount; d++) {
-        const cellX = d * cellW + padX;
-        const cellY = a * cellH + padY;
-        const nominalY = cellY + nominalYOffset;
         const history = this.liveDataService?.domainHistory?.[a]?.[d] ?? [domains[d] ?? 0];
         const currentVal = domains[d] ?? 0;
 
@@ -1334,9 +1323,9 @@ export class HomeComponent implements OnInit, OnDestroy {
         const nPts = pts.length;
         if (nPts >= 2) {
           for (let k = 0; k < nPts; k++) {
-            const px = cellX + (k / (nPts - 1)) * innerW;
+            const px = (k / (nPts - 1)) * 100;
             const ratio = Math.max(0, Math.min(1.5, pts[k] / (nominal || 1))) / 1.5;
-            const py = cellY + innerH * (1 - ratio);
+            const py = 30 * (1 - ratio);
             path += (k === 0 ? 'M ' : ' L ') + px.toFixed(1) + ' ' + py.toFixed(1);
           }
         }
@@ -1349,18 +1338,22 @@ export class HomeComponent implements OnInit, OnDestroy {
 
         cells.push({
           id: `${a}-${d}`,
-          x: cellX,
-          y: cellY,
-          width: innerW,
-          height: innerH,
+          domainNumber: d + 1,
+          hashrate: valStr,
           nominalY,
           path,
           tooltip
         });
       }
+
+      rows.push({
+        id: `asic-${a}`,
+        label: `${a + 1}`,
+        cells
+      });
     }
 
-    this.sparklineCells = cells;
+    this.sparklineAsicRows = rows;
     this.cd.markForCheck();
   }
 

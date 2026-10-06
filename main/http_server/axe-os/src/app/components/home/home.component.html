@@ -595,31 +595,40 @@
         <div class="card flex flex-col">
           <h4 class="whitespace-nowrap overflow-hidden text-ellipsis font-medium mb-2">Hashrate Registers</h4>
 
-          @if (sparklineCells.length > 0) {
-            <div class="w-full flex-1 min-h-0 flex items-center justify-center">
-              <svg class="registers-svg w-full h-full" [attr.viewBox]="sparklineViewBox" preserveAspectRatio="none">
-                <!-- Domain Sparkline Cells -->
-                @for (cell of sparklineCells; track cell.id) {
-                  <!-- Cell background -->
-                  <rect [attr.x]="cell.x" [attr.y]="cell.y" [attr.width]="cell.width" [attr.height]="cell.height" rx="3" class="cell-bg" />
-
-                  <!-- Nominal dashed baseline -->
-                  <line [attr.x1]="cell.x" [attr.y1]="cell.nominalY" [attr.x2]="cell.x + cell.width" [attr.y2]="cell.nominalY" class="nominal-line" />
-
-                  <!-- Sparkline path -->
-                  @if (cell.path) {
-                    <path [attr.d]="cell.path" class="sparkline-path" />
-                  }
-
-                  <!-- Tooltip hitbox -->
-                  <rect
-                    [attr.x]="cell.x" [attr.y]="cell.y" [attr.width]="cell.width" [attr.height]="cell.height"
-                    class="hitbox"
-                    [appTooltip]="cell.tooltip"
-                    tooltipPosition="top"
-                  />
+          @if (sparklineAsicRows.length > 0) {
+            <div class="w-full flex-1 min-h-0 flex flex-col gap-1 overflow-hidden">
+              <div class="flex items-center gap-2 shrink-0 pb-0.5">
+                @if (sparklineAsicRows.length > 1) {
+                  <span class="w-8 text-xs text-secondary font-medium shrink-0 text-center">ASIC</span>
                 }
-              </svg>
+                <div class="flex gap-1.5 flex-1 min-w-0">
+                  @for (cell of sparklineAsicRows[0].cells; track cell.id) {
+                    <span class="flex-1 min-w-0 text-center text-xs text-secondary font-medium truncate">Domain {{ cell.domainNumber }}</span>
+                  }
+                </div>
+              </div>
+              @for (row of sparklineAsicRows; track row.id) {
+                <div class="flex items-stretch gap-2 flex-1 min-h-0">
+                  @if (sparklineAsicRows.length > 1) {
+                    <span class="w-8 text-xs text-secondary font-medium shrink-0 flex items-center justify-center">{{ row.label }}</span>
+                  }
+                  <div class="flex gap-1.5 flex-1 h-full min-w-0">
+                    @for (cell of row.cells; track cell.id) {
+                      <div class="sparkline-cell flex-1 min-w-0 h-full flex flex-col justify-between" [appTooltip]="cell.tooltip" tooltipPosition="top">
+                        <div class="flex justify-center items-center text-[10px] leading-tight select-none">
+                          <span class="font-medium text-main truncate">{{ cell.hashrate }}</span>
+                        </div>
+                        <svg class="sparkline-svg w-full flex-1 min-h-0" viewBox="0 0 100 30" preserveAspectRatio="none">
+                          <line x1="0" [attr.y1]="cell.nominalY" x2="100" [attr.y2]="cell.nominalY" class="nominal-line" />
+                          @if (cell.path) {
+                            <path [attr.d]="cell.path" class="sparkline-path" />
+                          }
+                        </svg>
+                      </div>
+                    }
+                  </div>
+                </div>
+              }
             </div>
           }
         </div>
