@@ -531,9 +531,13 @@ void SYSTEM_decode_and_apply_coinbase(GlobalState * GLOBAL_STATE, const miner_jo
 
     // Update network difficulty from nbits (available on all job types, including SV2 Standard)
     if (job->nbits != 0) {
-        double net_diff = networkDifficulty(job->nbits);
-        GLOBAL_STATE->network_nonce_diff = (uint64_t) net_diff;
-        suffixString(net_diff, GLOBAL_STATE->network_diff_string, DIFF_STRING_SIZE, 0);
+        uint8_t network_target[32];
+        nbits_to_target(job->nbits, network_target);
+        double net_diff = target_to_diff(network_target);
+        if (net_diff > 0.0 && net_diff != (double)UINT32_MAX) {
+            GLOBAL_STATE->network_nonce_diff = (uint64_t) net_diff;
+            suffixString(net_diff, GLOBAL_STATE->network_diff_string, DIFF_STRING_SIZE, 0);
+        }
     }
 
     // Direct Merkle Root jobs (e.g. SV2 Standard) don't carry coinbase parts
@@ -634,20 +638,19 @@ void SYSTEM_decode_and_apply_coinbase(GlobalState * GLOBAL_STATE, const miner_jo
     free(result);
 }
 
-void SYSTEM_notify_found_nonce(GlobalState * GLOBAL_STATE, double diff, uint32_t target)
+void SYSTEM_notify_found_nonce(GlobalState * GLOBAL_STATE, double diff, bool is_block)
 {
     SystemModule * module = &GLOBAL_STATE->SYSTEM_MODULE;
+
+    if (is_block) {
+        module->block_found++;
+        module->show_new_block = true;
+        ESP_LOGI(TAG, "FOUND BLOCK!!!!!!!!!!!!!!!!!!!!!! diff: %f (count: %d)", diff, module->block_found);
+    }
 
     if ((uint64_t) diff > module->best_session_nonce_diff) {
         module->best_session_nonce_diff = (uint64_t) diff;
         suffixString((uint64_t) diff, module->best_session_diff_string, DIFF_STRING_SIZE, 0);
-    }
-
-    double network_diff = networkDifficulty(target);
-    if (diff >= network_diff) {
-        module->block_found++;
-        module->show_new_block = true;
-        ESP_LOGI(TAG, "FOUND BLOCK!!!!!!!!!!!!!!!!!!!!!! %f >= %f (count: %d)", diff, network_diff, module->block_found);
     }
 
     if ((uint64_t) diff <= module->best_nonce_diff) {

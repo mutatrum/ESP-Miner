@@ -23,7 +23,6 @@ typedef struct asic_job {
     uint32_t ntime;
     uint32_t nbits;
     uint32_t starting_nonce;
-    double pool_diff;
     uint8_t pool_target[32];
     uint8_t pool_id;
     mining_job_source_t source_type;

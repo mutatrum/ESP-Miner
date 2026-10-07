@@ -19,7 +19,6 @@
 
 #include <string.h>
 #include <stdlib.h>
-#include <math.h>
 
 #define TRANSPORT_TIMEOUT_MS 5000
 #define SV2_MAX_FRAME_SIZE 8192

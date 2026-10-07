@@ -14,7 +14,6 @@ bool mining_build_asic_job(const miner_job_t *source, uint64_t extranonce2,
         .version_mask = source->version_mask,
         .ntime = source->ntime,
         .nbits = source->nbits,
-        .pool_diff = target_to_diff(source->pool_target),
         .pool_id = source->pool_id,
         .source_type = source->type,
     };

@@ -174,14 +174,6 @@ void prettyHex(unsigned char *buf, int len)
     printf("%02X]", buf[len - 1]);
 }
 
-/* Calculate the network difficulty from nBits */
-double networkDifficulty(uint32_t nBits)
-{
-    uint8_t target[32];
-    nbits_to_target(nBits, target);
-    return target_to_diff(target);
-}
-
 /* Convert a uint64_t value into a truncated string for displaying with its
  * associated suitable for Mega, Giga etc. Buf array needs to be long enough */
 void suffixString(uint64_t val, char * buf, size_t bufsiz, int sigdigits)

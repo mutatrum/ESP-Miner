@@ -61,7 +61,6 @@ static void assert_bitmain_job_fields(const asic_job_t *job,
     TEST_ASSERT_EQUAL_UINT32(0, job->starting_nonce);
     TEST_ASSERT_EQUAL_UINT8(pool_id, job->pool_id);
     TEST_ASSERT_EQUAL_INT(type, job->source_type);
-    TEST_ASSERT_FLOAT_WITHIN(1e-4, pool_diff, job->pool_diff);
     TEST_ASSERT_FLOAT_WITHIN(1e-4, pool_diff, target_to_diff(job->pool_target));
     bm13xx_job_packet_t packet;
     bm13xx_build_job_packet(job, 0, &packet);
@@ -586,7 +585,7 @@ TEST_CASE("job task preserves maximum accepted metadata and detached ownership",
         "0100000000000000000000000000000000000000000000000000000000000000",
         result.jobs[1]->extranonce2);
     TEST_ASSERT_EQUAL_UINT8(UINT8_MAX, result.jobs[0]->pool_id);
-    TEST_ASSERT_FLOAT_WITHIN(1e-4, 256.125, result.jobs[0]->pool_diff);
+    TEST_ASSERT_FLOAT_WITHIN(1e-4, 256.125, target_to_diff(result.jobs[0]->pool_target));
     assert_packet_merkle("e7154b58fec3d73f1e4b8a80535df7bd7e4e0a98228be8375762ed1f77eb40de", result.jobs[0]);
     job_pipeline_harness_result_free(&result);
 }

@@ -1,6 +1,5 @@
 #include <string.h>
 #include <stdlib.h>
-#include <math.h>
 #include <limits.h>
 #include "esp_log.h"
 #include "mining.h"
@@ -59,24 +58,11 @@ void calculate_merkle_root_hash(const uint8_t coinbase_tx_hash[32], const uint8_
     memcpy(dest, both_merkles, 32);
 }
 
-
-double hash_to_pdiff(const uint8_t hash[32])
-{
-    return target_to_diff(hash);
-}
-
 void mining_nonce_hash(const asic_job_t *job, const uint32_t nonce, const uint32_t rolled_version, uint8_t hash[32])
 {
     uint8_t header[80];
     asic_job_header(job, nonce, rolled_version, header);
     double_sha256_bin(header, sizeof(header), hash);
-}
-
-double mining_nonce_difficulty(const asic_job_t *job, uint32_t nonce, uint32_t rolled_version)
-{
-    uint8_t hash_result[32];
-    mining_nonce_hash(job, nonce, rolled_version, hash_result);
-    return target_to_diff(hash_result);
 }
 
 uint32_t increment_bitmask(const uint32_t value, const uint32_t mask)

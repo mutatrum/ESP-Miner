@@ -55,7 +55,6 @@ TEST_CASE("standard jobs copy header fields and submission metadata",
     TEST_ASSERT_EQUAL_HEX32(source.ntime, job.ntime);
     TEST_ASSERT_EQUAL_HEX32(source.nbits, job.nbits);
     TEST_ASSERT_EQUAL_UINT32(0, job.starting_nonce);
-    TEST_ASSERT_FLOAT_WITHIN(1e-4, 16.0, job.pool_diff);
     TEST_ASSERT_EQUAL_MEMORY(source.pool_target, job.pool_target, 32);
     TEST_ASSERT_EQUAL_UINT8(255, job.pool_id);
     TEST_ASSERT_EQUAL(JOB_TYPE_SV2_STANDARD, job.source_type);

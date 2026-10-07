@@ -180,17 +180,6 @@ TEST_CASE("reverse_endianness_per_word", "[utils]")
     }
 }
 
-TEST_CASE("networkDifficulty", "[utils]")
-{
-    uint32_t nBits = 0x1701cdfb;
-
-    double actual = networkDifficulty(nBits);
-
-    double expected = 155973032196071.9;
-
-    TEST_ASSERT_FLOAT_WITHIN(expected * 0.0001, expected, actual);
-}
-
 TEST_CASE("target_to_diff safety", "[utils]")
 {
     // 1. NULL pointer
