@@ -55,19 +55,6 @@ static void clear_active_job_ids(uint32_t *active_job_ids, int *count)
     *count = 0;
 }
 
-static void sv2_conn_free(sv2_conn_t **conn_ptr)
-{
-    if (!conn_ptr || !*conn_ptr) return;
-    sv2_conn_t *c = *conn_ptr;
-    if (c->noise_ctx) {
-        sv2_noise_destroy(c->noise_ctx);
-        c->noise_ctx = NULL;
-    }
-    clear_active_job_ids(c->active_job_ids, &c->active_job_ids_count);
-    free(c);
-    *conn_ptr = NULL;
-}
-
 static bool stratum_v2_load_authority_pubkey(uint8_t out[32], const char *b58_key)
 {
     if (!b58_key || strlen(b58_key) == 0) {
@@ -121,17 +108,14 @@ void stratum_v2_close_connection(GlobalState *GLOBAL_STATE)
     }
     pthread_mutex_unlock(&GLOBAL_STATE->transport_mutex);
 
-    GLOBAL_STATE->SYSTEM_MODULE.shares_pending = 0;
+    SYSTEM_reset_pool_session(GLOBAL_STATE);
     stratum_timing_reset(&s_v2_timing);
-    SYSTEM_clean_jobs_queue(GLOBAL_STATE);
-    SYSTEM_reset_coinbase_ui_state(GLOBAL_STATE, "");
 }
 
 static void stratum_v2_update_pending_shares(GlobalState *GLOBAL_STATE)
 {
     sv2_conn_t *conn = s_v2_conn;
     if (!conn) {
-        GLOBAL_STATE->SYSTEM_MODULE.shares_pending = 0;
         return;
     }
     uint32_t pending = (conn->sequence_number > conn->resolved_shares)
@@ -146,7 +130,7 @@ static void stratum_v2_track_submit(GlobalState *GLOBAL_STATE, uint32_t sequence
     stratum_v2_update_pending_shares(GLOBAL_STATE);
 }
 
-int stratum_v2_submit_share(GlobalState *GLOBAL_STATE, const bm_job *active_job,
+int stratum_v2_submit_share(GlobalState *GLOBAL_STATE, const asic_job_t *active_job,
                             uint32_t nonce, uint32_t rolled_version, uint64_t *sent_time_us)
 {
     if (!GLOBAL_STATE || !active_job) {
@@ -156,7 +140,7 @@ int stratum_v2_submit_share(GlobalState *GLOBAL_STATE, const bm_job *active_job,
     uint8_t extranonce_2[32];
     uint8_t en2_len = 0;
 
-    if (active_job->job_type == JOB_TYPE_SV2_EXTENDED && active_job->extranonce2) {
+    if (active_job->source_type == JOB_TYPE_SV2_EXTENDED) {
         en2_len = (uint8_t)(strlen(active_job->extranonce2) / 2);
         if (en2_len > sizeof(extranonce_2)) en2_len = sizeof(extranonce_2);
         hex2bin(active_job->extranonce2, extranonce_2, en2_len);
@@ -174,7 +158,7 @@ int stratum_v2_submit_share(GlobalState *GLOBAL_STATE, const bm_job *active_job,
     uint32_t sequence_number = conn->sequence_number++;
     uint8_t buf[SV2_SUBMIT_SHARES_MAX_FRAME_SIZE];
 
-    uint32_t sv2_job_id = (uint32_t)strtoul(active_job->jobid, NULL, 10);
+    uint32_t sv2_job_id = (uint32_t)strtoul(active_job->job_id, NULL, 10);
     int len = sv2_build_submit_shares(buf, sizeof(buf),
                                       conn->channel_id,
                                       sequence_number,
@@ -421,7 +405,7 @@ esp_err_t stratum_v2_run(GlobalState *GLOBAL_STATE, uint16_t pool_idx)
     }
 
     if (s_v2_conn != NULL) {
-        sv2_conn_free(&s_v2_conn);
+        stratum_v2_close_connection(GLOBAL_STATE);
     }
 
     sv2_conn_t *conn = heap_caps_calloc(1, sizeof(sv2_conn_t), MALLOC_CAP_SPIRAM);
@@ -443,11 +427,11 @@ esp_err_t stratum_v2_run(GlobalState *GLOBAL_STATE, uint16_t pool_idx)
         ESP_LOGE(TAG, "Failed to allocate frame buffers");
         free(frame_buf);
         free(recv_buf);
-        sv2_conn_free(&s_v2_conn);
+        stratum_v2_close_connection(GLOBAL_STATE);
         return ESP_ERR_NO_MEM;
     }
 
-    ESP_LOGI(TAG, "Connecting to stratum+sv2://%s:%d", stratum_url, port);
+    ESP_LOGI(TAG, "Connecting to stratum2+tcp://%s:%d", stratum_url, port);
 
     esp_transport_handle_t transport = esp_transport_tcp_init();
     if (!transport) {
@@ -456,7 +440,7 @@ esp_err_t stratum_v2_run(GlobalState *GLOBAL_STATE, uint16_t pool_idx)
                  sizeof(GLOBAL_STATE->SYSTEM_MODULE.pool_connection_info), "SV2: Internal error");
         free(frame_buf);
         free(recv_buf);
-        sv2_conn_free(&s_v2_conn);
+        stratum_v2_close_connection(GLOBAL_STATE);
         return ESP_FAIL;
     }
 
@@ -469,7 +453,7 @@ esp_err_t stratum_v2_run(GlobalState *GLOBAL_STATE, uint16_t pool_idx)
         esp_transport_destroy(transport);
         free(frame_buf);
         free(recv_buf);
-        sv2_conn_free(&s_v2_conn);
+        stratum_v2_close_connection(GLOBAL_STATE);
         return ESP_FAIL;
     }
 
@@ -484,7 +468,7 @@ esp_err_t stratum_v2_run(GlobalState *GLOBAL_STATE, uint16_t pool_idx)
         esp_transport_destroy(transport);
         free(frame_buf);
         free(recv_buf);
-        sv2_conn_free(&s_v2_conn);
+        stratum_v2_close_connection(GLOBAL_STATE);
         return ESP_FAIL;
     }
 
@@ -495,8 +479,6 @@ esp_err_t stratum_v2_run(GlobalState *GLOBAL_STATE, uint16_t pool_idx)
     pthread_mutex_unlock(&GLOBAL_STATE->transport_mutex);
 
     stratum_socket_set_options(transport);
-
-    stratum_v2_update_pending_shares(GLOBAL_STATE);
 
     sv2_noise_ctx_t *noise_ctx = sv2_noise_create();
     if (!noise_ctx) {
