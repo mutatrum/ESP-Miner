@@ -391,9 +391,9 @@ void BM1366_read_registers(GlobalState * GLOBAL_STATE)
     }
 }
 
-void BM1366_set_difficulty(double difficulty)
+void BM1366_set_difficulty(uint8_t difficulty_power)
 {
     uint8_t difficulty_mask[6];
-    get_difficulty_mask(difficulty, difficulty_mask);
+    get_difficulty_mask(difficulty_power, difficulty_mask);
     _send_BM1366((TYPE_CMD | GROUP_ALL | CMD_WRITE), difficulty_mask, 6, BM1366_SERIALTX_DEBUG);
 }

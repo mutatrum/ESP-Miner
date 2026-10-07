@@ -230,10 +230,10 @@ static void self_test_start_nonce_measurement(GlobalState * GLOBAL_STATE)
     measurement->accepted_count = 0;
     measurement->rejected_count = 0;
     measurement->hashes = 0.0;
-    double ticket_diff = (GLOBAL_STATE->current_difficulty > 0.0)
-                             ? GLOBAL_STATE->current_difficulty
-                             : MIN_ASIC_DIFFICULTY;
-    diff_to_target(ticket_diff, measurement->target);
+    uint8_t power = (GLOBAL_STATE->current_difficulty_power > 0)
+                        ? GLOBAL_STATE->current_difficulty_power
+                        : MIN_ASIC_DIFFICULTY_POWER;
+    diff_to_target((double)(1U << power), measurement->target);
     measurement->is_active = true;
     pthread_mutex_unlock(&measurement->lock);
 }
@@ -280,12 +280,12 @@ void self_test_record_nonce(GlobalState * GLOBAL_STATE, const uint8_t hash[32])
 
     pthread_mutex_lock(&measurement->lock);
     if (measurement->is_active) {
-        double ticket_diff = (GLOBAL_STATE->current_difficulty > 0.0)
-                                 ? GLOBAL_STATE->current_difficulty
-                                 : MIN_ASIC_DIFFICULTY;
+        uint8_t power = (GLOBAL_STATE->current_difficulty_power > 0)
+                            ? GLOBAL_STATE->current_difficulty_power
+                            : MIN_ASIC_DIFFICULTY_POWER;
         if (uint256_lte(hash, measurement->target)) {
             measurement->accepted_count++;
-            measurement->hashes += ticket_diff * NONCE_SPACE;
+            measurement->hashes += (double)(1ULL << power) * NONCE_SPACE;
         } else {
             measurement->rejected_count++;
         }

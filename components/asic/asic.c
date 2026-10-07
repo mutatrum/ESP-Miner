@@ -249,27 +249,27 @@ esp_err_t ASIC_get_domain_measurement(GlobalState * GLOBAL_STATE, uint8_t asic_n
     return ESP_OK;
 }
 
-void ASIC_set_difficulty(GlobalState * GLOBAL_STATE, double difficulty)
+void ASIC_set_difficulty(GlobalState * GLOBAL_STATE, uint8_t difficulty_power)
 {
-    if (!GLOBAL_STATE || !GLOBAL_STATE->ASIC_initalized || difficulty <= 0.0) {
+    if (!GLOBAL_STATE || !GLOBAL_STATE->ASIC_initalized || difficulty_power == 0) {
         return;
     }
 
     switch (GLOBAL_STATE->DEVICE_CONFIG.family.asic.id) {
         case BM1397:
-            BM1397_set_difficulty(difficulty);
+            BM1397_set_difficulty(difficulty_power);
             return;
         case BM1366:
-            BM1366_set_difficulty(difficulty);
+            BM1366_set_difficulty(difficulty_power);
             return;
         case BM1368:
-            BM1368_set_difficulty(difficulty);
+            BM1368_set_difficulty(difficulty_power);
             return;
         case BM1370:
-            BM1370_set_difficulty(difficulty);
+            BM1370_set_difficulty(difficulty_power);
             return;
         case BM1373:
-            BM1373_set_difficulty(difficulty);
+            BM1373_set_difficulty(difficulty_power);
             return;
     }
     ESP_LOGE(TAG, "Unknown ASIC id %d — cannot set difficulty", GLOBAL_STATE->DEVICE_CONFIG.family.asic.id);

@@ -13,7 +13,7 @@
 
 static const char *TAG = "difficulty_controller";
 
-static double s_pending_difficulty = 0.0;
+static uint8_t s_pending_difficulty_power = 0;
 static int64_t s_pending_increase_time_us = 0;
 
 void difficulty_controller_update(GlobalState * GLOBAL_STATE)
@@ -36,45 +36,46 @@ void difficulty_controller_update(GlobalState * GLOBAL_STATE)
                             : DEFAULT_SHARE_INTERVAL_S;
 
     double pool_diff = GLOBAL_STATE->SYSTEM_MODULE.pool_difficulty;
-    double eff_diff = calculate_effective_asic_difficulty((double)expected_ghs, interval_s, pool_diff);
-    double diff_to_apply = 0.0;
+    uint8_t eff_power = calculate_effective_asic_difficulty((double)expected_ghs, interval_s, pool_diff);
+    uint8_t power_to_apply = 0;
 
     // Initial setup, self-test, or downward adjustment: apply immediately!
-    if (GLOBAL_STATE->current_difficulty <= 0.0 || GLOBAL_STATE->SELF_TEST_MODULE.is_active || eff_diff < GLOBAL_STATE->current_difficulty) {
-        GLOBAL_STATE->current_difficulty = eff_diff;
-        s_pending_difficulty = 0.0;
+    if (GLOBAL_STATE->current_difficulty_power == 0 || GLOBAL_STATE->SELF_TEST_MODULE.is_active || eff_power < GLOBAL_STATE->current_difficulty_power) {
+        GLOBAL_STATE->current_difficulty_power = eff_power;
+        s_pending_difficulty_power = 0;
         s_pending_increase_time_us = 0;
-        ESP_LOGI(TAG, "ASIC difficulty updated: pool %.2f -> effective %.0f",
-                 pool_diff, eff_diff);
-        diff_to_apply = eff_diff;
-    } else if (eff_diff == GLOBAL_STATE->current_difficulty && s_pending_difficulty <= 0.0) {
+        ESP_LOGI(TAG, "ASIC difficulty updated: pool %.2f -> effective %u (power %u)",
+                 pool_diff, 1U << eff_power, eff_power);
+        power_to_apply = eff_power;
+    } else if (eff_power == GLOBAL_STATE->current_difficulty_power && s_pending_difficulty_power == 0) {
         return;
     } else {
-        // Upward adjustment (eff_diff > GLOBAL_STATE->current_difficulty):
+        // Upward adjustment (eff_power > GLOBAL_STATE->current_difficulty_power):
         int64_t now_us = esp_timer_get_time();
 
         // Start grace period timer if this is a new increase
-        if (s_pending_difficulty != eff_diff) {
-            s_pending_difficulty = eff_diff;
+        if (s_pending_difficulty_power != eff_power) {
+            s_pending_difficulty_power = eff_power;
             s_pending_increase_time_us = now_us;
-            ESP_LOGI(TAG, "ASIC difficulty increase to %.0f scheduled (grace period %.0fs)",
-                     eff_diff, (double)DIFFICULTY_INCREASE_GRACE_PERIOD_S);
+            ESP_LOGI(TAG, "ASIC difficulty increase to %u (power %u) scheduled (grace period %.0fs)",
+                     1U << eff_power, eff_power, (double)DIFFICULTY_INCREASE_GRACE_PERIOD_S);
             return;
         }
 
         // Check if grace period has elapsed
         if ((now_us - s_pending_increase_time_us) >= DIFFICULTY_INCREASE_GRACE_PERIOD_US) {
-            GLOBAL_STATE->current_difficulty = s_pending_difficulty;
-            s_pending_difficulty = 0.0;
+            GLOBAL_STATE->current_difficulty_power = s_pending_difficulty_power;
+            s_pending_difficulty_power = 0;
             s_pending_increase_time_us = 0;
-            ESP_LOGI(TAG, "Grace period elapsed; applying ASIC difficulty increase: %.0f", GLOBAL_STATE->current_difficulty);
-            diff_to_apply = GLOBAL_STATE->current_difficulty;
+            ESP_LOGI(TAG, "Grace period elapsed; applying ASIC difficulty increase: %u (power %u)",
+                     1U << GLOBAL_STATE->current_difficulty_power, GLOBAL_STATE->current_difficulty_power);
+            power_to_apply = GLOBAL_STATE->current_difficulty_power;
         } else {
             return;
         }
     }
 
-    if (diff_to_apply > 0.0) {
-        ASIC_set_difficulty(GLOBAL_STATE, diff_to_apply);
+    if (power_to_apply > 0) {
+        ASIC_set_difficulty(GLOBAL_STATE, power_to_apply);
     }
 }

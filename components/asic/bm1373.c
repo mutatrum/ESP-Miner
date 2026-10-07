@@ -539,10 +539,10 @@ void BM1373_read_registers(void)
     }
 }
 
-void BM1373_set_difficulty(double difficulty)
+void BM1373_set_difficulty(uint8_t difficulty_power)
 {
     uint8_t difficulty_mask[6];
-    get_difficulty_mask(difficulty, difficulty_mask);
+    get_difficulty_mask(difficulty_power, difficulty_mask);
     _send_BM1373(TYPE_CMD | GROUP_ALL | CMD_WRITE, difficulty_mask,
                  sizeof(difficulty_mask), BM1373_SERIALTX_DEBUG);
 }

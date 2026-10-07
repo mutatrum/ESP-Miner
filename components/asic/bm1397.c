@@ -246,10 +246,10 @@ int BM1397_set_max_baud(void)
     return 3125000;
 }
 
-void BM1397_set_difficulty(double difficulty)
+void BM1397_set_difficulty(uint8_t difficulty_power)
 {
     uint8_t difficulty_mask[6];
-    get_difficulty_mask(difficulty, difficulty_mask);
+    get_difficulty_mask(difficulty_power, difficulty_mask);
     _send_BM1397((TYPE_CMD | GROUP_ALL | CMD_WRITE), difficulty_mask, 6, BM1397_SERIALTX_DEBUG);
 }
 
