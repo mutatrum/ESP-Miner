@@ -4,10 +4,6 @@
 #include <stdint.h>
 #include <stdbool.h>
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 #define STRATUM_TIMING_SLOTS 64
 
 typedef struct {
@@ -39,9 +35,5 @@ float stratum_timing_calculate_ms(stratum_timing_tracker_t *tracker, uint32_t id
  * @param tracker Pointer to the timing tracker.
  */
 void stratum_timing_reset(stratum_timing_tracker_t *tracker);
-
-#ifdef __cplusplus
-}
-#endif
 
 #endif /* STRATUM_TIMING_H */
