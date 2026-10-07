@@ -22,6 +22,7 @@ typedef struct {
     bool paused;
     bool no_share;
     bool self_test;
+    bool hash_failure;
     unsigned repeated_results;
     double pool_diff;
     int submit_result;
@@ -48,6 +49,18 @@ void result_task_spy_delay(TickType_t ticks)
     TEST_ASSERT_EQUAL_UINT32(pdMS_TO_TICKS(100), ticks);
     fixture_delays++;
     fixture_state.ASIC_initalized = true;
+}
+
+bool result_task_fake_mining_nonce_hash(const asic_job_t *job, uint32_t nonce,
+                                        uint32_t rolled_version, uint8_t hash[32])
+{
+    if (fixture_case.hash_failure) {
+        memset(hash, 0xff, 32);
+        return false;
+    }
+    uint8_t header[80];
+    asic_job_header(job, nonce, rolled_version, header);
+    return double_sha256_bin(header, sizeof(header), hash);
 }
 
 task_result *result_task_fake_process_work(GlobalState *state)
@@ -247,4 +260,26 @@ TEST_CASE("result task preserves thresholds self test and repeated delivery",
     TEST_ASSERT_EQUAL_UINT32(2, fixture_submissions);
     TEST_ASSERT_EQUAL_UINT32(2, fixture_scores);
     TEST_ASSERT_EQUAL_UINT32(2, fixture_notifications);
+}
+
+TEST_CASE("result task discards results when nonce hashing fails",
+          "[asic][result][characterization]")
+{
+    run_result_case((result_case_t) {
+        .pool_diff = 1e-30,
+        .hash_failure = true,
+    });
+    TEST_ASSERT_EQUAL_UINT32(0, fixture_submissions);
+    TEST_ASSERT_EQUAL_UINT32(0, fixture_scores);
+    TEST_ASSERT_EQUAL_UINT32(0, fixture_notifications);
+    TEST_ASSERT_EQUAL_UINT32(0, fixture_self_tests);
+
+    run_result_case((result_case_t) {
+        .self_test = true,
+        .hash_failure = true,
+    });
+    TEST_ASSERT_EQUAL_UINT32(0, fixture_submissions);
+    TEST_ASSERT_EQUAL_UINT32(0, fixture_scores);
+    TEST_ASSERT_EQUAL_UINT32(0, fixture_notifications);
+    TEST_ASSERT_EQUAL_UINT32(0, fixture_self_tests);
 }

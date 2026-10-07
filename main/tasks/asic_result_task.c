@@ -39,7 +39,10 @@ void ASIC_result_task(void *pvParameters)
 
         const asic_job_t *job = &asic_result->job;
         uint8_t hash_result[32];
-        mining_nonce_hash(job, asic_result->nonce, asic_result->rolled_version, hash_result);
+        if (!mining_nonce_hash(job, asic_result->nonce, asic_result->rolled_version, hash_result)) {
+            ESP_LOGE(TAG, "Failed to compute nonce hash, discarding result");
+            continue;
+        }
 
         if (GLOBAL_STATE->SELF_TEST_MODULE.is_active) {
             self_test_record_nonce(GLOBAL_STATE, hash_result);

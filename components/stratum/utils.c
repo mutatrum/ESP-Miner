@@ -81,21 +81,26 @@ void print_hex(const uint8_t *b, size_t len,
     fflush(stdout);
 }
 
-void sha256_bin(const uint8_t *data, size_t data_len, uint8_t dest[32])
+bool sha256_bin(const uint8_t *data, size_t data_len, uint8_t dest[32])
 {
     size_t output_len = 0;
     psa_status_t status = psa_hash_compute(PSA_ALG_SHA_256, data, data_len,
                                            dest, 32, &output_len);
     if (status != PSA_SUCCESS || output_len != 32) {
-        memset(dest, 0, 32);
+        memset(dest, 0xff, 32); // fail-close, never lower than difficulty target
+        return false;
     }
+    return true;
 }
 
-void double_sha256_bin(const uint8_t *data, const size_t data_len, uint8_t dest[32])
+bool double_sha256_bin(const uint8_t *data, const size_t data_len, uint8_t dest[32])
 {
     uint8_t first_hash_output[32];
-    sha256_bin(data, data_len, first_hash_output);
-    sha256_bin(first_hash_output, sizeof(first_hash_output), dest);
+    if (!sha256_bin(data, data_len, first_hash_output)) {
+        memset(dest, 0xff, 32); // fail-close, never lower than difficulty target
+        return false;
+    }
+    return sha256_bin(first_hash_output, sizeof(first_hash_output), dest);
 }
 
 void nbits_to_target(uint32_t nbits, uint8_t target[32])

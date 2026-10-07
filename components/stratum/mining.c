@@ -58,11 +58,11 @@ void calculate_merkle_root_hash(const uint8_t coinbase_tx_hash[32], const uint8_
     memcpy(dest, both_merkles, 32);
 }
 
-void mining_nonce_hash(const asic_job_t *job, const uint32_t nonce, const uint32_t rolled_version, uint8_t hash[32])
+bool mining_nonce_hash(const asic_job_t *job, const uint32_t nonce, const uint32_t rolled_version, uint8_t hash[32])
 {
     uint8_t header[80];
     asic_job_header(job, nonce, rolled_version, header);
-    double_sha256_bin(header, sizeof(header), hash);
+    return double_sha256_bin(header, sizeof(header), hash);
 }
 
 uint32_t increment_bitmask(const uint32_t value, const uint32_t mask)

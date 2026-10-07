@@ -74,8 +74,8 @@ static void assert_result_job(const asic_job_t *expected, const task_result *res
     TEST_ASSERT_EQUAL_INT(expected->source_type, result->job.source_type);
     uint8_t expected_hash[32];
     uint8_t result_hash[32];
-    mining_nonce_hash(expected, nonce, rolled_version, expected_hash);
-    mining_nonce_hash(&result->job, result->nonce, result->rolled_version, result_hash);
+    TEST_ASSERT_TRUE(mining_nonce_hash(expected, nonce, rolled_version, expected_hash));
+    TEST_ASSERT_TRUE(mining_nonce_hash(&result->job, result->nonce, result->rolled_version, result_hash));
     TEST_ASSERT_EQUAL_HEX8_ARRAY(expected_hash, result_hash, 32);
 }
 

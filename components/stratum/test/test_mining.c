@@ -28,7 +28,7 @@ TEST_CASE("Check coinbase tx construction", "[mining]")
     hex2bin(expected_coinbase_tx, expected_coinbase_tx_bin, expected_coinbase_tx_len);
 
     uint8_t expected_coinbase_tx_hash[32];
-    double_sha256_bin(expected_coinbase_tx_bin, expected_coinbase_tx_len, expected_coinbase_tx_hash);
+    TEST_ASSERT_TRUE(double_sha256_bin(expected_coinbase_tx_bin, expected_coinbase_tx_len, expected_coinbase_tx_hash));
 
     TEST_ASSERT_EQUAL_UINT8_ARRAY(expected_coinbase_tx_hash, coinbase_tx_hash, 32);
 }
@@ -164,7 +164,7 @@ TEST_CASE("Test nonce diff checking", "[mining][test-nonce]")
     uint32_t version_bits = 0;
     uint32_t rolled_version = mjob.version | version_bits;
     uint8_t hash_result[32];
-    mining_nonce_hash(&mjob, nonce, rolled_version, hash_result);
+    TEST_ASSERT_TRUE(mining_nonce_hash(&mjob, nonce, rolled_version, hash_result));
     double diff = target_to_diff(hash_result);
     TEST_ASSERT_EQUAL_INT(18, (int)diff);
 }
@@ -222,7 +222,7 @@ TEST_CASE("Test nonce diff checking 2", "[mining][test-nonce]")
     uint32_t version_bits = 0;
     uint32_t rolled_version = mjob.version | version_bits;
     uint8_t hash_result[32];
-    mining_nonce_hash(&mjob, nonce, rolled_version, hash_result);
+    TEST_ASSERT_TRUE(mining_nonce_hash(&mjob, nonce, rolled_version, hash_result));
     double diff = target_to_diff(hash_result);
     TEST_ASSERT_EQUAL_INT(683, (int)diff);
 }
