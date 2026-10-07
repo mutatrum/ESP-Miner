@@ -20,6 +20,8 @@ void calculate_merkle_root_hash(const uint8_t coinbase_tx_hash[32], const uint8_
 /* Converts a little-endian 256-bit value to pool difficulty. */
 double hash_to_pdiff(const uint8_t hash[32]);
 
+void mining_nonce_hash(const asic_job_t *job, const uint32_t nonce, const uint32_t rolled_version, uint8_t hash[32]);
+
 double mining_nonce_difficulty(const asic_job_t *job, const uint32_t nonce, const uint32_t rolled_version);
 
 uint32_t increment_bitmask(const uint32_t value, const uint32_t mask);

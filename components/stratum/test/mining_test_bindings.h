@@ -9,6 +9,7 @@
 #define calculate_coinbase_tx_hash_bin mining_test_calculate_coinbase_tx_hash_bin
 #define calculate_merkle_root_hash mining_test_calculate_merkle_root_hash
 #define hash_to_pdiff mining_test_hash_to_pdiff
+#define mining_nonce_hash mining_test_nonce_hash
 #define mining_nonce_difficulty mining_test_nonce_difficulty
 #define increment_bitmask mining_test_increment_bitmask
 
