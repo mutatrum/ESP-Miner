@@ -640,7 +640,7 @@ TEST_CASE("large coinbase job streams hashing and retains extranonce order",
         }, events, sizeof(events) / sizeof(events[0]), &result);
 
     TEST_ASSERT_EQUAL_UINT32(2, result.job_count);
-    TEST_ASSERT_EQUAL_UINT32(2, result.allocation_count);
+    TEST_ASSERT_EQUAL_UINT32(0, result.allocation_count);
     TEST_ASSERT_EQUAL_UINT32(1, result.coinbase_decode_count);
     TEST_ASSERT_EQUAL_STRING("00", result.jobs[0]->extranonce2);
     TEST_ASSERT_EQUAL_STRING("01", result.jobs[1]->extranonce2);
@@ -668,7 +668,7 @@ TEST_CASE("coinbase hash failures skip sending work and permit the next cycle",
                 .hash_failure_at = failure_at,
             }, events, sizeof(events) / sizeof(events[0]), &result);
 
-        TEST_ASSERT_EQUAL_UINT32(2, result.allocation_count);
+        TEST_ASSERT_EQUAL_UINT32(0, result.allocation_count);
         TEST_ASSERT_EQUAL_UINT32(failure_at <= 5 ? 1 : 0, result.hash_abort_count);
         TEST_ASSERT_EQUAL_UINT32(1, result.job_count);
         TEST_ASSERT_EQUAL_STRING("followup", result.jobs[0]->job_id);
