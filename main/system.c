@@ -274,7 +274,7 @@ void SYSTEM_init_system(GlobalState * GLOBAL_STATE)
     pthread_mutex_init(&GLOBAL_STATE->transport_mutex, NULL);
 
     // Allocate the job tracking tables here rather than in create_jobs_task().
-    // The stratum tasks touch valid_jobs (SYSTEM_clean_jobs_queue) as soon as they
+    // The stratum tasks touch valid_jobs (via SYSTEM_reset_pool_session) as soon as they
     // connect, so tying the allocation to create_jobs_task actually starting is a
     // NULL dereference waiting to happen if that task ever fails to spawn.
     GLOBAL_STATE->ASIC_TASK_MODULE.active_jobs = calloc(MAX_ASIC_JOBS, sizeof(bm_job *));
@@ -410,7 +410,7 @@ esp_err_t SYSTEM_init_peripherals(GlobalState * GLOBAL_STATE) {
     return ESP_OK;
 }
 
-void SYSTEM_clean_jobs_queue(GlobalState * GLOBAL_STATE)
+static void clean_jobs_queue(GlobalState * GLOBAL_STATE)
 {
     ESP_LOGI(TAG, "Clean Jobs: invalidating active jobs");
 
@@ -494,6 +494,27 @@ void SYSTEM_reset_coinbase_ui_state(GlobalState * GLOBAL_STATE)
 
     memset(&GLOBAL_STATE->coinbase, 0, sizeof(GLOBAL_STATE->coinbase));
     GLOBAL_STATE->block_signals_count = 0;
+}
+
+void SYSTEM_reset_pool_session(GlobalState * GLOBAL_STATE)
+{
+    if (!GLOBAL_STATE) return;
+
+    SystemModule *module = &GLOBAL_STATE->SYSTEM_MODULE;
+    for (int i = 0; i < module->rejected_reason_stats_count; i++) {
+        module->rejected_reason_stats[i].count = 0;
+        module->rejected_reason_stats[i].message[0] = '\0';
+    }
+    module->rejected_reason_stats_count = 0;
+    module->shares_accepted = 0;
+    module->shares_rejected = 0;
+    module->shares_pending = 0;
+    module->response_time = 0.0f;
+    module->response_share_batch = 0;
+    module->pool_difficulty = 0.0;
+
+    clean_jobs_queue(GLOBAL_STATE);
+    SYSTEM_reset_coinbase_ui_state(GLOBAL_STATE);
 }
 
 void SYSTEM_decode_and_apply_coinbase(GlobalState * GLOBAL_STATE, const miner_job_t * job)

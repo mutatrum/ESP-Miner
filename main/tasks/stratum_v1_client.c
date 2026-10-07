@@ -118,9 +118,7 @@ void stratum_v1_close_connection(GlobalState *GLOBAL_STATE)
     }
     pthread_mutex_unlock(&GLOBAL_STATE->transport_mutex);
 
-    GLOBAL_STATE->SYSTEM_MODULE.shares_pending = 0;
-    SYSTEM_clean_jobs_queue(GLOBAL_STATE);
-    SYSTEM_reset_coinbase_ui_state(GLOBAL_STATE);
+    SYSTEM_reset_pool_session(GLOBAL_STATE);
 }
 
 esp_err_t stratum_v1_run(GlobalState *GLOBAL_STATE, uint16_t pool_idx)
@@ -150,16 +148,14 @@ esp_err_t stratum_v1_run(GlobalState *GLOBAL_STATE, uint16_t pool_idx)
         return ESP_ERR_INVALID_ARG;
     }
 
-    GLOBAL_STATE->SYSTEM_MODULE.shares_pending = 0;
+    if (s_v1_conn != NULL) {
+        stratum_v1_close_connection(GLOBAL_STATE);
+    }
     if (!STRATUM_V1_initialize_buffer()) {
         ESP_LOGE(TAG, "Failed to initialize Stratum V1 buffer");
         return ESP_ERR_NO_MEM;
     }
 
-    if (s_v1_conn != NULL) {
-        clear_active_job_ids(s_v1_conn->active_job_ids, &s_v1_conn->active_job_ids_count);
-        free(s_v1_conn);
-    }
     s_v1_conn = calloc(1, sizeof(sv1_conn_t));
     if (!s_v1_conn) {
         ESP_LOGE(TAG, "Failed to allocate sv1_conn");
@@ -175,6 +171,7 @@ esp_err_t stratum_v1_run(GlobalState *GLOBAL_STATE, uint16_t pool_idx)
         ESP_LOGE(TAG, "Address resolution failed for %s", stratum_url);
         snprintf(GLOBAL_STATE->SYSTEM_MODULE.pool_connection_info,
                  sizeof(GLOBAL_STATE->SYSTEM_MODULE.pool_connection_info), "SV1: Pool unreachable");
+        stratum_v1_close_connection(GLOBAL_STATE);
         return ESP_FAIL;
     }
 
@@ -185,6 +182,7 @@ esp_err_t stratum_v1_run(GlobalState *GLOBAL_STATE, uint16_t pool_idx)
         ESP_LOGE(TAG, "Transport initialization failed.");
         snprintf(GLOBAL_STATE->SYSTEM_MODULE.pool_connection_info,
                  sizeof(GLOBAL_STATE->SYSTEM_MODULE.pool_connection_info), "SV1: Internal error");
+        stratum_v1_close_connection(GLOBAL_STATE);
         return ESP_FAIL;
     }
 
@@ -199,6 +197,7 @@ esp_err_t stratum_v1_run(GlobalState *GLOBAL_STATE, uint16_t pool_idx)
                  sizeof(GLOBAL_STATE->SYSTEM_MODULE.pool_connection_info), "SV1: Connection failed");
         esp_transport_close(transport);
         esp_transport_destroy(transport);
+        stratum_v1_close_connection(GLOBAL_STATE);
         return ESP_FAIL;
     }
 
@@ -215,7 +214,6 @@ esp_err_t stratum_v1_run(GlobalState *GLOBAL_STATE, uint16_t pool_idx)
              "%s%s", protocol, tls_status);
 
     stratum_v1_reset_uid(GLOBAL_STATE);
-    SYSTEM_clean_jobs_queue(GLOBAL_STATE);
 
     // mining.configure - ID: 1
     STRATUM_V1_configure_version_rolling(transport, stratum_get_next_uid(GLOBAL_STATE), &s_v1_conn->version_mask);
@@ -290,6 +288,9 @@ esp_err_t stratum_v1_run(GlobalState *GLOBAL_STATE, uint16_t pool_idx)
                     
                     target_job->pool_id = (uint8_t)pool_idx;
                     target_job->pool_diff = s_v1_conn->pool_difficulty;
+                    if (GLOBAL_STATE->SYSTEM_MODULE.pool_difficulty == 0.0) {
+                        GLOBAL_STATE->SYSTEM_MODULE.pool_difficulty = s_v1_conn->pool_difficulty;
+                    }
                     target_job->version_mask = s_v1_conn->version_mask;
                     target_job->extranonce1_len = s_v1_conn->extranonce1_len;
                     if (s_v1_conn->extranonce1_len > 0) {
