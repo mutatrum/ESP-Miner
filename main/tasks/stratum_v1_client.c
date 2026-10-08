@@ -231,6 +231,8 @@ esp_err_t stratum_v1_run(GlobalState *GLOBAL_STATE, uint16_t pool_idx)
     STRATUM_V1_subscribe(transport, stratum_get_next_uid(GLOBAL_STATE), GLOBAL_STATE->DEVICE_CONFIG.family.asic.name);
 
     int authorize_message_id = stratum_get_next_uid(GLOBAL_STATE);
+    int suggest_diff_message_id = -1;
+    int extranonce_sub_message_id = -1;
 
     // mining.authorize - ID: 3
     STRATUM_V1_authorize(transport, authorize_message_id, username, password);
@@ -387,29 +389,22 @@ esp_err_t stratum_v1_run(GlobalState *GLOBAL_STATE, uint16_t pool_idx)
                 break;
 
             case STRATUM_RESULT: {
-                float response_time_ms = stratum_timing_calculate_ms(&s_v1_timing, (uint32_t)s_v1_msg->message_id, (uint64_t)receive_time_us);
-                if (response_time_ms >= 0) {
-                    if (GLOBAL_STATE->SYSTEM_MODULE.shares_pending > 0) {
-                        GLOBAL_STATE->SYSTEM_MODULE.shares_pending--;
-                    }
-                    if (s_v1_msg->response_success) {
-                        ESP_LOGI(TAG, "message result accepted");
-                        ESP_LOGI(TAG, "Stratum response time: %.1f ms", response_time_ms);
-                        GLOBAL_STATE->SYSTEM_MODULE.response_time = response_time_ms;
-                        SYSTEM_notify_accepted_share(GLOBAL_STATE);
-                    } else {
-                        ESP_LOGW(TAG, "message result rejected: %s", s_v1_msg->error_str);
-                        SYSTEM_notify_rejected_share(GLOBAL_STATE, s_v1_msg->error_str);
-                    }
-                } else {
+                bool is_setup_msg = (s_v1_msg->message_id > 0 &&
+                                     (s_v1_msg->message_id == authorize_message_id ||
+                                      s_v1_msg->message_id == suggest_diff_message_id ||
+                                      s_v1_msg->message_id == extranonce_sub_message_id));
+
+                if (is_setup_msg) {
                     if (s_v1_msg->response_success) {
                         ESP_LOGI(TAG, "setup message accepted");
                         if (s_v1_msg->message_id == authorize_message_id) {
                             if (difficulty > 0) {
-                                STRATUM_V1_suggest_difficulty(transport, stratum_get_next_uid(GLOBAL_STATE), difficulty);
+                                suggest_diff_message_id = stratum_get_next_uid(GLOBAL_STATE);
+                                STRATUM_V1_suggest_difficulty(transport, suggest_diff_message_id, difficulty);
                             }
                             if (extranonce_subscribe) {
-                                STRATUM_V1_extranonce_subscribe(transport, stratum_get_next_uid(GLOBAL_STATE));
+                                extranonce_sub_message_id = stratum_get_next_uid(GLOBAL_STATE);
+                                STRATUM_V1_extranonce_subscribe(transport, extranonce_sub_message_id);
                             }
                         }
                     } else {
@@ -419,6 +414,26 @@ esp_err_t stratum_v1_run(GlobalState *GLOBAL_STATE, uint16_t pool_idx)
                                      sizeof(GLOBAL_STATE->SYSTEM_MODULE.pool_connection_info), "SV1: Auth rejected");
                         }
                     }
+                } else if (s_v1_msg->message_id > 0) {
+                    if (GLOBAL_STATE->SYSTEM_MODULE.shares_pending > 0) {
+                        GLOBAL_STATE->SYSTEM_MODULE.shares_pending--;
+                    }
+                    float response_time_ms = stratum_timing_calculate_ms(&s_v1_timing, (uint32_t)s_v1_msg->message_id, (uint64_t)receive_time_us);
+                    if (s_v1_msg->response_success) {
+                        if (response_time_ms >= 0) {
+                            ESP_LOGI(TAG, "message result accepted");
+                            ESP_LOGI(TAG, "Stratum response time: %.1f ms", response_time_ms);
+                            GLOBAL_STATE->SYSTEM_MODULE.response_time = response_time_ms;
+                        } else {
+                            ESP_LOGI(TAG, "message result accepted");
+                        }
+                        SYSTEM_notify_accepted_share(GLOBAL_STATE);
+                    } else {
+                        ESP_LOGW(TAG, "message result rejected: %s", s_v1_msg->error_str);
+                        SYSTEM_notify_rejected_share(GLOBAL_STATE, s_v1_msg->error_str);
+                    }
+                } else {
+                    ESP_LOGW(TAG, "Received result with invalid message_id: %d", s_v1_msg->message_id);
                 }
                 break;
             }
