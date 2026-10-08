@@ -23,4 +23,5 @@ REQUIRES
     "tcp_transport"
     "esp_netif"
     "esp_psram"
+    "yyjson"
 )
