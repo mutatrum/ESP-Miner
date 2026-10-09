@@ -1357,7 +1357,6 @@ export class HomeComponent implements OnInit, OnDestroy {
     this.cd.markForCheck();
   }
 
-
   private updateChartUnitGroups() {
     this.chartUnitGroups = ChartUnitGroups.map(group => {
       return {
