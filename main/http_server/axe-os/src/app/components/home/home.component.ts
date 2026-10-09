@@ -195,6 +195,7 @@ export class HomeComponent implements OnInit, OnDestroy {
   // Performance optimization cache properties
   private primaryColorRgb: { r: number, g: number, b: number } = { r: 0, g: 0, b: 0 };
   public sparklineAsicRows: SparklineAsicRow[] = [];
+  public sparklineViewBox: string = '0 0 100 30';
   public efficiency: number = 0;
   public efficiencyAverage: number = 0;
   public expectedEfficiency: number = 0;
@@ -1305,8 +1306,12 @@ export class HomeComponent implements OnInit, OnDestroy {
     const nominal = (expected > 0 && asicsCount > 0 && domainsCount > 0)
       ? expected / (asicsCount * domainsCount)
       : 1;
+    const power = HashSuffixPipe.getPower(nominal);
+    const suffix = HashSuffixPipe.getSuffix(power);
+    const viewportHeight = nominal * 1.5;
+    this.sparklineViewBox = `0 0 100 ${viewportHeight.toFixed(2)}`;
 
-    const nominalY = 10;
+    const nominalY = nominal;
     const rows: SparklineAsicRow[] = [];
 
     for (let a = 0; a < asicsCount; a++) {
@@ -1324,17 +1329,16 @@ export class HomeComponent implements OnInit, OnDestroy {
         if (nPts >= 2) {
           for (let k = 0; k < nPts; k++) {
             const px = (k / (nPts - 1)) * 100;
-            const ratio = Math.max(0, Math.min(1.5, pts[k] / (nominal || 1))) / 1.5;
-            const py = 30 * (1 - ratio);
-            path += (k === 0 ? 'M ' : ' L ') + px.toFixed(1) + ' ' + py.toFixed(1);
+            const py = (pts[k] != null && !isNaN(pts[k])) ? pts[k] : 0;
+            path += (k === 0 ? 'M ' : ' L ') + px.toFixed(1) + ' ' + py.toFixed(2);
           }
         }
 
         const pct = nominal > 0 ? Math.round((currentVal / nominal) * 100) : 0;
-        const valStr = HashSuffixPipe.transform(currentVal);
+        const valStr = HashSuffixPipe.transform(currentVal, { hideUnit: true, power });
         const title = asicsCount > 1 ? `ASIC ${a + 1} • Domain ${d + 1}` : `Domain ${d + 1}`;
         const errorLine = errorCount > 0 ? `\nErrors: ${errorCount}` : '';
-        const tooltip = `${title}\n${valStr} (${pct}% target)${errorLine}`;
+        const tooltip = `${title}\n${valStr} ${suffix} (${pct}% target)${errorLine}`;
 
         cells.push({
           id: `${a}-${d}`,

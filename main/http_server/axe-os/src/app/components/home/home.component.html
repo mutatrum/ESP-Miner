@@ -614,11 +614,11 @@
                   }
                   <div class="flex gap-1.5 flex-1 h-full min-w-0">
                     @for (cell of row.cells; track cell.id) {
-                      <div class="sparkline-cell flex-1 min-w-0 h-full flex flex-col justify-between" [appTooltip]="cell.tooltip" tooltipPosition="top">
-                        <div class="flex justify-center items-center text-[10px] leading-tight select-none">
-                          <span class="font-medium text-main truncate">{{ cell.hashrate }}</span>
+                      <div class="sparkline-cell flex-1 min-w-0 h-full" [appTooltip]="cell.tooltip" tooltipPosition="top">
+                        <div class="absolute bottom-0.5 left-1 z-0 text-[10px] leading-none font-medium text-secondary truncate select-none pointer-events-none max-w-[calc(100%-8px)]">
+                          {{ cell.hashrate }}
                         </div>
-                        <svg class="sparkline-svg w-full flex-1 min-h-0" viewBox="0 0 100 30" preserveAspectRatio="none">
+                        <svg class="sparkline-svg w-full h-full" [attr.viewBox]="sparklineViewBox" preserveAspectRatio="none">
                           <line x1="0" [attr.y1]="cell.nominalY" x2="100" [attr.y2]="cell.nominalY" class="nominal-line" />
                           @if (cell.path) {
                             <path [attr.d]="cell.path" class="sparkline-path" />
