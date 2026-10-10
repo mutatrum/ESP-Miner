@@ -54,6 +54,26 @@ void removeStatisticsBuffer()
     }
 }
 
+static inline void merge_min_positive(float *target, float val)
+{
+    if (val > 0.0f && (*target <= 0.0f || val < *target)) {
+        *target = val;
+    }
+}
+
+static inline void merge_max_positive(float *target, float val)
+{
+    if (val > 0.0f && (*target <= 0.0f || val > *target)) {
+        *target = val;
+    }
+}
+
+static void merge_statistics_data(struct StatisticsData *target, const struct StatisticsData *source)
+{
+    merge_min_positive(&target->responseTimeMin, source->responseTimeMin);
+    merge_max_positive(&target->responseTimeMax, source->responseTimeMax);
+}
+
 bool addStatisticData(StatisticsDataPtr data, uint16_t statsFrequency)
 {
     bool result = false;
@@ -113,6 +133,11 @@ bool addStatisticData(StatisticsDataPtr data, uint16_t statsFrequency)
                 indexToRemove = low;
             }
 
+            // Merge into successor before removing indexToRemove
+            if (indexToRemove > 0) {
+                merge_statistics_data(&statisticsBuffer[indexToRemove + 1], &statisticsBuffer[indexToRemove]);
+            }
+
             // Shift and append (Standard linear array shift)
             if (indexToRemove < maxDataCount - 1) {
                 memmove(&statisticsBuffer[indexToRemove], &statisticsBuffer[indexToRemove + 1], (maxDataCount - indexToRemove - 1) * sizeof(struct StatisticsData));
@@ -155,6 +180,7 @@ void statistics_task(void * pvParameters)
     SystemModule * sys_module = &GLOBAL_STATE->SYSTEM_MODULE;
     PowerManagementModule * power_management = &GLOBAL_STATE->POWER_MANAGEMENT_MODULE;
     struct StatisticsData statsData = {};
+    uint64_t last_shares_count = sys_module->shares_accepted + sys_module->shares_rejected;
 
     TickType_t taskWakeTime = xTaskGetTickCount();
 
@@ -186,7 +212,22 @@ void statistics_task(void * pvParameters)
                 statsData.fan2RPM = power_management->fan2_rpm;
                 statsData.wifiRSSI = wifiRSSI;
                 statsData.freeHeap = esp_get_free_heap_size();
-                statsData.responseTime = sys_module->response_time;
+
+                uint64_t current_shares = sys_module->shares_accepted + sys_module->shares_rejected;
+                if (current_shares != last_shares_count && sys_module->response_time > 0.0f) {
+                    statsData.responseTimeMin = sys_module->response_time_min > 0.0f ? sys_module->response_time_min : sys_module->response_time;
+                    statsData.responseTimeMax = sys_module->response_time_max > 0.0f ? sys_module->response_time_max : sys_module->response_time;
+                    sys_module->last_response_time_min = statsData.responseTimeMin;
+                    sys_module->last_response_time_max = statsData.responseTimeMax;
+                } else {
+                    statsData.responseTimeMin = 0.0f;
+                    statsData.responseTimeMax = 0.0f;
+                    sys_module->last_response_time_min = 0.0f;
+                    sys_module->last_response_time_max = 0.0f;
+                }
+                last_shares_count = current_shares;
+                sys_module->response_time_min = 0.0f;
+                sys_module->response_time_max = 0.0f;
 
                 addStatisticData(&statsData, configStatsFrequency);
             }
