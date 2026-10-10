@@ -68,12 +68,6 @@ static inline void merge_max_positive(float *target, float val)
     }
 }
 
-static void merge_statistics_data(struct StatisticsData *target, const struct StatisticsData *source)
-{
-    merge_min_positive(&target->responseTimeMin, source->responseTimeMin);
-    merge_max_positive(&target->responseTimeMax, source->responseTimeMax);
-}
-
 bool addStatisticData(StatisticsDataPtr data, uint16_t statsFrequency)
 {
     bool result = false;
@@ -133,14 +127,18 @@ bool addStatisticData(StatisticsDataPtr data, uint16_t statsFrequency)
                 indexToRemove = low;
             }
 
+            struct StatisticsData *toRemove = &statisticsBuffer[indexToRemove];
+            struct StatisticsData *successor = &statisticsBuffer[indexToRemove + 1];
+
             // Merge into successor before removing indexToRemove
             if (indexToRemove > 0) {
-                merge_statistics_data(&statisticsBuffer[indexToRemove + 1], &statisticsBuffer[indexToRemove]);
+                merge_min_positive(&successor->responseTimeMin, toRemove->responseTimeMin);
+                merge_max_positive(&successor->responseTimeMax, toRemove->responseTimeMax);
             }
 
             // Shift and append (Standard linear array shift)
             if (indexToRemove < maxDataCount - 1) {
-                memmove(&statisticsBuffer[indexToRemove], &statisticsBuffer[indexToRemove + 1], (maxDataCount - indexToRemove - 1) * sizeof(struct StatisticsData));
+                memmove(toRemove, successor, (maxDataCount - indexToRemove - 1) * sizeof(struct StatisticsData));
             }
             statisticsBuffer[maxDataCount - 1] = *data;
             result = true;
