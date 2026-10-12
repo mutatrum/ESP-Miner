@@ -3,6 +3,7 @@
 #include <esp_heap_caps.h>
 #include <math.h>
 #include "esp_log.h"
+#include "esp_timer.h"
 #include "global_state.h"
 #include "system.h"
 #include "asic_common.h"
@@ -61,6 +62,35 @@ void hashrate_monitor_reset_measurements(void *pvParameters)
     memset(HASHRATE_MONITOR_MODULE->domain_stalled[0], 0, asic_count * hash_domains * sizeof(bool));
     memset(HASHRATE_MONITOR_MODULE->error_measurement, 0, asic_count * sizeof(measurement_t));
     pthread_mutex_unlock(&HASHRATE_MONITOR_MODULE->lock);
+}
+
+bool hashrate_monitor_has_stalled_domains(void *pvParameters, int *stalled_count_out)
+{
+    GlobalState * GLOBAL_STATE = (GlobalState *)pvParameters;
+    if (!GLOBAL_STATE || !GLOBAL_STATE->HASHRATE_MONITOR_MODULE.is_initialized) {
+        if (stalled_count_out) *stalled_count_out = 0;
+        return false;
+    }
+
+    HashrateMonitorModule * monitor = &GLOBAL_STATE->HASHRATE_MONITOR_MODULE;
+    int asic_count = GLOBAL_STATE->DEVICE_CONFIG.family.asic_count;
+    int hash_domains = GLOBAL_STATE->DEVICE_CONFIG.family.asic.hash_domains;
+    int count = 0;
+
+    pthread_mutex_lock(&monitor->lock);
+    for (int i = 0; i < asic_count; i++) {
+        for (int j = 0; j < hash_domains; j++) {
+            if (monitor->domain_stalled[i][j]) {
+                count++;
+            }
+        }
+    }
+    pthread_mutex_unlock(&monitor->lock);
+
+    if (stalled_count_out) {
+        *stalled_count_out = count;
+    }
+    return count > 0;
 }
 
 void update_hashrate(measurement_t * measurement, uint32_t value)
@@ -203,6 +233,7 @@ void hashrate_monitor_task(void *pvParameters)
     init_averages();
 
     bool was_asic_initialized = false;
+    TickType_t asic_initialized_ticks = xTaskGetTickCount();
     TickType_t taskWakeTime = xTaskGetTickCount();
     while (1) {
         bool is_asic_initialized = GLOBAL_STATE->ASIC_initalized;
@@ -214,6 +245,9 @@ void hashrate_monitor_task(void *pvParameters)
             // which would cause a hashrate spike when resuming.
             hashrate_monitor_reset_measurements(GLOBAL_STATE);
         }
+        if (!was_asic_initialized && is_asic_initialized) {
+            asic_initialized_ticks = xTaskGetTickCount();
+        }
         was_asic_initialized = is_asic_initialized;
 
         if (is_asic_initialized) {
@@ -223,6 +257,35 @@ void hashrate_monitor_task(void *pvParameters)
             pthread_mutex_lock(&HASHRATE_MONITOR_MODULE->lock);
             float current_hashrate = sum_hashrates(HASHRATE_MONITOR_MODULE->total_measurement, asic_count);
             float error_hashrate = sum_hashrates(HASHRATE_MONITOR_MODULE->error_measurement, asic_count);
+
+            uint64_t now_us = esp_timer_get_time();
+            uint64_t stall_timeout_us = (uint64_t)DOMAIN_STALL_POLLS * 1000000ULL;
+            bool check_unresponsive = !GLOBAL_STATE->SELF_TEST_MODULE.is_active &&
+                                      !SYSTEM_MODULE->mining_paused &&
+                                      ((xTaskGetTickCount() - asic_initialized_ticks) * portTICK_PERIOD_MS >= 15000);
+
+            if (check_unresponsive) {
+                for (int i = 0; i < asic_count; i++) {
+                    for (int j = 0; j < hash_domains; j++) {
+                        measurement_t *m = &HASHRATE_MONITOR_MODULE->domain_measurements[i][j];
+                        if (m->time_us == 0) {
+                            if (HASHRATE_MONITOR_MODULE->domain_stall_counts[i][j] < DOMAIN_STALL_POLLS) {
+                                HASHRATE_MONITOR_MODULE->domain_stall_counts[i][j]++;
+                            }
+                        } else if (now_us > m->time_us && (now_us - m->time_us) >= stall_timeout_us) {
+                            HASHRATE_MONITOR_MODULE->domain_stall_counts[i][j] = DOMAIN_STALL_POLLS;
+                        }
+
+                        if (HASHRATE_MONITOR_MODULE->domain_stall_counts[i][j] >= DOMAIN_STALL_POLLS) {
+                            m->hashrate = 0.0f;
+                            if (!HASHRATE_MONITOR_MODULE->domain_stalled[i][j]) {
+                                ESP_LOGW(TAG, "ASIC %d domain %d unresponsive / stalled", i, j);
+                                HASHRATE_MONITOR_MODULE->domain_stalled[i][j] = true;
+                            }
+                        }
+                    }
+                }
+            }
             pthread_mutex_unlock(&HASHRATE_MONITOR_MODULE->lock);
 
             SYSTEM_MODULE->current_hashrate = current_hashrate;

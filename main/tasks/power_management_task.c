@@ -12,6 +12,7 @@
 #include "asic_reset.h"
 #include "difficulty_controller.h"
 #include "driver/uart.h"
+#include "hashrate_monitor_task.h"
 
 #define POLL_RATE 100
 #define MAX_TEMP 90.0
@@ -27,9 +28,6 @@
 
 #define ASIC_REDUCTION 100.0
 
-#define SILENT_DOMAIN_GH 10.0f
-#define LIVE_DOMAIN_GH 50.0f
-#define SILENT_DOMAIN_HASHRATE_RATIO 0.85f
 #define SILENT_DOMAIN_HOLD_MS 30000
 #define SILENT_DOMAIN_CONFIRM_MS 15000
 #define SILENT_DOMAIN_MAX_RECOVERIES 2
@@ -87,6 +85,7 @@ static uint8_t mining_start(GlobalState * GLOBAL_STATE)
     uint8_t chip_count = asic_initialize(GLOBAL_STATE, ASIC_INIT_RECOVERY, 2000);
 
     if (chip_count > 0) {
+        hashrate_monitor_reset_measurements(GLOBAL_STATE);
         ESP_LOGI(TAG, "Mining started successfully (%d chip(s))", chip_count);
     } else {
         ESP_LOGE(TAG, "Mining start failed - ASIC not detected");
@@ -111,52 +110,17 @@ static bool asic_at_target_frequency(const PowerManagementModule * power_managem
     return delta <= 5.0f;
 }
 
-static bool silent_domain_fault(GlobalState * GLOBAL_STATE, int * silent_out, int * live_out)
+static bool silent_domain_fault(GlobalState * GLOBAL_STATE, int * stalled_out)
 {
-    int asic_count = GLOBAL_STATE->DEVICE_CONFIG.family.asic_count;
     int hash_domains = GLOBAL_STATE->DEVICE_CONFIG.family.asic.hash_domains;
-    int silent = 0;
-    int live = 0;
-
-    if (silent_out) {
-        *silent_out = 0;
-    }
-    if (live_out) {
-        *live_out = 0;
-    }
-
     if (hash_domains < 2 || !GLOBAL_STATE->HASHRATE_MONITOR_MODULE.is_initialized) {
-        return false;
-    }
-
-    for (int asic_nr = 0; asic_nr < asic_count; asic_nr++) {
-        for (int domain_nr = 0; domain_nr < hash_domains; domain_nr++) {
-            asic_domain_measurement_t measurement = {0};
-            if (ASIC_get_domain_measurement(GLOBAL_STATE, asic_nr, domain_nr, &measurement) != ESP_OK) {
-                continue;
-            }
-            if (measurement.hashrate < SILENT_DOMAIN_GH) {
-                silent++;
-            } else if (measurement.hashrate > LIVE_DOMAIN_GH) {
-                live++;
-            }
+        if (stalled_out) {
+            *stalled_out = 0;
         }
-    }
-
-    if (silent_out) {
-        *silent_out = silent;
-    }
-    if (live_out) {
-        *live_out = live;
-    }
-
-    float expected = GLOBAL_STATE->POWER_MANAGEMENT_MODULE.expected_hashrate;
-    if (expected <= 0.0f) {
         return false;
     }
 
-    return silent >= 1 && live >= 1 &&
-           GLOBAL_STATE->SYSTEM_MODULE.current_hashrate < expected * SILENT_DOMAIN_HASHRATE_RATIO;
+    return hashrate_monitor_has_stalled_domains(GLOBAL_STATE, stalled_out);
 }
 
 void POWER_MANAGEMENT_init_frequency(GlobalState * GLOBAL_STATE)
@@ -344,17 +308,16 @@ void POWER_MANAGEMENT_task(void * pvParameters)
             GLOBAL_STATE->ASIC_initalized &&
             !sys_module->overheat_mode &&
             asic_at_target_frequency(power_management)) {
-            int silent = 0;
-            int live = 0;
-            if (!silent_domain_fault(GLOBAL_STATE, &silent, &live)) {
+            int stalled = 0;
+            if (!silent_domain_fault(GLOBAL_STATE, &stalled)) {
                 silent_confirm_ms = 0;
             } else if (silent_recoveries < SILENT_DOMAIN_MAX_RECOVERIES) {
                 silent_confirm_ms += POLL_RATE;
                 uint32_t held_ms = (xTaskGetTickCount() - silent_holdoff_ticks) * portTICK_PERIOD_MS;
                 if (silent_confirm_ms >= SILENT_DOMAIN_CONFIRM_MS && held_ms >= SILENT_DOMAIN_HOLD_MS) {
                     ESP_LOGW(TAG,
-                             "Silent hash domain detected (%d silent, %d live, %.0f/%.0f GH/s). Reinitializing ASIC.",
-                             silent, live, sys_module->current_hashrate, power_management->expected_hashrate);
+                             "Silent hash domain detected (%d domain(s) stalled, %.0f/%.0f GH/s). Reinitializing ASIC.",
+                             stalled, sys_module->current_hashrate, power_management->expected_hashrate);
                     mining_stop(GLOBAL_STATE);
                     uint8_t chip_count = mining_start(GLOBAL_STATE);
                     silent_recoveries++;
