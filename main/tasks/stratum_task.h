@@ -13,6 +13,9 @@ void stratum_task(void *pvParameters);
 // Request the active stratum client to reconnect (e.g. on primary pool recovery or pool settings change).
 void stratum_request_reconnect(void);
 
+// Abort the active stratum connection immediately if running.
+void stratum_abort_connection(void);
+
 // Returns true if a reconnect request is pending.
 bool stratum_reconnect_requested(void);
 
