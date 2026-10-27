@@ -19,7 +19,10 @@ void stratum_notify_pool_modified(GlobalState *gs, uint16_t pool_idx);
 // Notify stratum task that primary/secondary pool index or fallback toggle was changed.
 void stratum_notify_pool_selection_changed(GlobalState *gs);
 
-// Abort active stratum connection immediately.
+// Abort active stratum connection immediately for the given pool.
+void stratum_abort_pool(uint16_t pool_idx);
+
+// Abort active stratum connection immediately across all pools.
 void stratum_abort_connection(void);
 
 // Submit a found share to the active pool (dispatches to SV1 or SV2).
