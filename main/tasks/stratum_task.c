@@ -25,7 +25,7 @@ static volatile bool s_client_running = false;
 static stratum_protocol_t s_running_protocol = STRATUM_PROTOCOL_V1;
 static TaskHandle_t s_heartbeat_task_handle = NULL;
 
-void stratum_abort_connection(void)
+static void stratum_abort_connection(void)
 {
     if (!s_client_running) {
         return;
@@ -37,7 +37,7 @@ void stratum_abort_connection(void)
     }
 }
 
-void stratum_request_reconnect(void)
+static void stratum_request_reconnect(void)
 {
     s_should_reconnect = true;
     stratum_abort_connection();
@@ -48,7 +48,7 @@ bool stratum_reconnect_requested(void)
     return s_should_reconnect;
 }
 
-bool stratum_probe_pool(GlobalState *gs, uint16_t pool_idx)
+static bool stratum_probe_pool(GlobalState *gs, uint16_t pool_idx)
 {
     if (!gs || pool_idx >= MAX_POOLS) return false;
     const PoolConfig *pool = &gs->SYSTEM_MODULE.pools[pool_idx];
@@ -86,7 +86,7 @@ static void stratum_heartbeat_task(void *pvParameters)
     }
 }
 
-void stratum_trigger_heartbeat_check(void)
+static void stratum_trigger_heartbeat_check(void)
 {
     if (s_heartbeat_task_handle) {
         xTaskNotifyGive(s_heartbeat_task_handle);
