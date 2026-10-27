@@ -2,6 +2,7 @@
 #define HASHRATE_MONITOR_TEST_HARNESS_H_
 
 #include <stdbool.h>
+#include <stddef.h>
 #include <stdint.h>
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
