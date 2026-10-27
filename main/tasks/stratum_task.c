@@ -30,6 +30,9 @@ void stratum_abort_connection(void)
     const stratum_driver_t *v2 = stratum_get_driver(STRATUM_PROTOCOL_V2);
     if (v1 && v1->abort_connection) v1->abort_connection();
     if (v2 && v2->abort_connection) v2->abort_connection();
+    if (s_fallback_task_handle) {
+        xTaskNotifyGive(s_fallback_task_handle);
+    }
 }
 
 bool stratum_reconnect_requested(void)
@@ -172,7 +175,9 @@ void stratum_task(void *pvParameters)
                 GLOBAL_STATE->SYSTEM_MODULE.is_using_fallback = false;
                 GLOBAL_STATE->SYSTEM_MODULE.primary_pool_error[0] = '\0';
                 stratum_abort_connection();
-                vTaskDelay(pdMS_TO_TICKS(100));
+                while (s_fallback_task_handle != NULL) {
+                    vTaskDelay(pdMS_TO_TICKS(20));
+                }
             }
         }
 
@@ -244,6 +249,11 @@ int stratum_submit_share(GlobalState *GLOBAL_STATE, const asic_job_t *active_job
                          uint32_t nonce, uint32_t rolled_version, uint64_t *sent_time_us)
 {
     if (!GLOBAL_STATE || !active_job || active_job->pool_id >= MAX_POOLS) {
+        return -1;
+    }
+
+    if (active_job->pool_id != s_running_pool_idx) {
+        ESP_LOGW(TAG, "Dropping stale share for pool %u (running pool is %u)", active_job->pool_id, s_running_pool_idx);
         return -1;
     }
 
