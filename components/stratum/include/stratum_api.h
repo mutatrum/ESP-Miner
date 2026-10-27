@@ -72,6 +72,7 @@ typedef struct StratumApiV1Message
 
 typedef struct sv1_conn {
     esp_transport_handle_t transport;
+    uint16_t pool_idx;
     int send_uid;
     char user[256];
     uint8_t pool_target[32];
