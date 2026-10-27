@@ -1,6 +1,5 @@
 #include "esp_log.h"
 #include "esp_heap_caps.h"
-#include "esp_transport.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "global_state.h"
@@ -10,9 +9,7 @@
 #include "stratum_v2_client.h"
 #include "connect.h"
 #include "system.h"
-#include <sys/socket.h>
 #include <string.h>
-#include <errno.h>
 
 #define TAG "stratum_task"
 #define MAX_RETRY_ATTEMPTS 3
@@ -45,6 +42,33 @@ void stratum_abort_connection(void)
 bool stratum_reconnect_requested(void)
 {
     return s_should_reconnect;
+}
+
+void stratum_set_pool_error(GlobalState *gs, uint16_t pool_idx, const char *err_msg)
+{
+    if (!gs) return;
+    if (gs->SYSTEM_MODULE.is_using_fallback &&
+        pool_idx == gs->SYSTEM_MODULE.primary_pool_index) {
+        strlcpy(gs->SYSTEM_MODULE.primary_pool_error, err_msg,
+                sizeof(gs->SYSTEM_MODULE.primary_pool_error));
+    } else {
+        strlcpy(gs->SYSTEM_MODULE.pool_connection_info, err_msg,
+                sizeof(gs->SYSTEM_MODULE.pool_connection_info));
+    }
+}
+
+void stratum_check_primary_handover(GlobalState *gs, uint16_t pool_idx)
+{
+    if (!gs) return;
+    if (pool_idx == gs->SYSTEM_MODULE.primary_pool_index &&
+        gs->SYSTEM_MODULE.is_using_fallback &&
+        !gs->SYSTEM_MODULE.use_fallback_stratum) {
+        ESP_LOGI(TAG, "Primary pool %u received work! Switching from fallback.", pool_idx);
+        gs->SYSTEM_MODULE.is_using_fallback = false;
+        gs->SYSTEM_MODULE.primary_pool_error[0] = '\0';
+        uint16_t sec_idx = gs->SYSTEM_MODULE.secondary_pool_index;
+        stratum_abort_pool(sec_idx);
+    }
 }
 
 static esp_err_t run_pool_session(GlobalState *gs, uint16_t pool_idx)
@@ -216,7 +240,7 @@ void stratum_task(void *pvParameters)
                 } else {
                     GLOBAL_STATE->SYSTEM_MODULE.pools_unavailable = true;
                     ESP_LOGW(TAG, "Both primary and fallback pools unavailable");
-                    vTaskDelay(pdMS_TO_TICKS(RECOVERY_PROBE_INTERVAL_MS));
+                    ulTaskNotifyTake(pdTRUE, pdMS_TO_TICKS(RECOVERY_PROBE_INTERVAL_MS));
                 }
             } else {
                 vTaskDelay(pdMS_TO_TICKS(2000));
@@ -246,8 +270,8 @@ int stratum_submit_share(GlobalState *GLOBAL_STATE, const asic_job_t *active_job
     int ret = driver->submit_share(GLOBAL_STATE, active_job, nonce, rolled_version, sent_time_us);
 
     if (ret < 0) {
-        ESP_LOGW(TAG, "Failed to submit share to socket for pool %u (ret: %d, errno %d: %s)",
-                 active_job->pool_id, ret, errno, strerror(errno));
+        ESP_LOGW(TAG, "Failed to submit share to socket for pool %u (ret: %d)",
+                 active_job->pool_id, ret);
     }
     return ret;
 }

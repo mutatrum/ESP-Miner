@@ -22,39 +22,11 @@
 #include <string.h>
 #include <stdlib.h>
 
-#define SV2_PROBE_BUFFER_SIZE   1024
-
 static const char *TAG = "stratum_v2";
 
 static sv2_conn_t *s_v2_conns[MAX_POOLS] = {0};
 static pthread_mutex_t s_v2_conn_mutex = PTHREAD_MUTEX_INITIALIZER;
 static stratum_timing_tracker_t s_v2_timings[MAX_POOLS] = {0};
-
-static inline void stratum_v2_check_primary_handover(GlobalState *GLOBAL_STATE, sv2_conn_t *conn)
-{
-    if (conn->pool_idx == GLOBAL_STATE->SYSTEM_MODULE.primary_pool_index &&
-        GLOBAL_STATE->SYSTEM_MODULE.is_using_fallback &&
-        !GLOBAL_STATE->SYSTEM_MODULE.use_fallback_stratum) {
-        ESP_LOGI(TAG, "Primary pool %u received work! Switching from fallback.", conn->pool_idx);
-        GLOBAL_STATE->SYSTEM_MODULE.is_using_fallback = false;
-        GLOBAL_STATE->SYSTEM_MODULE.primary_pool_error[0] = '\0';
-        uint16_t sec_idx = GLOBAL_STATE->SYSTEM_MODULE.secondary_pool_index;
-        stratum_abort_pool(sec_idx);
-    }
-}
-
-static void stratum_v2_set_error(GlobalState *GLOBAL_STATE, uint16_t pool_idx, const char *err_msg)
-{
-    if (!GLOBAL_STATE) return;
-    if (GLOBAL_STATE->SYSTEM_MODULE.is_using_fallback &&
-        pool_idx == GLOBAL_STATE->SYSTEM_MODULE.primary_pool_index) {
-        strlcpy(GLOBAL_STATE->SYSTEM_MODULE.primary_pool_error, err_msg,
-                sizeof(GLOBAL_STATE->SYSTEM_MODULE.primary_pool_error));
-    } else {
-        strlcpy(GLOBAL_STATE->SYSTEM_MODULE.pool_connection_info, err_msg,
-                sizeof(GLOBAL_STATE->SYSTEM_MODULE.pool_connection_info));
-    }
-}
 
 static bool add_active_job_id(uint32_t *active_job_ids, int *count, uint32_t job_id)
 {
@@ -263,7 +235,7 @@ static void stratum_v2_handle_new_extended_mining_job(GlobalState *GLOBAL_STATE,
         job->clean_jobs = false;
 
         GLOBAL_STATE->SYSTEM_MODULE.work_received++;
-        stratum_v2_check_primary_handover(GLOBAL_STATE, conn);
+        stratum_check_primary_handover(GLOBAL_STATE, conn->pool_idx);
         SYSTEM_notify_new_ntime(GLOBAL_STATE, job->ntime);
         if (GLOBAL_STATE->create_jobs_task_handle) {
             xTaskNotify(GLOBAL_STATE->create_jobs_task_handle, slot, eSetValueWithOverwrite);
@@ -319,7 +291,7 @@ static void stratum_v2_handle_new_mining_job(GlobalState *GLOBAL_STATE, sv2_conn
         job->clean_jobs = false;
 
         GLOBAL_STATE->SYSTEM_MODULE.work_received++;
-        stratum_v2_check_primary_handover(GLOBAL_STATE, conn);
+        stratum_check_primary_handover(GLOBAL_STATE, conn->pool_idx);
         SYSTEM_notify_new_ntime(GLOBAL_STATE, job->ntime);
         if (GLOBAL_STATE->create_jobs_task_handle) {
             xTaskNotify(GLOBAL_STATE->create_jobs_task_handle, slot, eSetValueWithOverwrite);
@@ -381,7 +353,7 @@ static void stratum_v2_handle_set_new_prev_hash(GlobalState *GLOBAL_STATE, sv2_c
         }
 
         GLOBAL_STATE->SYSTEM_MODULE.work_received++;
-        stratum_v2_check_primary_handover(GLOBAL_STATE, conn);
+        stratum_check_primary_handover(GLOBAL_STATE, conn->pool_idx);
         SYSTEM_notify_new_ntime(GLOBAL_STATE, job->ntime);
         if (GLOBAL_STATE->create_jobs_task_handle) {
             xTaskNotify(GLOBAL_STATE->create_jobs_task_handle, slot, eSetValueWithOverwrite);
@@ -478,7 +450,7 @@ esp_err_t stratum_v2_run(GlobalState *GLOBAL_STATE, uint16_t pool_idx)
     esp_transport_handle_t transport = esp_transport_tcp_init();
     if (!transport) {
         ESP_LOGE(TAG, "Failed to init TCP transport");
-        stratum_v2_set_error(GLOBAL_STATE, pool_idx, "Internal error");
+        stratum_set_pool_error(GLOBAL_STATE, pool_idx, "Internal error");
         free(frame_buf);
         free(recv_buf);
         stratum_v2_close_connection(GLOBAL_STATE, pool_idx);
@@ -488,7 +460,7 @@ esp_err_t stratum_v2_run(GlobalState *GLOBAL_STATE, uint16_t pool_idx)
     stratum_connection_info_t conn_info;
     if (stratum_socket_resolve(stratum_url, port, &conn_info) != ESP_OK) {
         ESP_LOGE(TAG, "Address resolution failed for %s", stratum_url);
-        stratum_v2_set_error(GLOBAL_STATE, pool_idx, "Pool unreachable");
+        stratum_set_pool_error(GLOBAL_STATE, pool_idx, "Pool unreachable");
         esp_transport_close(transport);
         esp_transport_destroy(transport);
         free(frame_buf);
@@ -502,7 +474,7 @@ esp_err_t stratum_v2_run(GlobalState *GLOBAL_STATE, uint16_t pool_idx)
     esp_err_t ret = esp_transport_connect(transport, conn_info.host_ip, port, TRANSPORT_TIMEOUT_MS);
     if (ret != ESP_OK) {
         ESP_LOGE(TAG, "TCP connect failed to %s:%d (%s) (err %d)", stratum_url, port, conn_info.host_ip, ret);
-        stratum_v2_set_error(GLOBAL_STATE, pool_idx, "Pool unreachable");
+        stratum_set_pool_error(GLOBAL_STATE, pool_idx, "Pool unreachable");
         esp_transport_close(transport);
         esp_transport_destroy(transport);
         free(frame_buf);
@@ -522,7 +494,7 @@ esp_err_t stratum_v2_run(GlobalState *GLOBAL_STATE, uint16_t pool_idx)
     sv2_noise_ctx_t *noise_ctx = sv2_noise_create();
     if (!noise_ctx) {
         ESP_LOGE(TAG, "Failed to create noise context");
-        stratum_v2_set_error(GLOBAL_STATE, pool_idx, "Internal error");
+        stratum_set_pool_error(GLOBAL_STATE, pool_idx, "Internal error");
         stratum_v2_close_connection(GLOBAL_STATE, pool_idx);
         free(frame_buf);
         free(recv_buf);
@@ -535,7 +507,7 @@ esp_err_t stratum_v2_run(GlobalState *GLOBAL_STATE, uint16_t pool_idx)
 
     if (require_auth && !has_auth) {
         ESP_LOGE(TAG, "SV2 authentication required but no authority pubkey configured, refusing to connect");
-        stratum_v2_set_error(GLOBAL_STATE, pool_idx, "Auth required - no key");
+        stratum_set_pool_error(GLOBAL_STATE, pool_idx, "Auth required - no key");
         stratum_v2_close_connection(GLOBAL_STATE, pool_idx);
         free(frame_buf);
         free(recv_buf);
@@ -550,7 +522,7 @@ esp_err_t stratum_v2_run(GlobalState *GLOBAL_STATE, uint16_t pool_idx)
 
     if (sv2_noise_handshake(noise_ctx, transport, has_auth ? auth_key : NULL) != 0) {
         ESP_LOGE(TAG, "Noise handshake failed, reconnecting...");
-        stratum_v2_set_error(GLOBAL_STATE, pool_idx, "Auth failed - check key");
+        stratum_set_pool_error(GLOBAL_STATE, pool_idx, "Auth failed - check key");
         stratum_v2_close_connection(GLOBAL_STATE, pool_idx);
         free(frame_buf);
         free(recv_buf);
@@ -584,7 +556,7 @@ esp_err_t stratum_v2_run(GlobalState *GLOBAL_STATE, uint16_t pool_idx)
                                                    "", "", setup_flags);
         if (frame_len < 0 || sv2_noise_send(noise_ctx, transport, frame_buf, frame_len) != 0) {
             ESP_LOGE(TAG, "Failed to send SetupConnection");
-            stratum_v2_set_error(GLOBAL_STATE, pool_idx, "Connection lost");
+            stratum_set_pool_error(GLOBAL_STATE, pool_idx, "Connection lost");
             stratum_v2_close_connection(GLOBAL_STATE, pool_idx);
             free(frame_buf);
             free(recv_buf);
@@ -597,7 +569,7 @@ esp_err_t stratum_v2_run(GlobalState *GLOBAL_STATE, uint16_t pool_idx)
         if (sv2_noise_recv(noise_ctx, transport, hdr_buf, recv_buf,
                            SV2_MAX_FRAME_SIZE, &payload_len) != 0) {
             ESP_LOGE(TAG, "Failed to receive SetupConnectionSuccess");
-            stratum_v2_set_error(GLOBAL_STATE, pool_idx, "Pool not responding");
+            stratum_set_pool_error(GLOBAL_STATE, pool_idx, "Pool not responding");
             stratum_v2_close_connection(GLOBAL_STATE, pool_idx);
             free(frame_buf);
             free(recv_buf);
@@ -607,7 +579,7 @@ esp_err_t stratum_v2_run(GlobalState *GLOBAL_STATE, uint16_t pool_idx)
 
         if (hdr.msg_type != SV2_MSG_SETUP_CONNECTION_SUCCESS) {
             ESP_LOGE(TAG, "SetupConnection rejected by pool (msg_type=0x%02x)", hdr.msg_type);
-            stratum_v2_set_error(GLOBAL_STATE, pool_idx, "Pool rejected config");
+            stratum_set_pool_error(GLOBAL_STATE, pool_idx, "Pool rejected config");
             stratum_v2_close_connection(GLOBAL_STATE, pool_idx);
             free(frame_buf);
             free(recv_buf);
@@ -618,7 +590,7 @@ esp_err_t stratum_v2_run(GlobalState *GLOBAL_STATE, uint16_t pool_idx)
         uint32_t flags;
         if (sv2_parse_setup_connection_success(recv_buf, payload_len, &used_version, &flags) != 0) {
             ESP_LOGE(TAG, "Failed to parse SetupConnectionSuccess");
-            stratum_v2_set_error(GLOBAL_STATE, pool_idx, "Protocol parse error");
+            stratum_set_pool_error(GLOBAL_STATE, pool_idx, "Protocol parse error");
             stratum_v2_close_connection(GLOBAL_STATE, pool_idx);
             free(frame_buf);
             free(recv_buf);
@@ -627,7 +599,7 @@ esp_err_t stratum_v2_run(GlobalState *GLOBAL_STATE, uint16_t pool_idx)
 
         if (!sv2_setup_success_allows_version_rolling(flags)) {
             ESP_LOGE(TAG, "Pool requires fixed version, but miner hardware requires version rolling");
-            stratum_v2_set_error(GLOBAL_STATE, pool_idx, "Fixed version unsupported");
+            stratum_set_pool_error(GLOBAL_STATE, pool_idx, "Fixed version unsupported");
             stratum_v2_close_connection(GLOBAL_STATE, pool_idx);
             free(frame_buf);
             free(recv_buf);
@@ -655,7 +627,7 @@ esp_err_t stratum_v2_run(GlobalState *GLOBAL_STATE, uint16_t pool_idx)
 
         if (frame_len < 0 || sv2_noise_send(noise_ctx, transport, frame_buf, frame_len) != 0) {
             ESP_LOGE(TAG, "Failed to send OpenMiningChannel");
-            stratum_v2_set_error(GLOBAL_STATE, pool_idx, "Connection lost");
+            stratum_set_pool_error(GLOBAL_STATE, pool_idx, "Connection lost");
             stratum_v2_close_connection(GLOBAL_STATE, pool_idx);
             free(frame_buf);
             free(recv_buf);
@@ -668,7 +640,7 @@ esp_err_t stratum_v2_run(GlobalState *GLOBAL_STATE, uint16_t pool_idx)
         if (sv2_noise_recv(noise_ctx, transport, hdr_buf, recv_buf,
                            SV2_MAX_FRAME_SIZE, &payload_len) != 0) {
             ESP_LOGE(TAG, "Failed to receive OpenChannelSuccess");
-            stratum_v2_set_error(GLOBAL_STATE, pool_idx, "Pool not responding");
+            stratum_set_pool_error(GLOBAL_STATE, pool_idx, "Pool not responding");
             stratum_v2_close_connection(GLOBAL_STATE, pool_idx);
             free(frame_buf);
             free(recv_buf);
@@ -683,7 +655,7 @@ esp_err_t stratum_v2_run(GlobalState *GLOBAL_STATE, uint16_t pool_idx)
         if (hdr.msg_type != expected_msg) {
             ESP_LOGE(TAG, "OpenChannel rejected by pool (msg_type=0x%02x, expected=0x%02x)",
                      hdr.msg_type, expected_msg);
-            stratum_v2_set_error(GLOBAL_STATE, pool_idx, "Pool rejected miner");
+            stratum_set_pool_error(GLOBAL_STATE, pool_idx, "Pool rejected miner");
             stratum_v2_close_connection(GLOBAL_STATE, pool_idx);
             free(frame_buf);
             free(recv_buf);
@@ -704,7 +676,7 @@ esp_err_t stratum_v2_run(GlobalState *GLOBAL_STATE, uint16_t pool_idx)
                                                         extranonce_prefix, &extranonce_prefix_len,
                                                         &group_channel_id) != 0) {
                 ESP_LOGE(TAG, "Failed to parse OpenExtendedChannelSuccess");
-                stratum_v2_set_error(GLOBAL_STATE, pool_idx, "Protocol parse error");
+                stratum_set_pool_error(GLOBAL_STATE, pool_idx, "Protocol parse error");
                 stratum_v2_close_connection(GLOBAL_STATE, pool_idx);
                 free(frame_buf);
                 free(recv_buf);
@@ -726,7 +698,7 @@ esp_err_t stratum_v2_run(GlobalState *GLOBAL_STATE, uint16_t pool_idx)
                                                 extranonce_prefix, &extranonce_prefix_len,
                                                 &group_channel_id) != 0) {
                 ESP_LOGE(TAG, "Failed to parse OpenChannelSuccess");
-                stratum_v2_set_error(GLOBAL_STATE, pool_idx, "Protocol parse error");
+                stratum_set_pool_error(GLOBAL_STATE, pool_idx, "Protocol parse error");
                 stratum_v2_close_connection(GLOBAL_STATE, pool_idx);
                 free(frame_buf);
                 free(recv_buf);
@@ -778,7 +750,7 @@ esp_err_t stratum_v2_run(GlobalState *GLOBAL_STATE, uint16_t pool_idx)
                 run_result = ESP_OK;
             } else {
                 ESP_LOGE(TAG, "Failed to receive frame, reconnecting...");
-                stratum_v2_set_error(GLOBAL_STATE, pool_idx, "Connection lost");
+                stratum_set_pool_error(GLOBAL_STATE, pool_idx, "Connection lost");
                 run_result = ESP_FAIL;
             }
             break;

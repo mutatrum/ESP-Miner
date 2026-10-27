@@ -20,41 +20,11 @@
 #include "freertos/task.h"
 #include "stratum_timing.h"
 #include "difficulty_controller.h"
-
-#define PROBE_RECV_BUFFER_SIZE 2048
-
 static const char *TAG = "stratum_v1";
 
 static sv1_conn_t *s_v1_conns[MAX_POOLS] = {0};
 static pthread_mutex_t s_v1_conn_mutex = PTHREAD_MUTEX_INITIALIZER;
 static stratum_timing_tracker_t s_v1_timings[MAX_POOLS] = {0};
-
-static inline void stratum_v1_check_primary_handover(GlobalState *GLOBAL_STATE, sv1_conn_t *conn)
-{
-    if (conn->pool_idx == GLOBAL_STATE->SYSTEM_MODULE.primary_pool_index &&
-        GLOBAL_STATE->SYSTEM_MODULE.is_using_fallback &&
-        !GLOBAL_STATE->SYSTEM_MODULE.use_fallback_stratum) {
-        ESP_LOGI(TAG, "Primary pool %u received work! Switching from fallback.", conn->pool_idx);
-        GLOBAL_STATE->SYSTEM_MODULE.is_using_fallback = false;
-        GLOBAL_STATE->SYSTEM_MODULE.primary_pool_error[0] = '\0';
-        uint16_t sec_idx = GLOBAL_STATE->SYSTEM_MODULE.secondary_pool_index;
-        stratum_abort_pool(sec_idx);
-    }
-}
-
-static void stratum_v1_set_error(GlobalState *GLOBAL_STATE, uint16_t pool_idx, const char *err_msg)
-{
-    if (!GLOBAL_STATE) return;
-    if (GLOBAL_STATE->SYSTEM_MODULE.is_using_fallback &&
-        pool_idx == GLOBAL_STATE->SYSTEM_MODULE.primary_pool_index) {
-        strlcpy(GLOBAL_STATE->SYSTEM_MODULE.primary_pool_error, err_msg,
-                sizeof(GLOBAL_STATE->SYSTEM_MODULE.primary_pool_error));
-    } else {
-        strlcpy(GLOBAL_STATE->SYSTEM_MODULE.pool_connection_info, err_msg,
-                sizeof(GLOBAL_STATE->SYSTEM_MODULE.pool_connection_info));
-    }
-}
-
 static bool add_active_job_id(char active_job_ids[][MAX_JOB_ID_LEN], int *count, const char *job_id)
 {
     for (int i = 0; i < *count; i++) {
@@ -230,7 +200,7 @@ esp_err_t stratum_v1_run(GlobalState *GLOBAL_STATE, uint16_t pool_idx)
     stratum_connection_info_t conn_info;
     if (stratum_socket_resolve(stratum_url, port, &conn_info) != ESP_OK) {
         ESP_LOGE(TAG, "Address resolution failed for %s", stratum_url);
-        stratum_v1_set_error(GLOBAL_STATE, pool_idx, "Pool unreachable");
+        stratum_set_pool_error(GLOBAL_STATE, pool_idx, "Pool unreachable");
         stratum_v1_close_connection(GLOBAL_STATE, pool_idx);
         return ESP_FAIL;
     }
@@ -240,7 +210,7 @@ esp_err_t stratum_v1_run(GlobalState *GLOBAL_STATE, uint16_t pool_idx)
     esp_transport_handle_t transport = STRATUM_V1_transport_init(tls, cert_buf[0] ? cert_buf : NULL);
     if (!transport) {
         ESP_LOGE(TAG, "Transport initialization failed.");
-        stratum_v1_set_error(GLOBAL_STATE, pool_idx, "Internal error");
+        stratum_set_pool_error(GLOBAL_STATE, pool_idx, "Internal error");
         stratum_v1_close_connection(GLOBAL_STATE, pool_idx);
         return ESP_FAIL;
     }
@@ -252,7 +222,7 @@ esp_err_t stratum_v1_run(GlobalState *GLOBAL_STATE, uint16_t pool_idx)
     esp_err_t ret = esp_transport_connect(transport, conn_info.host_ip, port, TRANSPORT_TIMEOUT_MS);
     if (ret != ESP_OK) {
         ESP_LOGE(TAG, "Transport unable to connect to %s:%d (errno %d)", stratum_url, port, ret);
-        stratum_v1_set_error(GLOBAL_STATE, pool_idx, "Connection failed");
+        stratum_set_pool_error(GLOBAL_STATE, pool_idx, "Connection failed");
         esp_transport_close(transport);
         esp_transport_destroy(transport);
         conn->transport = NULL;
@@ -314,7 +284,7 @@ esp_err_t stratum_v1_run(GlobalState *GLOBAL_STATE, uint16_t pool_idx)
                 run_result = ESP_OK;
             } else {
                 ESP_LOGE(TAG, "Failed to receive JSON-RPC line, reconnecting...");
-                stratum_v1_set_error(GLOBAL_STATE, pool_idx, "Connection lost");
+                stratum_set_pool_error(GLOBAL_STATE, pool_idx, "Connection lost");
                 run_result = ESP_FAIL;
             }
             break;
@@ -350,7 +320,7 @@ esp_err_t stratum_v1_run(GlobalState *GLOBAL_STATE, uint16_t pool_idx)
                     ESP_LOGW(TAG, "Ignoring duplicate notify for job %s", target_job->job_id);
                 } else {
                     GLOBAL_STATE->SYSTEM_MODULE.work_received++;
-                    stratum_v1_check_primary_handover(GLOBAL_STATE, conn);
+                    stratum_check_primary_handover(GLOBAL_STATE, conn->pool_idx);
                     SYSTEM_notify_new_ntime(GLOBAL_STATE, target_job->ntime);
 
                     target_job->pool_id = (uint8_t)pool_idx;
@@ -423,7 +393,7 @@ esp_err_t stratum_v1_run(GlobalState *GLOBAL_STATE, uint16_t pool_idx)
 
             case CLIENT_RECONNECT:
                 ESP_LOGW(TAG, "Pool requested client reconnect, pausing 1s before reconnecting...");
-                stratum_v1_set_error(GLOBAL_STATE, pool_idx, "Pool requested reconnect");
+                stratum_set_pool_error(GLOBAL_STATE, pool_idx, "Pool requested reconnect");
                 vTaskDelay(pdMS_TO_TICKS(1000));
                 reconnect_requested = true;
                 break;
@@ -470,11 +440,11 @@ esp_err_t stratum_v1_run(GlobalState *GLOBAL_STATE, uint16_t pool_idx)
                     } else {
                         ESP_LOGE(TAG, "setup message rejected: %s", v1_msg.error_str);
                         if (v1_msg.message_id == authorize_message_id) {
-                            stratum_v1_set_error(GLOBAL_STATE, pool_idx, "Auth rejected");
+                            stratum_set_pool_error(GLOBAL_STATE, pool_idx, "Auth rejected");
                         } else if (v1_msg.message_id == subscribe_message_id) {
-                            stratum_v1_set_error(GLOBAL_STATE, pool_idx, "Subscribe rejected");
+                            stratum_set_pool_error(GLOBAL_STATE, pool_idx, "Subscribe rejected");
                         } else {
-                            stratum_v1_set_error(GLOBAL_STATE, pool_idx, "Setup rejected");
+                            stratum_set_pool_error(GLOBAL_STATE, pool_idx, "Setup rejected");
                         }
                     }
                 } else if (v1_msg.message_id > 0) {
