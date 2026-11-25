@@ -54,9 +54,10 @@ static const probe_step_cfg_t PROBE_STEPS[] = {
     { "baseline_1EB5",  0x00001EB5, 0xFF00C100, 0x04,  250 },
     { "hcn_9000_lt8",   0x00009000, 0xFF00C100, 0x04, 2000 },
     { "hcn_C000_gt8",   0x0000C000, 0xFF00C100, 0x04, 2000 },
-    { "hcn_9C932_128",  0x0009C932, 0xFF00C100, 0x04, 2000 },
+    { "hcn_2145A_432c", 0x0002145A, 0xFF00C100, 0x04, 2000 },
     { "misc_F000C100",  0x00001EB5, 0xF000C100, 0x04,  250 },
-    { "core0D_00",      0x00001EB5, 0xFF00C100, 0x00,  250 },
+    { "core0D_05",      0x00001EB5, 0xFF00C100, 0x05,  250 },
+    { "hcn_2145A_0D05", 0x0002145A, 0xFF00C100, 0x05, 2000 },
 };
 
 #define NUM_PROBE_STEPS (sizeof(PROBE_STEPS) / sizeof(PROBE_STEPS[0]))
