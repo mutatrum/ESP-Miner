@@ -174,6 +174,10 @@ float ASIC_get_asic_job_frequency_ms(GlobalState * GLOBAL_STATE, uint32_t versio
     const AsicConfig *asic = &GLOBAL_STATE->DEVICE_CONFIG.family.asic;
     int asic_count = GLOBAL_STATE->DEVICE_CONFIG.family.asic_count;
 
+    if (asic->id == BM1373 && BM1373_get_probe_job_interval_ms() > 0) {
+        return (float)BM1373_get_probe_job_interval_ms();
+    }
+
     if (asic->fixed_timeout_ms > 0) {
         return (float)asic->fixed_timeout_ms / _next_power_of_two(asic_count);
     }

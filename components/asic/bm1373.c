@@ -128,6 +128,7 @@ static uint16_t chip_nonce_address_interval;
 static uint8_t detected_chip_count;
 static uint8_t detected_voltage_domains;
 static bool frequency_write_failed;
+static volatile int probe_job_interval_ms;
 
 /// @brief
 /// @param ftdi
@@ -241,6 +242,30 @@ void BM1373_set_hash_counting_number(uint32_t hcn)
     if (!_write_broadcast(BM1372_REGISTER_HASH_COUNTING_NUMBER, hcn)) {
         ESP_LOGE(TAG, "Failed to set hash counting number");
     }
+}
+
+void BM1373_set_misc_control(uint32_t value)
+{
+    if (!_write_broadcast(BM1372_REGISTER_MISC_CONTROL, value)) {
+        ESP_LOGE(TAG, "Failed to set misc control");
+    }
+}
+
+void BM1373_set_nonce_bin_overflow(uint8_t value)
+{
+    if (!_write_core_register(BM1372_CORE_REGISTER_NONCE_BIN_OVERFLOW_CTRL, value)) {
+        ESP_LOGE(TAG, "Failed to set nonce bin overflow ctrl");
+    }
+}
+
+void BM1373_set_probe_job_interval_ms(int interval_ms)
+{
+    probe_job_interval_ms = interval_ms;
+}
+
+int BM1373_get_probe_job_interval_ms(void)
+{
+    return probe_job_interval_ms;
 }
 
 void BM1373_set_nonce_space(double nonce_percent, float frequency, uint16_t asic_count, uint16_t cores)

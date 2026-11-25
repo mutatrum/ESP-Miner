@@ -17,6 +17,8 @@
 #define scoreboard_add result_task_spy_scoreboard_add
 #define hashrate_monitor_register_read result_task_spy_register_read
 #define mining_nonce_hash result_task_fake_mining_nonce_hash
+#define BM1373_PROBE_TASK_H_
+#define bm1373_probe_record_result(r) ((void)(r))
 
 void result_task_spy_delay(TickType_t ticks);
 

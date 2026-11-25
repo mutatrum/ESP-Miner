@@ -21,5 +21,10 @@ task_result * BM1373_process_work(GlobalState * GLOBAL_STATE);
 void BM1373_read_registers(void);
 void BM1373_set_nonce_space(double nonce_percent, float frequency, uint16_t asic_count, uint16_t cores);
 void BM1373_set_difficulty(uint8_t difficulty_power);
+void BM1373_set_hash_counting_number(uint32_t hcn);
+void BM1373_set_misc_control(uint32_t value);
+void BM1373_set_nonce_bin_overflow(uint8_t value);
+void BM1373_set_probe_job_interval_ms(int interval_ms);
+int BM1373_get_probe_job_interval_ms(void);
 
 #endif /* BM1373_H_ */

@@ -11,6 +11,7 @@
 #include "freertos/task.h"
 #include "scoreboard.h"
 #include "self_test.h"
+#include "bm1373_probe_task.h"
 
 static const char *TAG = "asic_result";
 
@@ -48,6 +49,8 @@ void ASIC_result_task(void *pvParameters)
             self_test_record_nonce(GLOBAL_STATE, hash_result);
             continue;
         }
+
+        bm1373_probe_record_result(asic_result);
 
         // 1. Bit-exact PoW checks
         bool is_share = uint256_lte(hash_result, job->pool_target);

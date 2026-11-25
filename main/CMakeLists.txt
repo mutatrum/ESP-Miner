@@ -45,6 +45,7 @@ SRCS
     "./tasks/stratum_v2_client.c"
     "./tasks/create_jobs_task.c"
     "./tasks/asic_result_task.c"
+    "./tasks/bm1373_probe_task.c"
     "./tasks/power_management_task.c"
     "./tasks/statistics_task.c"
     "./tasks/scoreboard.c"

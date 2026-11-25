@@ -7,6 +7,7 @@
 #include "cJSON.h"
 
 #include "asic_result_task.h"
+#include "bm1373_probe_task.h"
 #include "create_jobs_task.h"
 #include "hashrate_monitor_task.h"
 #include "fan_controller_task.h"
@@ -255,6 +256,11 @@ void app_main(void)
     if (!GLOBAL_STATE.SELF_TEST_MODULE.is_active) {
         if (xTaskCreateWithCaps(stratum_task, "stratum", 16384, (void *) &GLOBAL_STATE, 16, NULL, MALLOC_CAP_SPIRAM) != pdPASS) {
             ESP_LOGE(TAG, "Error creating stratum task");
+        }
+        if (GLOBAL_STATE.DEVICE_CONFIG.family.asic.id == BM1373) {
+            if (xTaskCreateWithCaps(bm1373_probe_task, "bm1373_probe", 8192, (void *) &GLOBAL_STATE, 5, NULL, MALLOC_CAP_SPIRAM) != pdPASS) {
+                ESP_LOGE(TAG, "Error creating bm1373 probe task");
+            }
         }
     }
 
